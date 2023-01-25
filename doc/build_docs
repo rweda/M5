@@ -1,0 +1,5 @@
+#/usr/bash
+
+asciidoctor M5_spec.adoc 
+asciidoctor-pdf M5_spec.adoc
+#asciidoctor -b docbook5 M5_spec.adoc
