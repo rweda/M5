@@ -128,9 +128,9 @@ m4_define(['m5__block'],
    ['['m4_pushdef(['m5_block_output'], [''])m5_exec(['$1'])m5_eval(m5_defn(block_output))m4_popdef(['m5_block_output'])']'])
 m4_define(['m5__scope'],
    ['['m4_pushdef(['m5_block_output'], [''])m5__begin_scope['']m5_exec(['$1'])m5__end_scope['']m5_eval(m5_defn(block_output))m4_popdef(['m5_block_output'])']'])
-// For text blocks. Strip leading new line.
+// For text blocks. Strip leading new line (which requires a regexp, which doesn't work with \n).
 m4_define(['m5__text_block'],
-   ['m4_regex(['$1'], ['^']m5_nl['\(.*\)$'], ['['\1']'])'])
+   ['m4_regexp(m4_translit(['['$1']'], m5_nl, ['']), ['^\(.*\)$'], ['m4_translit(['['\1']'], [''], m5_nl)'])'])
 m4_define(['m5__stmt'],
    ['m4_ifelse(m4_pushdef(['m5__tmp'], m4_quote(m4_indir($@)))m4_defn(['m5__tmp']), [''], [''], ['m5__stmt_err(m4_defn(['m5__tmp']), $@)'])'])
 m4_define(['m5__stmt_err'],
