@@ -18,7 +18,9 @@
 // #############################
 // Debugging
 
+// See docs.
 m4_define(['m5_recursion_limit'], ['['300']'])
+
 m4_define(['m5__stack_depth'], ['['0']'])
 
 
@@ -28,9 +30,7 @@ m4_define(['m5_abbreviate'],
    ['...'])
 // TODO: Pull code from abbreviate_args into abbreviate. Also, make a macro to print a string, truncating a printable string and appending ....
 
-// Abbreviate the parameters by replacing long input args with ['...'].
-// Returns a quoted string of quoted args with a comma preceding every arg.
-// m5_abbreviate_args(max-args, max-arg-length, args...)
+// See docs.
 m4_define(['m5_abbreviate_args'],
    ['m5_abbreviate_args__guts([''], $@)'])
 // Guts of m5_abbreviate_args
@@ -130,7 +130,7 @@ m4_define(['m5__scope'],
    ['['m4_pushdef(['m5_block_output'], [''])m5__begin_scope['']m5_exec(['$1'])m5__end_scope['']m5_eval(m5_defn(block_output))m4_popdef(['m5_block_output'])']'])
 // For text blocks. Strip leading new line (which requires a regexp, which doesn't work with \n).
 m4_define(['m5__text_block'],
-   ['m4_regexp(m4_translit(['['$1']'], m5_nl, ['']), ['^\(.*\)$'], ['m4_translit(['['\1']'], [''], m5_nl)'])'])
+   ['m4_regexp(m4_translit(['['$1']'], m5_nl, ['']), ['^\(.*\)$'], ['m4_translit(['['\1']'], [''], m5_nl)'])'])
 m4_define(['m5__stmt'],
    ['m4_ifelse(m4_pushdef(['m5__tmp'], m4_quote(m4_indir($@)))m4_defn(['m5__tmp']), [''], [''], ['m5__stmt_err(m4_defn(['m5__tmp']), $@)'])'])
 m4_define(['m5__stmt_err'],
@@ -186,7 +186,7 @@ m4_define(['m5_quote'], ['['$@']'])
 // Introduce the given number of levels of quotes.
 // m5_nquote(2, ['one'], ['two']) is equivalent to m5_quote(m5_quote(['one'], ['two'])) is equivalent to ['['['one'],['two']']'], which all evaluate to ['['one'], ['two']'].
 m4_define(['m5_nquote'],
-   ['m4_ifelse(m4_eval(['$1 <= 1']), 1, ['m5_quote(m5_shift($@))'], ['$0(m4_eval(['$1-1']), m5_quote(m5_shift($@)))'])'])
+   ['m4_ifelse(m4_eval(['$1 <= 0']), 1, ['m5_shift($@)'], ['$0(m4_eval(['$1-1']), m5_quote(m5_shift($@)))'])'])
 
 
 // =======================
@@ -237,8 +237,8 @@ m4_define(['m5_is_null'],
 m4_define(['m5_isnt_null'],
    ['m5_must_exist(['$1'])m4_ifelse(m5_$1, [''], ['['0']'], ['['1']'])'])
 
-m4_define(['m5_append_var'], ['m5_set(['$1'], m5_$1['$2'])'])
-m4_define(['m5_prepend_var'], ['m5_set(['$1'], ['$2']m5_$1)'])
+m4_define(['m5_append_var'], ['m5_set(['$1'], m5_value_of(['$1'])['$2'])'])
+m4_define(['m5_prepend_var'], ['m5_set(['$1'], ['$2']m5_value_of(['$1']))'])
 m4_define(['m5_append_macro'], ['m4_define(['m5_$1'], m4_defn(['m5_$1'])['$2'])'])
 m4_define(['m5_prepend_macro'], ['m4_define(['m5_$1'], ['$2']m4_defn(['m5_$1']))'])
 // Concatenate strings.
@@ -292,6 +292,12 @@ m4_define(['m5_open_quote'],
 m4_define(['m5_close_quote'],
    ['m4_changequote()m5_nullify([')']m4_changequote([','])'])
 m5_pragma_enable_paren_checks
+
+// Original quotes. Using these macros is safe since the resulting "['", "']" are not interpreted as quotes.
+m4_define(['m5_orig_open_quote'],
+   ['m4_changequote(<,>)<[><'>m4_changequote([','])'])
+m4_define(['m5_orig_close_quote'],
+   ['['''][']']'])
 
 
 /// Use of control characters (surrogates) by M5.
@@ -349,6 +355,10 @@ m4_define(['m5_printable_close_quote'], ['['⌉']'])
 // Substitute control-character quotes for printable UTF-8 quotes.
 m4_define(['m5_printable'],
    ['m4_patsubst(m4_patsubst(m5_nquote(2, m5_dequote(['$1'])), [''], m5_printable_open_quote), [''], m5_printable_close_quote)'])
+
+// Output a literal $1 with control-character quotes and printable quotes replaced by their original format (['']).
+m4_define(['m5_output_with_restored_quotes'],
+   ['m4_pushdef(['m4_tmp'], m5_printable(['$1']))m4_patsubst(m4_patsubst(m5_nquote(2, m4_defn(['m4_tmp'])), m5_printable_open_quote, m5_orig_open_quote), m5_printable_close_quote, m5_orig_close_quote)m4_popdef(['m4_tmp'])'])
 
 
 // Make sure string has no quotes.
@@ -431,6 +441,7 @@ m4_define(['m5__declare_body'],
 m4_define(['m5__declare_push_body'],
    ['['m4_pushdef(['m5_']']m4_arg(1)[', ['$1'])']m4_ifelse(['$2'], [''], [''], ['['m4_ifelse(m4_eval(']']m4_arg(#)['[' == 3), 1, ['m5_error(['$2 called with an odd number of arguments.'])'])m4_ifelse(m4_eval(']']m4_arg(#)['[' > 2), 1, ['m5_$2(m4_shift(m4_shift(']']']m4_dquote(m4_arg(@))['['[')))'])']'])'])
 
+/**
 // A pre-filter for declaration macros to quickly recognize whether a declaration might have a colon comment.
 //  $1: {variable/macro/function} declaration type
 //  $2: declared name with optional comment
@@ -459,6 +470,7 @@ m4_define(['m5__declare_guts'],
 // A scoped declaration's pop expression.
 m4_define(['m5__declare_end'],
    ['m5_prepend_macro(_end_scope_expr, ['m4_popdef(['$1'])'])'])
+**/
 
 
 // Push a macro definition.
@@ -481,9 +493,12 @@ m4_define(['m5__pop_push'],
 // =======================
 // Variables
 
-// Define a scoped variable with a quoted definition.
+// Declare a scoped variable with a quoted definition.
 m4_define(['m5_var'],
    m5__declare_body(m4_arg(2), var))
+// Declare a universal variable.
+m4_define(['m5_universal_var'],
+   ['m4_ifdef(['m5_$1'], ['m5_error(['Redefining m5_$1.'])'])m4_define(['m5_$1'], ['['$2']'])'])
 // Set a variable that has already been declared. E.g. m5_set(var, value).
 m4_define(['m5_set'],
    ['m4_ifelse(m4_eval(['$# < 2']), 1,
@@ -496,6 +511,15 @@ m4_define(['m5_pop'],
    ['m4_popdef(['$1'])m4_ifelse($2, [''], [''], ['m5_pop'])'])
 
 // TODO: Define m5_var_str and m5_set_str.
+// Convert var to string (enabling it to be accessed directly without $-substitutions by dequoting "$"s).
+// The variable's value should contain no quotes.
+//   $1: the variable to stringify.
+m4_define(['m5_stringify'],
+   ['m5_set_macro(['$1'], m4_patsubst(m4_dquote(m4_defn(['m5_$1'])), ['\$'], ['$']m5_close_quote()m5_open_quote()))'])
+m4_define(['m5_var_str'],
+   ['m5_var(['$1'], ['$2'])m5_stringify(['$1'])'])
+m4_define(['m5_set_str'],
+   ['m5_set(['$1'], ['$2'])m5_stringify(['$1'])'])
 
 // Set a variable if it is empty.
 m4_define(['m5_default'],
@@ -526,7 +550,8 @@ m4_define(['m5_macro'],
    m5__declare_body($['']2['['']'], ['']))
 
 m4_define(['m5_set_macro'],
-   ['m4_popdef(['m5_$1'])m5_macro(['$1'], ['$2'])'])
+   ['m4_ifelse(m4_eval(['$# < 2']), 1,
+               ['m5_error(['$0 given an odd number of arguments (or none).'])'])m4_ifdef(['m5_$1'], [''], ['m5_error(['Setting an undefined variable "$1".'])'])m4_define(['m5_$1'], ['$2'])'])
 
 // m5_inline_macro(name, ['<body>'])
 // A variant of m5_macro where the expansion is not separated from the subsequent text. (See M5 spec.)
@@ -540,7 +565,7 @@ m4_define(['m5_null_macro'],
    m5__declare_body(['m5__null($']['2)'], ['']))
 // Explicitly pushed/popped macro (use should be rare). Inline/null versions not defined.
 m4_define(['m5_push_macro'],
-   m5__declare_push_body(m4_arg(2), push_macro))
+   m5__declare_push_body(m4_dollar(2), push_macro))
 
 
 // \m5 region results in m5_region(['...']).
@@ -590,7 +615,7 @@ m4_define(['m5__region'],
 // TODO: This could also be accomplished by popping aftermath into a temp, then pushing it after the call.
 //       This would be consistent with the above todo.
 m4_define(['m5_eval_body_arg'],
-   ['m4_pushdef(['m5_fn__aftermath'], [''])['$2']m5_on_return(m5_fn__aftermath)m4_popdef(['m5_fn__aftermath'])'])
+   ['m4_pushdef(['m5_fn__aftermath'], [''])['$2']m5_on_return(m5_value_of(fn__aftermath))m4_popdef(['m5_fn__aftermath'])'])
 
 
 // Return values (in addition to the output text of the block):
@@ -608,15 +633,16 @@ m4_define(['m5_on_return'], ['m5_append_macro(fn__aftermath, ['m5_call($@)'])'])
 
 
 // Evaluate $1 that should not produce any output other than whitespace and comments. No output is produced, and an error is reported if the evaluation was non-empty.
-m4_define(['m5_exec'], ['m4_pushdef(['m4__out'], m4_patsubst(m4_dquote(m4_joinall([','], $1)), ['\(\s\|//[^']m4_nl]*m4_nl['\)'], ['']))m4_ifelse(m4_defn(['m4__out']), [''], [''], ['m4_warning(['Block contained the following unprocessed text: "']m4_defn(['m4__out'])['"'])'])m4_popdef(['m4__out'])'])
+m4_define(['m5_exec'],
+   ['m4_pushdef(['m4__out'], m4_patsubst(m4_dquote(m4_joinall([','], $1)), ['\(\s\|//[^']m4_nl]*m4_nl['\)'], ['']))m4_ifelse(m4_defn(['m4__out']), [''], [''], ['m4_warning(['Block contained the following unprocessed text: "']m4_defn(['m4__out'])['"'])'])m4_popdef(['m4__out'])'])
 
+
+/// m5_fn uses this for the definitions it creates (function and its body).
+/// It is used by m5_doc_as_fn to configure m5_fn for docs with low overhead.
+m4_define(['m5__fn_def'], m4_defn(['m4_pushdef']))
 
 // m5_fn(...)
 // See docs.
-//
-// TODO: Add recursion (call depth) limit.
-// TODO: *param has masking issues. Deprecate it in favor of m5_*return*.
-// TODO: Add fn to end_scope_expr.
 //
 // Implementation comments:
 //
@@ -638,8 +664,8 @@ m4_define(['m5_exec'], ['m4_pushdef(['m4__out'], m4_patsubst(m4_dquote(m4_joinal
 m5_pragma_disable_paren_checks
 m5_null_macro(fn, ['
       // Initialize for recursive arg processing.
-      m4_pushdef(['m5__param'],             ['['$1']'])  /// used for func_name comment extraction
-      m4_pushdef(['m5_func_name'],         m4_regexp(['$1'], ['^\(\w*\)'], ['['\1']']))
+      m4_ifelse(m4_index(['$1'], :), -1, [''], ['m5_error(['Function with a comment is deprecated: $1'])'])
+      m4_pushdef(['m5_func_name'],         m4_regexp(['$1'], ['^\(\w*\)'], ['['\1']']))   /// TODO: Remove support for function comments (not param comments) (for better lazy performance).
       m4_pushdef(['m4_push_named_args'],   ['['']'])
       m4_pushdef(['m4_dollar_args'],       ['['']'])
       m4_pushdef(['m4_varargs'],           ['['m4_dollar(@)']'])
@@ -652,15 +678,14 @@ m5_null_macro(fn, ['
       m4_pushdef(['m4_required_arg_cnt'],  0)
       m4_define(['m4_fn__has_inherited'],  0)  /// A global, checked by lazy_fn after it constructs the function.
 
-      m4_func_doc_begin()
-      m4_popdef(['m5__param'])
+      m5_doc_fn__begin()
       
       // Recurse, processing params, and capturing body.
       m4_ifelse(m4_eval($# > 1), 1, ['m5_fn__recurse(m4_shift($@))'])
       // Process body.
       // Declare the function.
       /// TODO: Change m4_pushdef to m5_macro
-      m4_pushdef(['m5_']m5_func_name,
+      m5__fn_def(['m5_']m5_func_name,
                 m5__concat(
                  ['m4_pushdef(['m5_status'], [''])'],   /// Give function its own status, so we can restore status on return.
                  ['m4_pushdef(['m5_fn__aftermath'],['m4_popdef(['m5_fn__aftermath'])['']'])'],
@@ -678,10 +703,7 @@ m5_null_macro(fn, ['
                  ['m4_popdef(['m5_status'])'],
                  ['m5_eval(m4_defn(['m5_fn__aftermath']))'],   /// Eval aftermath (without numbered parameter substitution). Note that aftermath pops itself first, so aftermath happens in the parent context.
                  ['']))
-      // TODO: Temporary, during conversion from m4_.
-      m4_pushdef(['m4_']m5_func_name, m4_defn(['m5_']m5_func_name))
-      
-      m4_func_doc_end()
+      m5_doc_fn__end()
       
       // Pop.
       m4_popdef(['m5_func_name'])
@@ -698,14 +720,12 @@ m5_null_macro(fn, ['
 '])
 m5_pragma_enable_paren_checks
 
-// Helper for m4__func that strips a parameter comment.
-// $1: name of commented entity.
-m4_define(['m5_func__param_comment'], ['
-   m4_ifelse(m5_extract_prefix_regex([': ?'], _param), [''], ['
-      // No comment. Should be nothing left.
+// Helper for m5_fn that verifies that any text after parameter name is a comment.
+m4_define(['m5_fn__param_comment'], ['
+   m4_ifelse(m4_index(m5__param, [':']), 0, [''], ['
+      // No colon to strip. Should be no comment.
       m4_ifelse(m5__param, [''], [''], ['
          m5_error(['In declaration of function "']m5_func_name['", $1 contains unrecognized text "']m5__param['".'])
-         m4_define(['m5__param'], [''])
       '])
    '])
 '])
@@ -720,7 +740,7 @@ m4_define(
    ['m5_fn__recurse'],
    ['m4_ifelse(
       m4_eval($# <= 1), 1,
-      ['m4_pushdef(['m4_']m5_func_name['__body'], ['m4_pushdef(['m5_fn_args'], ']m4_arg(@)[')$1['']m4_popdef(['m5_fn_args'])'])'],
+      ['m5__fn_def(['m4_']m5_func_name['__body'], ['m4_pushdef(['m5_fn_args'], ']m4_arg(@)[')$1['']m4_popdef(['m5_fn_args'])'])'],
       ['m4_ifelse(['$1'], [''],
                   ['m5_error(['In declaration of function ']m5_func_name[', empty function argument no longer permitted.'])'],
                   ['// First, look for ['...'].
@@ -728,22 +748,22 @@ m4_define(
                     m4_ifelse(m5_extract_prefix_eval(..., _param), ['...'], ['
                        m4_define(['m4_extra_args'], ['['[', ']']']m4_defn(['m4_varargs']))
                        m4_define(['m5__param_name'], ...)
-                       m5_func__param_comment(['parameter "..."'])
                        m5_def(out_var_prefix, [''])
                        m4_def(optional_prefix, [''], cnt_prefix, [''])
-                       m4_func_doc_param()
+                       m5_fn__param_comment(['parameter "..."'])
+                       m5_doc_fn__param()
                     '], ['
                        // Extract possible '*', '?', '[<number>]', and/or '^' prefixes from argument value.
                        // TODO: These should be pushdef/popdef:
-                       m5_def(out_var_prefix, m5_extract_prefix_eval(*, _param))
+                       m5_def(out_var_prefix, m5_extract_prefix_eval(*, _param))  /// Deprecated.
                        m4_def(optional_prefix, m5_extract_prefix_eval(?, _param))
                        m4_def(cnt_prefix, [''])
                        m4_regexp(m5__param, ['^\[\([0-9]+\)\]\(.*\)'], ['m4_def(cnt_prefix, ['\1'])m4_define(['m5__param'], ['\2'])'])
                        m4_def(inherit_prefix, m5_extract_prefix_eval(^, _param))
                        m4_define(['m5__param_name'], m5_extract_prefix_regex(['\w*'], _param))
-                       m5_func__param_comment(['parameter "']m5__param_name['"'])
+                       m5_fn__param_comment(['parameter "']m5__param_name['"'])   /// TODO: This should only be done in debug mode.
                        // Done processing m5__param. It's value is now its comment.
-                       // * can't be combined with other prefixes.
+                       // * can't be combined with other prefixes.  TODO: * is deprecated.
                        m4_ifelse(m5_out_var_prefix, ['*'], ['m4_ifelse(m4_optional_prefix['']m4_cnt_prefix['']m4_inherit_prefix, [''], [''], ['m5_error(['Output parameter "']m5__param_name['" of function ']m5_func_name[' shouldn't have other prefix symbols.'])'])'])
                        // The parameter name or number for error messages.
                        m4_define(['m5__param_tag'], m4_ifelse(m5__param_name, [''], m4_cnt_prefix, m5__param_name))
@@ -756,7 +776,7 @@ m4_define(
                                    m4_ifelse(m4_optional_prefix, [''], ['m4_ifdef(['m5_']m5__param_name, [''], ['m5_error(['In declaration of function ']m5_func_name[', non-optional, inherited parameter ']m5__param_name[' is undefined.']m5_nl[''])'])'])'],
                                  ['// This parameter corresponds to an argument.
                                    // Document it.
-                                   m4_func_doc_param()
+                                   m5_doc_fn__param()
                                    m4_ifelse(m4_optional_prefix, ?,
                                              ['m4_define(['m4_optional_found'], 1)'],
                                              ['// Required.
@@ -777,7 +797,7 @@ m4_define(
                                                                        ['['m4_arg(']m4_arg_cnt[')']'])))
                        // If this param is named, calls must push its value, quoted if (not ^) and proc.
                        m4_ifelse(m5__param_name, [''], [''], ['
-                          m4_ifelse(m5_out_var_prefix, *, ['
+                          m4_ifelse(m5_out_var_prefix, *, ['    /// TODO: * is deprecated.
                              /// Outputs are initialized by pushing their current value (or [''] if undefined), and finalized by copying into a new var named according to the argument.
                              m4_append(push_named_args, ['['m4_pushdef(['m5_']']']m5__param_name['[', m5_defn(['m5_']']']m4_func_arg['['))']'])
                              m4_append(assign_outputs, ['['m5_var(']']m4_func_arg['[', m5_']']m5__param_name['[')m4_popdef(['m5_']']']m5__param_name['[')']'])
@@ -816,9 +836,9 @@ m4_define(
 // The maker is given a globally unique name to simplify maintaining its association with this function given
 // that this function can be on a stack, and the stack can contain a mix of lazy and non-lazy functions.
 m4_define(['m5_lazy_fn'],
-   ['m4_ifelse(['need_docs'], ['yes'],    /// TODO: update this to indicate whether we are building docs.
-      ['m5_fn($@)'],  /// Don't be lazy if we're creating docs.
-      ['m5_lazy_fn__guts(m4_regexp(['$1'], ['^\(\w*\)'], ['['\1']']), m4_shift($@))'])'])   /// Strip docs from function name.
+   m4_ifelse(m5_need_docs, ['yes'],   /// Defined prior to including library if docs are to be enabled.
+      ['['m5_fn($@)']'],  /// Don't be lazy if we're creating docs.
+      ['['m5_lazy_fn__guts(m4_regexp(['$1'], ['^\(\w*\)'], ['['\1']']), m4_shift($@))']']))   /// Strip docs from function name.
 // Guts of m5_lazy_fn for non-documenation case.
 // Same args as m5_lazy_fn, but without docs on function name.
 m4_define(['m5_lazy_fn__guts'],
@@ -859,6 +879,9 @@ m4_define(['m5_comma_shift'],
           [''],
           [', m5_shift($@)'])'])
 
+// Return the arguments. (Useful for processing parameters that are parenthesized argument lists.)
+m4_define(['m5_args'], ['$@'])
+
 // Verify that a macro has a minimum number of arguments.
 // m5_verify_min_args(my_fn, 2, $#)
 m4_define(['m5_verify_min_args'],
@@ -868,6 +891,11 @@ m4_define(['m5_verify_min_args'],
 m4_define(['m5_verify_num_args'],
    ['m4_ifelse(m5_calc(['$3'] != ['$2']), 1, ['m5_error(['$1 requires $2 arguments; given $3.'])'])'])
 
+// Convert a quoted argument list to a list of arguments with a preceding comma.
+// This is necessary to properly deal with zero arguments.
+// E.g. m5_call(first['']m5_comma_args(['$@']), last)
+m4_define(['m5_comma_args'],
+   ['m4_ifelse(['$1'], [''], [''], [', $1'])'])
 // m5_call_varargs(my_fn, arg1, ['$@'])
 // M4 syntax for argument lists is inconvenient for passing zero arguments.
 // This variant of m5_call has a final argument that is a list of 0 or more arguments.
@@ -899,7 +927,8 @@ m4_define(['m5_regex'],
    ['m4_regexp(['$1'], ['$2']m4_ifelse(m5_calc($# > 2), 1, [', m5_open_quote['$3']m5_close_quote']))'])
 
 \m5
-lazy_fn(null_vars: Declare variables initialized with [''] values.,
+/// Declare variables initialized with [''] values.
+lazy_fn(null_vars,
    ...: list of variable names to declare,
 [
    if($# > 0, [
@@ -908,12 +937,13 @@ lazy_fn(null_vars: Declare variables initialized with [''] values.,
    ])
 ])
 
+// Declare variables assigned to subexpressions of a regular expression. Assign `status`, non-empty iff no match.
 // TODO: Surround with \(\), and increment \#s in var_regex__match_str. This should be functionally equivalent,
 //       but avoid M4 error if no match expressions. Also need to prevent () arg list from looking like a single null arg name.
 //       Also, improve on this. Since there is not lazy match, it's hard to get preceding text. Do this by
 //       adding \(.*\)$ only if no $ and surround this updated expression with \(\) assign the .* pattern to
 //       m5_post; then compute m5_pre based on the length of the surrounding match. This is compute-heavy. 
-lazy_fn(var_regex: ['Declare variables assigned to subexpressions of a regular expression. Assign `status`, non-empty iff no match.'],
+lazy_fn(var_regex,
    string: the string to match,
    re: the Gnu Emacs regular expression,
    var_list: a list in parentheses of variables to declare for subexpressions,
@@ -922,15 +952,16 @@ lazy_fn(var_regex: ['Declare variables assigned to subexpressions of a regular e
    if_eq(m4_regexp(m5_var_list, ['^(.*)$']), ['-1'], ['m5_fatal_error(['Malformed argument var_list for function var_regex should be a list in parentheses. Value is "']m5_var_list['".'])'])
    var(exp_cnt, 0)  /// Count of regexp expressions.
    /// The function result for evaluation.
-   var(rslt_expr, m4_regexp(m5_string, m5_re, ['['['']']']m5_quote(m5_eval(['m5_var_regex__match_str']m5_var_list))))   /// ['['['']']'] ensures non-empty if matched.
-   if_eq(m5_rslt_expr, [''], [
+   var(rslt_expr, m4_regexp(m5_value_of(string), m5_value_of(re), ['['['']']']m5_quote(m5_eval(['m5_var_regex__match_str']m5_var_list))))   /// ['['['']']'] ensures non-empty if matched.
+   if_null(rslt_expr, [
       set(rslt_expr, ['m5_null_vars$1'])
       return_status(no-match)
    ], [
       return_status()
    ])
    // TODO: Use m5_on_return now.
-   ~eval_out(m5_rslt_expr)
+   ~eval_out(m5_value_of(rslt_expr))
+   ///on_return(eval, m5_value_of(rslt_expr)))
 })
 
 // Process arguments to produce replacement string. E.g.
@@ -945,11 +976,12 @@ lazy_fn(var_regex__match_str, ..., [
    ])
 ])
 
+// For chaining var_regex to parse text that could match a number of formats.
+// Each pattern match is in its own scope. Return status is non-null if no expression matched.
 // TODO: It's not okay to call a body from a function. on_return/return_status will return status from
 //       this function, not from the funtion that calls this. Maybe we need a version of fn that doesn't
 //       do aftermath (though this one needs it)?? Others are similar.
-lazy_fn(if_regex: ['For chaining var_regex to parse text that could match a number of formats.
-                    Each pattern match is in its own scope. Return status is non-null if no expression matched.'],
+lazy_fn(if_regex,
    string: the string to match,
    re: the Gnu Emacs regular expression,
    var_list: a list in parentheses of variables to declare for subexpressions,
@@ -957,12 +989,12 @@ lazy_fn(if_regex: ['For chaining var_regex to parse text that could match a numb
    ...: ['additional repeated re, var_list, body, ... to process if pattern doesn't match'],
 {
    return_status([''])  /// default
-   var_regex(m5_string, m5_re, m5_var_list)
+   var_regex(m5_value_of(string), m5_value_of(re), m5_var_list)
    ~if_so(['m5_eval(m5_body)'])   /// TODO: Use m5_eval_body_arg.
    ~else_if($# == 1, ['$1'])  /// else body
    ~else_if($# > 1, [
       /// recurse
-      ~if_regex(m5_string, $@)
+      ~if_regex(m5_value_of(string), $@)
       /// propagate status
       return_status(m5_status)
    ])
@@ -981,30 +1013,32 @@ macro(else_if_status,
    ['m4_ifelse(m5_status, [''], [''], ['m5_if_status($@)'])'])
 
 
-lazy_fn(for_each_regex: ['Evaluate body for every pattern matching regex in the string. m5_status is unassigned.'],
+// Evaluate body for every pattern matching regex in the string. m5_status is unassigned.
+lazy_fn(for_each_regex,
    string: the string to match (containing at least one subexpression and no `$`),
    re: the Gnu Emacs regular expression,
    [1]var_list: a (non-empty) list in parentheses of variables to declare for subexpressions,
    body: the body to evaluate for each matching expression,
 {
    macro(tmp, ['$']['@'])
-   var_regex(m5_string, m5_re['\(.*\)'], (m5_tmp$1, remainder))
+   var_regex(m5_value_of(string), m5_value_of(re)['\(.*\)'], (m5_tmp$1, remainder))
    ~eval(m5_body)    /// TODO: Use m5_eval_body_arg.
-   if_neq(m5_remainder, [''], [
-      on_return(for_each_regex, m5_remainder, m5_re, m5_var_list, m5_body)
+   if_neq(m5_value_of(remainder), [''], [
+      on_return(for_each_regex, m5_value_of(remainder), m5_value_of(re), m5_var_list, m5_body)
    ])
 })
 
 fn(for_each_line, text, body, {
    /// Regex's do weird things with \n, so substitute them first.
-   set(text, m5_translit(m5_text, m5_nl, ))
+   set(text, m5_translit(m5_value_of(text), m5_nl, ))
    /// Add a trailing \n if the last line is not empty.
-   var_regex(m5_text, ['\([^]\)$'], (dummy))
+   var_regex(m5_value_of(text), ['\([^]\)$'], (dummy))
    if_so([
-      set(text, m5_text[''])
+      set(text, m5_value_of(text)[''])
    ])
    /// For each line, eval the body.
-   ~for_each_regex(m5_text, ['^\([^]*\)'], (line), m5_body)   /// TODO: Need to get creative with m5_eval_body_arg.
+   ~on_return(for_each_regex, m5_value_of(text), ['^\([^]*\)'], (Line), ['m5_var(line, m5_value_of(Line))']m5_body)   /// TODO: Need to get creative with m5_eval_body_arg.
+   /// TODO: Above, m5_line is assigned for backward-compatibility only for risc-v_defs.tlv.
 })
 
 
@@ -1140,99 +1174,277 @@ Bodies must be bound to the caller, so body calls should pop m5_my, call, push m
 **/
 
 
+\m4
+/// Declarations of null and minimal documentation functions.
+/// m5_enable_doc can be used to enable docs.
+m4_define(['m5_null_fns'],
+   ['m4_define(['m5_$1'], m4_defn(['m4_nullify']))m4_ifelse($# > 1, 1, ['m5_null_fns(m5_shift($@))'])'])
+
+m5_null_fns(doc_fn__begin, doc_fn__begin__adoc, doc_fn__end, doc_fn__end__adoc, doc_fn__param, doc_fn__param__adoc)
+
+m4_define(['m5_doc_macro'], ['m5_call(m5_shift($@))'])
+
 // #############################
 // Auto-documentation
 
 // TODO: This should be moved into a library.
+
+/// A version of m5_fn that doesn't actually declare the function macro used to produce docs for non-function
+/// macros non-destructively.
+m4_define(['m5__doc_only_fn'], ['m4_pushdef(['m5__fn_def'], m5_defn(nullify))m5_fn($@)m4_popdef(['m5__fn_def'])'])
+
+\m5
+
+lazy_fn(indent_text_block, Ind, Text, {
+   ~for_each_line(m5_value_of(Text), [
+      ~([' ']m5_value_of(Line))
+   ])
+})
+
+// Returns a comma separated list of macros (which must be defined).
+lazy_fn(doc_macro__see_also, Macro, ..., {
+   ~if_def(Macro, [
+     ~([', `m5_']m5_Macro['`'])
+   ], [
+      error(['"See also" macro "']m5_Macro['" isn't defined.'])
+   ])
+   ~if($# >= 1, ['m5_doc_macro__see_also($@)'])
+})
+
 // Enable function prototype documentation.
 // This should be called prior to declarations.
 //
-// For AsciiDoc:
-// The function spec can be generated by calling m4_<name>__<format>(['<opt-additional-func-desc-body>']).
+// This creates public and private macros in the universal namespace (though future versions of M5 are
+// likely to move them into their own namespace).
 //
-// Function declarations call m4_func_doc_begin(<func_name>), m4_func_doc_param (repeat), and m4_func_doc_end.
-// This defines them, specific to doc format.
+// Public: doc, enable_doc
+// Private: doc_fn__*
+//
+// For AsciiDoc:
+// The function spec can be generated by calling m5_doc_macro__adoc__<name>(['<opt-additional-func-desc-body>']).
+//
+// Function declarations call m5_doc_macro (optionally), m5_doc_fn__begin(), m5_doc_fn__param() (repeat), and m5_doc_fn__end().
+// By default they are null.
+// This defines them, specific to the given doc format.
 // It also disables lazy definition by assigning lazy declaration macros to equal their non-lazy counterparts.
-m4_lazy_proc(enable_doc,
-   format,
-['
+lazy_fn(enable_doc,
+   Format,
+{
+
+   /// Translate a block of text in this format ['
+   ///  D: Removes the first argument.
+   ///  O: a list of remaining arguments, or `['']` if less than two arguments
+   ///  S:
+   ///  E: foo(m5_shift($']['@))
+   ///  A: section1 m_comma_shift
+   /// ']
+   /// into m5_doc_fn__desc/post_desc.
+   fn(doc_macro__adoc__process_macro_desc, Text, {
    
+      /// Decompose into D, O, S, E, A variables.
+      null_vars(Section, D, O, S, E, A)
+      def(doc_fn__desc, [''])
+      def(doc_fn__post_desc, [''])
+      for_each_line(m5_value_of(Text), {
+         /// Process section identifier.
+         var(IsStart, 0)  /// [0/1] Start a section.
+         if_regex(m5_value_of(Line), ['^\([DOSEA]\): ?\(.*\)'], (NewSection, Remainder), [
+            set(IsStart, 1)
+            set(Section, m5_NewSection)
+            set(Line, m5_value_of(Remainder))
+         ])
+         /// Add line to section.
+         if_neq(m5_Section, [''], ['m5_append_var(m5_Section, m5_value_of(Line))'])
+      })
+      
+      /// Combine fields into m5_doc_fn__desc/post_desc in ASCIIDoc.
+      set(doc_fn__desc, *[
+         ~if_neq(m5_value_of(D), [''], ['['- *Description*: ']m5_value_of(D)m5_nl()m5_nl'])
+         ~if_neq(m5_value_of(O), [''], ['['- *Output*: ']m5_value_of(O)m5_nl()m5_nl'])
+         ~if_neq(m5_value_of(S), [''], ['['- *Side Effects*: ']m5_value_of(S)m5_nl()m5_nl'])
+         ~if_neq(m5_value_of(E), [''], ['['- *Example(s)*:']m5_nl()m5_nl()m5_indent_text_block([' '], m5_value_of(E)m5_nl)m5_nl()m5_nl'])
+         ~if_neq(m5_A, [''], [
+            ~(['- *See also*: '])
+            ~substr(m5_eval(['m5_doc_macro__see_also']m5_A), 2)
+         ])
+      ])
+   })
+
+   /// Provide description for, then declare a function.
+   /// Description is captured universally in m5_doc_macro__<Format>__<Name>.
+   /// E.g.:
+   /// doc_fn(['
+   ///  D: Removes the first argument.
+   ///  O: a list of remaining arguments, or `['']` if less than two arguments
+   ///  S: None
+   ///  E: foo(m5_shift($']['@))
+   ///  A: section1 m_comma_shift
+   /// ']), shift, ..., ['
+   ///    ...
+   /// '])
+   fn(doc_fn, Name, Desc, ..., ^Format, {
+      call(['doc_macro__']m5_Format['__process_macro_desc'], m5_value_of(Desc))
+      fn(m5_Name, m5_fn_args)
+   })
+   /// Document a macro or macros that were already defined, using the same interface as doc_fn.
+   fn(doc_as_fn, Name, Desc, ..., ^Format, {
+      if_def(m5_Name, [
+         call(['doc_macro__']m5_Format['__process_macro_desc'], m5_value_of(Desc))
+         _doc_only_fn(m5_Name, m5_fn_args, ['<<dummy-body>>'])
+      ], [
+         error(['No macro "']m5_Name['" to document.'])
+      ])
+   })
+   
+
+   /// Like doc_as_fn, but a set of macros is documented together, each having been documented already,
+   /// though only for their parameter lists, which may be a subset of the parameters provided to this
+   /// function. Otherwise, the call to this function provides all documentation, including the superset
+   /// parameter list. All parameter lists should use consistent names.
+   fn(doc_as_fns,
+      SetName: ['a name for this set of functions, where resulting docs will be in doc_macro__<Format>__<SetName>'],
+      Names: ['a quoted list of names'],
+      Desc,
+      ...,
+      ^Format,
+   {
+      /// Extract prototypes and assign the set to doc_macro__<Format>__<SetName>
+      var(Separator, [''])
+      var(Protos, [''])
+      for(Name, m5_Names, [
+         /// Extract prototype from this macro's docs.
+         if_def(['doc_macro__']m5_Format['__']m5_Name, [
+            var(Doc, m5_value_of(['doc_macro__']m5_Format['__']m5_Name))
+            set(Proto, m5_regex(m5_value_of(Doc), ['\(`.*`\)'], ['\1']))
+            if_eq(Proto, [''], [
+               error(['Unable to extract prototype from docs of ']m5_Name.)
+            ], [
+               append_var(Protos, m5_Separator, m5_Proto)
+               set(Separator, m5_nl)
+            ])
+         ], [
+            error(['No documentation for doc_macro__']m5_Format['__']m5_Name.)
+         ])
+         
+         append_var(doc_fn__desc, [''])
+      ])
+      
+      /// Document this set of functions.
+      call(['doc_macro__']m5_Format['__process_macro_desc'], m5_value_of(Desc))
+      fn(m5_SetName, m5_fn_args)
+      
+      /// Replace SetName's prototype (first line of its docs) with the set prototypes.
+      var(NewDocs, [''])
+      set(NewDocs, [
+         ~for_each_line(['doc_macro__']m5_Format['__']m5_Name, [
+            ~if_null(NewDocs, m5_Protos, m5_Line)
+            ~nl
+         ])
+      ])
+      set(['doc_macro__']m5_Format['__']m5_Name, m5_value_of(NewDocs))
+   })
+
+
    // AsciiDoc-format Functions:
    
-   // Pushes a bunch of variables that are popped by m4-func_doc_end__adoc.
-   m4_null_proc(func_doc_begin__adoc,
-      func_name,
-      func_comment,
-      null,
-      out_behavior: ['[''] for default output behavior, ['eval'] for evaluating proc'],
-      =format,
-   ['
-      m4_push(func_doc_func_name, m4_func_name)
-      m4_push(func_doc_func_comment, m4_func_comment)
-      m4_push(func_doc_null, m4_null)
-      m4_push(func_doc_unnamed_cnt, 0)
-      m4_push(func_doc_comma, [''])
-      m4_push(func_doc_params, [''])
-      m4_push(func_doc_descs, [''])
-   '])
+   // Pushes a bunch of variables that are updated for each parameter and popped by m5_doc_fn__end__adoc.
+   fn(doc_fn__begin__adoc,
+      Name,
+   {
+      push_macro(doc_fn__name, m5_Name)
+      push_macro(doc_fn__unnamed_cnt, 0)
+      push_macro(doc_fn__comma, [''])
+      push_macro(doc_fn__params, [''])
+      push_macro(doc_fn__descs, [''])
+   })
    
    // Called for each param if adoc format.
-   m4_null_proc(func_doc_param__adoc, param_name, out_var_prefix, optional_prefix, cnt_prefix, comment, ['
-      m4_ifelse(m4_param_name, [''], ['m4_increment(func_doc_unnamed_cnt)m4_set(param_name, <unnamed-m4_func_doc_unnamed_cnt>)'])
-      m4_append_var(func_doc_params, m4_func_doc_comma['']m4_param_name)
-      m4_append_var(func_doc_descs, ['- `']m4_param_name['`: ']m4_ifelse(m4_optional_prefix, ?, ['(opt)'])m4_ifelse(m4_out_var_prefix, *, ['(output variable)'])m4_comment['']m4_nl)
-      m4_push(func_doc_comma, ['[', ']'])
-   '])
+   fn(doc_fn__param__adoc,
+      ParamName, OptionalPrefix, Desc,
+   {
+      /// Provide a name for an unnamed parameter.
+      if_null(ParamName, [
+         increment(doc_fn__unnamed_cnt)
+         set(ParamName, <unnamed-m5_doc_fn__unnamed_cnt>)
+      ])
+      /// Append this parameter to parameter list.
+      append_var(doc_fn__params, m5_doc_fn__comma['']m5_ParamName)
+      /// Append to parameter descriptions.
+      append_var(doc_fn__descs, *[
+         ~(['** `']m5_ParamName['`'])
+         ~if_eq(m5_OptionalPrefix, ?, ['(opt)'])
+         ~Desc
+         ~nl
+      ])
+      set(doc_fn__comma, [', '])
+   })
    
-   // End AsciiDoc function.
-   m4_null_proc(func_doc_end__adoc, ['
-      m5_errprint_nl(['Debug Adoc: ']m4_func_doc_func_name['__adoc'])
-      m4_macro(m4_func_doc_func_name['__adoc'], m4_str_concat(
-         m4_dquote(m4_ifelse(m4_null, 1, ['['Null function']'], ['['Function']'])),
-         ['[' `m4_']']m4_func_doc_func_name['['(']']m4_dquote(m4_dquote(m4_func_doc_params))['[')`']']m4_nl,
-         m4_arg(1),
-         m4_dquote(m4_dquote(m4_func_doc_func_comment))m4_nl,
-         ['['Params: ']']m4_nl(),
-         m4_dquote(m4_dquote(m4_func_doc_descs)),
-         ['']))
-      m5_errprint_nl(['Debug Adoc2: ']m4_defn(['m4_']m4_func_doc_func_name['__adoc']))
-      m4_pop(func_doc_func_name)
-      m4_pop(func_doc_func_comment)
-      m4_pop(func_doc_null)
-      m4_pop(func_doc_unnamed_cnt)
-      m4_pop(func_doc_comma)
-      m4_pop(func_doc_params)
-      m4_pop(func_doc_descs)
-   '])
+   /// End AsciiDoc function.
+   /// Declares doc_macro__adoc__<name> (where <name> is in m5_doc_fn__name) that generates ASCIIDoc
+   /// content for this function based on transient definitions in:
+   /// m5_doc_fn__<X>, where <X> is:
+   ///   - name
+   ///   - params: list of parameters
+   ///   - descs: list of parameters with descriptions
+   ///   - desc: (opt) ASCIIDoc macro description
+   ///   - post_desc: (opt) ASCIIDoc to appear after parameter descriptions (example, see also)
+   /// Then deletes definitions.
+   fn(doc_fn__end__adoc, <adoc>{
+      def(['doc_macro__adoc__']m5_doc_fn__name, m5_quote(*[
+         ~(['`m5_']m5_doc_fn__name['(']m5_doc_fn__params[')`'])
+         ~if_def(doc_fn__desc, [
+            ~nl(m5_nl)
+            ~value_of(doc_fn__desc)
+            pop(doc_fn__desc)
+         ])
+         ~if_def(['doc_macro__adoc__']m5_doc_fn__name, ['m5_nl()m5_nl()m5_value_of(['doc_macro__adoc__']m5_doc_fn__name)'])  /// TODO: Delete me
+         ~nl(m5_nl)
+         ~(['- *Parameters*:'])
+         ~nl(m5_nl)
+         ~value_of(doc_fn__descs)
+         ~if_def(doc_fn__post_desc, [
+            ~nl(m5_nl)
+            ~value_of(doc_fn__post_desc)
+            pop(doc_fn__post_desc)
+         ])
+      ]))
+      ///DEBUG(Defined doc_macro__adoc__['']m5_doc_fn__name as: m5_eval(['m5_doc_macro__adoc__']m5_doc_fn__name))
+      pop(doc_fn__name)
+      pop(doc_fn__unnamed_cnt)
+      pop(doc_fn__comma)
+      pop(doc_fn__params)
+      pop(doc_fn__descs)
+   })
    
    
    // Functions to call format-specific functions.
-   // These use m4_pushdef rather than m4_proc because their definitions affect m4_proc.
+   // These use m5_push_macro rather than m5_fn because their definitions affect m5_fn.
    
-   // Call func_doc_begin__<format>.
-   // Assume m4-func_name and m4-param (containing the function comment) defined in context.
-   // arg(1): (0/1) null
-   // arg(2): (eval/[other]) function type (as in m4_fn)
-   m4_push(func_doc_begin,
-      ['m4_func__param_comment(['function name'])m5_eval(['m4_func_doc_begin__']']m4_format['['(m4_func_name, m4_param, ']']m4_arg(1)['[', ']']m4_arg(2)['[')'])'])
+   // Call doc_fn__begin__<Format>.
+   // Assume m5_func_name is defined in context.
+   push_macro(doc_fn__begin, <b>[
+      ~call(['doc_fn__begin__']<b>m5_Format[''], m5_func_name)
+   ])
    
    // For processing parameters.
-   // Assumes evaluation in context with ['m4_param_name, m5_out_var_prefix, m4_optional_prefix, m4_cnt_prefix, and m4_param (comment string)'].
-   m4_push(func_doc_param, ['m4_func_doc_param__']m4_format['(m4_param_name, m5_out_var_prefix, m4_optional_prefix, m4_cnt_prefix, m4_param)'])
+   // Assumes evaluation in context with ['m5__param_name, m4_optional_prefix, m4_cnt_prefix, and m5__param (comment string)'].
+   push_macro(doc_fn__param, <p>[
+      call(['doc_fn__param__']<p>m5_Format[''], m5__param_name, m4_optional_prefix, m5__param)
+   ])
 
-   // Assume ['m4_func_name'] defined in context.
-   m4_push(func_doc_end, ['m4_indir(['m4_func_doc_end__']']m4_format[')'])
-   
+   // Assume ['m5_func_name'] defined in context.
+   push_macro(doc_fn__end, <e>[
+      call(['doc_fn__end__']<e>m5_Format[''])
+   ])
    
    // Disable lazy functions.
-   m4_push(lazy_proc, m4_defn(['m4_proc']))
-   m4_push(null_lazy_proc, m4_defn(['m4_null_proc']))
+   push_macro(lazy_fn, m5_defn(fn))
    
-'])
+})
 
 
 
-
+\m4
 // #############################
 // Development and Debug
 
@@ -1546,8 +1758,8 @@ fn(define_vector, name, high, ?low, [
 // Also captures parameters (shifted by 1), in $1_FIELDS. In the example above:
 //   m4_define(['m5_INSTR_FIELDS'], ['['32'], ['OP'], ...']). 
 // Subfields and alternate fields can be declared w/ subsequent calls.
-macro(define_fields_guts, ['
-   m4_ifelse(['$4'], [''], [''], ['  /// Terminate if < 4 args
+macro(define_fields_guts, ['['']
+   m4_ifelse(['$4'], [''], [''], ['['']  /// Terminate if < 4 args
       // Define first field.
       m5_define_vector(['$1_$3'], ['$2'], ['$4'])
       // Recurse.

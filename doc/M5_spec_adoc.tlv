@@ -1,4 +1,12 @@
-= M5 Text Processing Language User's Guide
+\m4_TLV_version 1d: tl-x.org
+\SV
+// This M5 spec is generated with the help of M5 itself.
+// Since M5 syntax appears throughout, we have to be careful about M5's processing of this syntax
+// with careful use of quotes, etc.
+
+\m4
+
+m4_define(['m5_main_doc'], ['= M5 Text Processing Language User's Guide
 Steve Hoover <steve.hoover@redwoodeda.com>
 v1.0, 2023
 :toc: preamble
@@ -28,7 +36,7 @@ ifdef::env-github[]
 endif::[]
 
 
-The M5 macro preprocessor enhances the Gnu M4 macro preprocessor, +
+The M5 macro preprocessor enhances the Gnu M4 macro preprocessor,
 adding features typical of programming languages.
 
 == General Information
@@ -66,7 +74,7 @@ literal text that is not subject to macro preprocessing. By default M5 uses `['`
 It can be configured to use different quote characters by modifying two simple scripts that
 substitute quotes in the input and output files and configure M4 to use the substituted
 quote characters. Similar scripts must be applied to all `.m4` files including the ones
-that define M5 to change all `['`/`']` quotes to the desired quotes.
+that define M5 to change all `['` / `']` quotes to the desired quotes.
 
 Additionally, M5 defines a comment syntax that can be configured in the pre-preprocessing
 script.
@@ -93,8 +101,8 @@ M5 should output the input text, unaltered, as long as your file contains no:
 
 In other configurations, the following may also result in processing:
 
-- M5 comments, e.g. `///`, `/**`, `**/`
-- M5 code blocks, e.g. `[` or `{` followed by a new line or `]` or `}` beginning a line after optional whitespace
+- vanishing comments, e.g. `/{empty}//`, `/*{empty}*`, `*{empty}*/`
+- code blocks, e.g. `[` or `{` followed by a new line or `]` or `}` beginning a line after optional whitespace
 
 
 === M5's Place in the World
@@ -273,26 +281,15 @@ rule is "text blocks", described in <<text_blocks>>.
 
 === Comments
 
-==== Preserved Comments (`//`)
-
-`//` comments pass through in output and are chosen to match the target language (see <<config>>).
-`//` comments have a similar effect as quotes. They can be used to prevent macro expansion.
-Comments begin with `//` and end at the next new line (regardless of any quotes or parentheses). As with quoted text, no substitutions
-are performed within the comment. Note, however, that `//` has no special treatment within quotes. As a result, when
-comments appear within quotes, quotes after `//` are processed as quotes.
-
-Note that `/*` and `*/` are not recognized as block comments. In target languages that support
-this comment style, their use can be convenient for seeing evaluations in output comments.
-
-==== Vanishing Comments (`///` and `/{empty}*{empty}*`...`{empty}*{empty}*/`)
+==== Vanishing Comments (`/{empty}//` and `/{empty}*{empty}*`...`{empty}*{empty}*/`)
 
 The following illustrates vanishing comments:
 
- /// This line comment will disappear.
- /** This block comment will also disappear. **/
+ /']['// This line comment will disappear.
+ /*']['* This block comment will also disappear. *']['*/
 
 Block comments beginning with `/{empty}*{empty}*` and ending with `{empty}*{empty}*/` and line comments
-beginning with `///` and ending with a new line are stripped from the source file prior to other
+beginning with `/{empty}//` and ending with a new line are stripped from the source file prior to other
 processing (except for new lines). As such:
 
 - Vanishing-commented parentheses and quotes are not visible to parenthesis and quote matching checks, etc.
@@ -302,6 +299,20 @@ that begins on the next line without affecting the code block or argument.
 NOTE: Any text immediately following `{empty}*{empty}*/` will, after stripping the comment, begin the line.
 Comments are stripped after indentation checking. It is thus generally recommented that multi-line block comments
 end with a new line.
+
+==== Preserved Comments (`//`)
+
+Line comments in the target language (`//`) have special treatment to avoid unexpected
+expansion of commented macros. Unquoted `//` comments until the next new line, pass through to the output
+as literal text.
+
+CAUTION: This behavior is both helpful and dangerous. It can hide quotes as a result of dynamic evaluation, leading
+to mismatched quotes that are inconsistent with static checking which ignores `//`. It is best to use
+vanishing quotes to disable macro code. 
+
+NOTE: `/*` and `*/` are not recognized as block comments. In target languages that support
+this comment style, their use can be convenient for seeing evaluations in output comments. `['//']`
+(or similar) can also be used to pass macro evaluations in comments.
 
 
 [[arguments]]
@@ -336,7 +347,7 @@ There are a few gotchas to watch out for.
 When argument lists get long, it is useful to break them up on multiple lines. The new lines
 should precede, not postcede the arguments. E.g.:
 
- m4_foo(long-arg1,
+ m5_foo(long-arg1,
         long-arg2)
 
 Notably, the closing parenthesis should *not* be on a the next line by itself. This would include the
@@ -351,12 +362,15 @@ new line and spaces in the second argument.
 A "body" is a parameter or macro value that is to be be evaluated in the context of a caller.
 Macros, like `m5_if` and `m5_loop` have immediate body parameters. These bodies are to be evaluated
 by these macros in the context of the caller. The final argument to a function or macro declaration
-is an indirect body argument. The body it is to be evaluated, not by the declaration macro itself, but by the
-caller of the macro they declare.
+is an indirect body argument. The body is to be evaluated, not by the declaration macro itself, but by the
+caller of the macro it declares.
 
-NOTE: Declaring macros that evaluate body arguments requires special consideration. See <<evaluating_bodies>>. 
+NOTE: Declaring macros that evaluate body arguments requires special consideration. See <<evaluating_bodies>>.
 
-Blocks are indented multi-line literal text. They can be code ("code blocks") or arbitrary text ("text blocks").
+"Code blocks" are convenient constructs for multi-line body arguments formatted like code.
+
+A "Text block" construct is also available for specifying multi-line blocks of arbitrary text, indented with
+the code.
 
 ==== Macro Bodies
 
@@ -389,7 +403,7 @@ called from within a code body.
     ~B
  ])
 
-The block begins with `[`, followed immediately by a new line. It ends with a line that begins with `]`,
+The block begins with `[`, followed immediately by a new line (even if commented by `//`). It ends with a line that begins with `]`,
 indented consistently with the beginning line. The above code block is "unscoped". A "scoped" code block
 uses, instead, `{` and `}`. Scopes are detailed in <<scope>>.
 
@@ -419,14 +433,99 @@ The above example is interpreted as:
 Top-level M5 content (in TL-Verilog, the content of an \m5 region) is formatted as a non-scoped
 code block with no output.
 
+[[text_blocks]]
 ==== Text Blocks
 
 "Text blocks" provide a syntax for multi-line quoted text that is indented with its surroundings.
 They are formatted similarly to code blocks, but use standard (`['`/`']`) quotes. They begin
 with a new line and end on a blank line that is indented consistently with the line beginning the block.
 Their indentation is defined by the first non-blank line. All lines must contain at least this
-indentation (except the last). This fixed level of indentation and the beginning new line are removed.
+indentation (except the last). This fixed level of indentation and the beginning and ending new line are removed.
 Aside from the removal of this whitespace, the text block is simply quoted text containing new lines.
+
+Code and text block parsing is not performed inside a non-evaluating (no "*") text block, though vanishing comments, and quotes are
+(and number parameter substitutions may also occur).
+
+==== Evaluating-Blocks
+
+It can be convenient to form non-body arguments by evaluating code. Syntactic sugar is provided for
+this in the form of a `*` preceding the block open quote.
+
+For example, here an evaluating scoped code block is used to form an error message by searching for
+negative arguments:
+
+ error(*{
+    ~(['Arguments includes negative values: '])
+    var(Comma, [''])
+    ~for(Value, ['$@'], [
+       if(m5_Value < 0, [
+          ~Comma
+          set(Comma, [', '])
+          ~Value
+       ])
+    ])
+    ~(['.'])
+ })
+
+==== Block Labels: Escaping Blocks, and Labeled Numbered Parameters
+
+Proper use of quotes can get a bit tedious, especially when it is necessary to escape out of several
+levels of nested quotes. Though rarely needed, in can improve maintainability, code clarity, and
+performance to make judicious use of block labels.
+
+Blocks can be labeled using syntax such as:
+
+ fn(some_function, ..., <sf>{
+ })
+
+Labels can be used in two ways.
+
+- First, to escape out of a block, typically to generate text of the block.
+- Second, to specify the block associated with a numbered parameter.
+
+Both use cases are illustrated in the following example that attempts to declare a function for parsing text.
+This function declares a helper function `ParseError` for reporting parse errors that can be
+used many times by `my_parser`.
+
+ /// Parse a block of text.
+ fn(my_parser,
+    Text: Text to parse,
+    What: A description identifying what is begin parsed,
+ {
+    /// Report a parse error, e.g. m5_ParseError(['unrecognized character'])
+    macro(ParseError, {
+       error(['Parsing of ']m5_What[' failed with: "$1"'])  /// !!! TWO MISTAKES !!!
+    })
+    
+    ...
+ })
+
+This code contains, potentially, two mistakes in the error message. First, `m5_What` will be
+substituted at the time of the call to `ParseError`. As long as `my_parser` does not
+modify the value of `What`, this is fine, but it might be preferred to expand `m5_What` in
+the definition itself to avoid this potential masking issue in case `What` is reused.
+
+Secondly, `$1` will be substituted upon calling `my_parser`, not upon calling `ParseError`,
+and it will be substituted with a null string.
+
+The corrected example is:
+
+ /// Parse a block of text.
+ fn(my_parser,
+    Text: Text to parse,
+    What: A description identifying what is begin parsed,
+ {
+    /// Report a parse error, e.g. m5_ParseError(['unrecognized character'])
+    macro(ParseError, <err>{
+       error(['Parsing of ']<err>m5_What[' failed with: "$<err>1"'])  /// !!! TWO CORRECTIONS !!!
+    })
+    
+    ...
+ })
+
+This code corrects both issues:
+
+- `']<err>m5_What['` 
 
 
 == Declaring Macros
@@ -490,7 +589,7 @@ substitutions are made throughout the entire body string regardless of the use o
 notations are substituted:
 
 - `$1`, `$2`, etc.: These substitute with corresponding arguments.
-- `$#`: The number of arguments (including only those that are numbered). Note that `m4_foo()` has one empty macro argument, while `m4_foo` has zero.
+- `$#`: The number of arguments (including only those that are numbered). Note that `m5_foo()` has one empty macro argument, while `m5_foo` has zero.
 - `$@`: This substitutes with a comma delimited list of the arguments, each quoted so as to be taken literally. So, `m5_macro(foo, ['m5_bar($@)'])`
         is one way to give `m5_foo(...)` the same behavior as `m5_bar(...)`.
 - `$*`: This is rarely useful. It is similar to `$@`, but arguments are unquoted.
@@ -503,7 +602,7 @@ CAUTION: Macros may be declared by other macros in which case the inner macro bo
 the outer macro body. Numbered parameters appearing in the inner body would be substituted as
 parameters of the outer body. It is generally not recommended to use numbered
 parameters for arguments of nested macros, though it is possible. For more on the topic,
-see <<Escaping Nested Quotes>>.
+see <<Escaping Blocks>>.
 
 
 === Variables
@@ -542,7 +641,7 @@ language, especially when used with <<code_blocks>>. Function calls pass argumen
 bodies contain macro calls that define local
 variables, perform calculations, evaluate code conditionally, iterate in loops, call other functions, recurse,
 etc. They may contain comments and whitespace, and these have no impact. They evaluate to literal text that
-is explicitly returned using `m4_out(...)` and related macros.
+is explicitly returned using `m5_out(...)` and related macros.
 
 There is no mechanism to explicitly print to the standard output stream, as is typical in a programming language (though there
 are macros for printing to the standard error stream). It is up to the caller what to do with the result. Only
@@ -552,7 +651,7 @@ Functions are defined using: `m5_fn`, `m5_eval_fn`, `m5_inline_fn`, m5_null_fn`,
 
 Declarations take the form:
 
- m4_fn(<name>, [<param-list>,] ['<body>'])
+ m5_fn(<name>, [<param-list>,] ['<body>'])
 
 A basic function declaration looks like:
 
@@ -573,7 +672,7 @@ Several parameter types are provided.
                          elaborating the body regardless of whether they are contained within quotes or parentheses. For
                          functions, numbered parameters are explicit in the parameter list.
 - *Named parameters*: These are available to the body as macros. If from an argument, they return the quoted argument.
-                      m4_<name> is pushed prior to evaluation of the body and popped afterward.
+                      m5_<name> is pushed prior to evaluation of the body and popped afterward.
 
 ===== The Parameter List
 
@@ -582,7 +681,7 @@ The parameter list (`<param-list>`) is a list of `<param-spec>`, where `<param-s
 - A parameter spec of the form: `[?][[<number>]][[^]<name>][: <comment>]` (in this order), e.g. `?[2]^name: the name of something`:
   * `<name>`:   A named parameter.
   * `?`:        An optional parameter. Calls are checked to ensure that arguments are provided for all non-optional parameters
-                or are defined for inherited parameters. (Note that m4_foo() has one empty arg.) Non-optional parameters may
+                or are defined for inherited parameters. (Note that m5_foo() has one empty arg.) Non-optional parameters may
                 not follow optional ones.
   * `[<number>]`: A numbered parameter. The first would be `[1]` and would correspond to `$1`, and so on.
                   `<number>` is verified to match the sequential ordering of numbered parameters.
@@ -592,13 +691,13 @@ The parameter list (`<param-list>`) is a list of `<param-spec>`, where `<param-s
                 inherited parameters last (before the body) to maintain correspondence between the parameter
                 list of the definition and the argument list of a call.
   * `<comment>`: A description of the parameter. In addition to commenting the code, this can be extracted in
-                documentation. See `m4_enable_doc`.
+                documentation. See `m5_enable_doc`.
 - `...`:        Listed after last numbered parameter to allow extra numbered arguments. Without this, extra arguments result in an error.
-                (Note that `m4_foo()` has one empty argument, and this is permitted for a function with no named parameters.)
+                (Note that `m5_foo()` has one empty argument, and this is permitted for a function with no named parameters.)
 - `['']`:       Empty elements in the parameter list are ignored and do not correspond to any arguments (as a convenience for empty
                 list expansion).
 
-In addition to accessing the list of numbered arguments using `$@`, it can also be accessed as `m5_fn_args`. `m4_func_arg(3)` can
+In addition to accessing the list of numbered arguments using `$@`, it can also be accessed as `m5_fn_args`. `m5_func_arg(3)` can
 be used to access the third argument from `m5_fn_args`, and `m5_fn_arg_cnt` returns the number of numbered arguments.
 
 ==== Function Call Arguments
@@ -624,9 +723,9 @@ Additionally, and in summary:
                          not the inner one. Being unnamed, readability is an issue, especially for large functions.
 - *Named parameters*: These act more like typical function arguments vs. text substitution. Since they are named, they
                       can improve readability. Unlike numbered parameters, they work perfectly well in functions
-                      defined within other functions/macros. (Similarly, m5_fn_args and m4_func_arg are useful
+                      defined within other functions/macros. (Similarly, m5_fn_args and m5_func_arg are useful
                       for nested declarations.) Macros will not evaluate within quoted strings, so typical use requires
-                      unquoting, e.g. `['Arg1: ']m4_arg1['.']` vs. `['Arg1: $1.']`.
+                      unquoting, e.g. `['Arg1: ']m5_arg1['.']` vs. `['Arg1: $1.']`.
 - *Inherited parameters*: These provide a more natural, readable, and explicit mechanism for customizing a function to the
                           context in which it is defined. For example a function may define another function that is
                           customized to the parameters of the outer function.
@@ -657,7 +756,7 @@ In the context of a code block, function `foo` is declared to output its pramete
     ~nl(inherit1: m5_inherit1)
     ~nl(inherit2: m5_inherit2)
     ~nl(['numbered args: $@'])
-  '])
+  })
 
 And it can be called (again, in this example, from a code block):
 
@@ -668,55 +767,9 @@ And this expands to:
 
  param1: arg1
  param2: arg2
- inherit1: 
+ inherit1:
  inherit2: two
  numbered args: ['arg2'],['two'],['extra1'],['extra2']
-
-
-=== Escaping Nested Quotes
-
-Macro preprocessing is powerful but dangerous. A strength and a curse is the ability to construct
-macro bodies.
-
-Take, for example, the following code that declares a function for parsing text.
-This function declares a helper function `ParseError` for reporting parse errors that can be
-used many times by `MyParser`.
-
- fn(upper_case_fn: Declare a function whose output is upper-cased.,
-    Name
-
- fn(my_parser: Parse a block of text,
-    Text: Text to parse,
-    What: A description identifying what is begin parsed,
- {
-    /// Report a parse error, e.g. m5_ParseError(['unrecognized character'])
-    macro(parse_error, {
-       error(['Parsing of ']m5_What[' failed with: "$1"'])  /// !!! TWO MISTAKES !!!
-    })
-    
-    ...
- })
-
-This code contains, potentially, two mistakes in the error message. First, `m5_What` will be
-substituted at the time of the call to `ParseError`. As long as `MyParser` does not 
-modify the value of `What`, this is fine, but it might be preferred to expand `m5_What` in
-the definition so itself to avoid this potential masking issue.
-
-Secondly, `$1` will be substituted upon calling `MyParser`, not upon calling `ParseError`,
-and it will be substituted with a null string.
-
- 
-
-/** TODO: Syntactic sugar.
-Support <label>[
-   ...$<label>1...     /// $1 for body <label>.
-   ...']<label>xxx['   /// for xxx outside body/block <label>.
-]
-Support *[   /// short for m5_eval([  ...  ])
-]
-Order is, e.g. "*<label>{"
-Delete space before text blocks, and configurably all indentation in bodies
-**/
 
 
 
@@ -796,6 +849,14 @@ conditionally declared without any negative consequence on stack maintenance.
 == Coding Paradigms, Patterns, Tips, Tricks, and Gotchas
 
 
+== Arbitrary Strings
+
+It's important to keep in mind that variables are macros, and macro calls substitute `$` parameters, whether
+parameters are given or not. (This is legacy from M4, and working around it would impact performance appreciably.)
+Whenever dealing using variables containing arbitrary strings, use `m5_value_of`, or use `m5_str` and `m5_set_str`.
+See [[String Processing]].
+
+
 [[status]]
 == Status
 
@@ -825,28 +886,37 @@ In macros that only evaluate code provided in the body of the macro itself, any 
 to catch a developer by surprise. Masking becomes an issue when a macro evaluates arbitrary code provided as an input
 in a body argument.
 
-TODO: Use '_' prefix (w/ Pascal case) instead.
+TODO: Use `\_` prefix (w/ Pascal case) instead.
 To avoid masking, proior to evaluating a body argument, a macro should only declare variables (and other macros)
 using uniquified names. Uniquified, or "local" macro names can be generated using the prefix `$0__`.
 In traditional macros, `$0` is the name of the macro. In functions, `$0` is the name given to the
 function body. In either case, this prefix constructs a name that is implicitly reserved by the macro.
 
 
+'])
+\m4
+   m4_define(['m5_need_docs'], yes)
+   m4_use(m5-0.1)
+\m5
+
+pragma_enable_debug
+/// Shorthand for m5_doc_macro__adoc__<name>.
+macro(Doc, ['m5_doc_as_fn($@)m5_value_of(['doc_macro__adoc__$1'])'])
+
+enable_doc(adoc)
+
+var(mac_spec, *['
 == Macros Specifications
 
-=== Declaring Variables, Functions, and Traditional Macros
+=== Declaring Macros
 
 ==== Declaring Variables
-
-===== `m5_var`
-
-yo ((var)) hi
 
 ==== Declaring Functions
 
 ==== Declaring Traditional Macros
 
-=== Scoped Control Constructs
+=== Control Constructs
 
 ==== Conditionals
 
@@ -854,23 +924,62 @@ yo ((var)) hi
 
 ==== Recursion
 
-=== Arithmetic Macros
+=== Utilities
 
-=== String Processing
+==== Argument Processing
+
+m5_Doc(shift, ['
+ D: Removes the first [[[$0]]] argument.
+ O: a list of remaining arguments, or `['']` if less than two [[[$0]]] arguments
+ S: none
+ E: foo(m5_shift($@))
+ A: comma_shift
+'], ...: arguments to shift)
+
+/**
+m5_Doc(, ['
+ D: 
+ O: 
+ S: none
+ E: 
+ A: 
+'], ...: )
+**/
+
+==== Arithmetic Macros
+
+==== String Processing
+
+==== Regular Expressions
+
 
 === Debugging
+['['']
+`m5_recursion_limit` (Universal variable)
+
+* *Description*: If the function call stack exceeds this value, a fatal error is reported.
+']
+m5_Doc(abbreviate_args, ['
+ D: For reporting messages containing argument lists, abbreviate long arguments and/or a long argument list by replacing
+    long input args and remaining arguments beyond a limit with ['...'].
+ O: a quoted string of quoted args with a comma preceding every arg.
+ S: none
+ E: m5_abbreviate_args(5, 15, $@)
+'], max_args: ['if more than this number of args are given, additional args are represented as ['...']'],
+    max_arg_length: ['maximum length in characters to display of each argument'],
+    ...: ['arguments to represent in output'])
+'])
 
 
-
-== Syntax Index
+macro(tail_doc, ['== Syntax Index
 
 M5 supports the following syntaxes:
 
 - quotes: `['`, `']` (see <<quotes>>)
 - macro calls: E.g. `m5_my_fn(arg1, arg2)` (see <<calls>>)
-- vanishing comments: `///`, `/**`, `**/ (see <<comments>>)
+- vanishing comments: `/{empty}//`, `/']['{empty}*{empty}*`, `{empty}*{empty}*']['/` (see <<comments>>)
 - numbered parameters and special parameters: `$`. E.g. `$3`, `$@`, `$#`, `$*` (see <<numbered_params>>)
-- code bodies use special quotes: `[`, `]`, `{`, `}` (see <<bodies>>) and text blocks: `['` (where open quotes are followed by new line (see <<text_blocks>>)
+- code bodies use special quotes: `[`, `]`, `{`, `}` (see <<bodies>>) and text blocks: `['`, `']` (where open quotes are followed by new line (see <<text_blocks>>))
   - code body output: `~` (see <<bodies>>)
   - named blocks, and escaping from them: `<my_name>` (see <<named_bodies>>)
   - evaluating blocks: `*` preceding the open quote and optional name (see <<evaluating_blocks>>)
@@ -880,4 +989,11 @@ Many macros accept arguments with syntaxes of their own, defined in the macro de
 
 [index]
 == Index
+
+...
+'])
+\SV
+m5_output_with_restored_quotes(m5_defn(main_doc))
+m5_output_with_restored_quotes(m5_value_of(mac_spec))
+m5_output_with_restored_quotes(m5_defn(tail_doc))
 
