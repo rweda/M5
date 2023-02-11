@@ -204,7 +204,7 @@ m4_define(['m5_nquote'],
 // Misc
 
 m4_define(['m5_eval'], ['$1['']'])
-m4_define(['m5_inline'], ['$1'])
+m4_define(['m5_inline'], ['m5_deprecated()$1'])
 m4_define(['m5_comment'], [''])
 m4_define(['m5_nullify'], [''])
 
@@ -382,7 +382,7 @@ m4_define(['m5_no_quotes'],
 m4_define(['m5_substr'],
    m5__scope(['m5_var(ret, m5__unsafe_string(m4_substr(m5__safe_string_with_check(m5__alt_dequote(['$1'])), m5_shift($@))))m4_ifelse(m4_ifelse(m4_index(m5_ret, ['']), ['-1'], ['m4_index(m5_ret, [''])'], ['['0']']), ['-1'], [''], ['m5_error(['$0 extracted a substring containing quotes. Use m5_dequote/m5_requote, perhaps. String: ']"m5_ret")'])m5_out(m5_ret)']))
 m4_define(['m5_substr_eval'], m4_defn(['m4_substr'])['['']'])
-m4_define(['m5_substr_inline'], m4_defn(['m4_substr']))
+m4_define(['m5_substr_inline'], ['m5_deprecated()']m4_defn(['m4_substr']))
 
 // Private macros to deal with the fact that m4_substr produces an unquoted result.
 
@@ -422,12 +422,10 @@ m4_define(['m5__unsafe_string'],
 // m5_out_eval(<string>)    // m5_out, where the output is to be evaluated, not literal. By convention,
 //                          // this should be used as ~out_eval to highlight its impact on output, even
 //                          // though the "~" has no effect. 
-// m5_out_inline(<string>)  // like m5_out_inline, but the output evaluates together with subsequent
-//                          // output text or text subsequent to the function call.
 m4_define(['m5_out'],        ['m4_define(['m5_block_output'], m4_defn(['m5_block_output'])['['$1']'])m4_ifelse(m4_eval(['$# > 1']), 1, ['$0(m4_shift($@))'])'])
 m4_define(['m5_out_nl'],     ['m4_define(['m5_block_output'], m4_defn(['m5_block_output'])['['$1']']m4_quote(m5_nl))m4_ifelse(m4_eval(['$# > 1']), 1, ['$0(m4_shift($@))'])'])
-m4_define(['m5_out_inline'], ['m4_define(['m5_block_output'], m4_defn(['m5_block_output'])['$1'])m4_ifelse(m4_eval(['$# > 1']), 1, ['$0(m4_shift($@))'])'])
-m4_define(['m5_out_eval'],   ['m5_out_inline(['$1['']'])'])
+m4_define(['m5_out_inline'], ['m5_deprecated()m4_define(['m5_block_output'], m4_defn(['m5_block_output'])['$1'])m4_ifelse(m4_eval(['$# > 1']), 1, ['$0(m4_shift($@))'])'])
+m4_define(['m5_out_eval'],   ['m4_define(['m5_block_output'], m4_defn(['m5_block_output'])['$1['']'])m4_ifelse(m4_eval(['$# > 1']), 1, ['$0(m4_shift($@))'])'])
 m4_define(['m5_eval_out'],
    ['m5_deprecated()m5_out_eval($@)'])
 m4_define(['m5_inline_out'],
@@ -562,9 +560,9 @@ m4_define(['m5_set_macro'],
 
 // See docs.
 m4_define(['m5_macro_inline'],
-   m5__declare_body($['']2, ['']))
+   ['m5_deprecated()']m5__declare_body($['']2, ['']))
 m4_define(['m5_inline_macro'],
-   ['m5_deprecated()m5_macro_inline($@)'])
+   ['m5_macro_inline($@)'])
 
 // Output nothing. This is used by m5_null_macro to evaluate without producing output.
 m4_define(['m5__null'], [''])
@@ -645,7 +643,7 @@ m4_define(['m5_return_status'], ['m5_append_macro(fn__aftermath, m4_ifelse($#, 0
 // This is most often used to have a function declare or set a variable/macro as a side effect.
 // It is also useful for tail recursion that does not grow the call stack.
 m4_define(['m5_on_return'], ['m5_append_macro(fn__aftermath, ['m5_call($@)['']'])'])
-m4_define(['m5_on_return_inline'], ['m5_append_macro(fn__aftermath, ['m5_call($@)['']'])'])
+m4_define(['m5_on_return_inline'], ['m5_deprecated()m5_append_macro(fn__aftermath, ['m5_call($@)'])'])
 
 
 // Evaluate $1 that should not produce any output other than whitespace and comments. No output is produced, and an error is reported if the evaluation was non-empty.
@@ -1093,7 +1091,7 @@ fn(strip_trailing_whitespace_from, it, {
             error(['Illegal digit in hexadecimal value "']m5_digits['".'])
          ])
          // Next
-         set(digits, m5_substr_inline(m5_digits, 1))
+         set(digits, m5_substr_eval(m5_digits, 1))
       ], ['m5_isnt_null(digits)'])
       ~val
    })
@@ -1357,7 +1355,7 @@ lazy_fn(enable_doc,
       ^Format,
    {
       /// Extract prototypes and assign the set to doc_macro__<Format>__<SetName>
-      var(SetName, m5_argn(1, m5_inline(m5_Names))['__and_friends'])
+      var(SetName, m5_argn(1, m5_eval(m5_Names))['__and_friends'])
       var(Separator, [''])
       var(Protos, [''])
       for(Name, m5_Names, [
@@ -1392,7 +1390,7 @@ lazy_fn(enable_doc,
    })
    fn(doc_now_as_fns, Names, Desc, ..., ^Format, {
       doc_as_fns(m5_Names, m5_Desc['']m5_comma_fn_args)
-      ~value_of(['doc_macro__']m5_Format['__']m5_argn(1, m5_inline(m5_Names))['__and_friends'])
+      ~value_of(['doc_macro__']m5_Format['__']m5_argn(1, m5_eval(m5_Names))['__and_friends'])
    })
 
    // AsciiDoc-format Functions:
@@ -1700,16 +1698,16 @@ m4_define(['m5_default_def'],
 // Strip the prefix from an identifier.
 m4_define(['m5_strip_prefix'], ['m4_patsubst(['$1'], ['^\W*'], [''])'])
 
-// m5_stage_eval(expr)
+// m5_stage_calc(expr)
 // Evaluates expr with:
 //   '@' stripped,
 //   '<<' -> ' - '
 //   '>>' -> ' + '
 //   '<>' -> ' + '
 // Eg:
-//   @m4_stage_eval(@(2-1))
-//   @m4_stage_eval(@2<<1)
-//   >>m4_stage_eval((@2 - @1)<<1)
+//   @m4_stage_calc(@(2-1))
+//   @m4_stage_calc(@2<<1)
+//   >>m4_stage_calc((@2 - @1)<<1)
 m4_define(['m5_stage_calc'],
    ['m4_eval(m4_patsubst(m4_dquote(m4_patsubst(m4_dquote(m4_patsubst(m4_dquote(m4_patsubst(['['$1']'], ['@'], [''])), ['>>'], [' + '])), ['<<'], [' - '])), ['<>'], [' + ']))'])
 
@@ -1717,7 +1715,7 @@ m4_define(['m5_stage_calc'],
 // Provides an ahead alignment identifier value (which can be negative), to consume from from_stage into to_stage.
 // Eg:
 //   >>m4_align(@2, @1-1)  ==>  >>2
-m4_define(['m5_align'], ['m4_stage_eval(($1) - ($2))'])
+m4_define(['m5_align'], ['m4_stage_calc(($1) - ($2))'])
 
 
 

@@ -229,27 +229,40 @@ include:
 === Macro Preprocessing in General
 
 M5, like other macro preprocessors, processes a text file sequentially with a default behavior of passing
-the input text through as output text. Parameterized macros may be defined. When a macro name appears
-in the input text, it (and its argument list) may be substituted for new text according to its definition.
+the input text through as output text. Parameterized macros may be defined. When a recognized macro name appears
+in the input text, it (and its optional argument list) will be substituted for new text according to its definition.
 Quotes (`['` and `']`) may be used around text to prevent substitutions.
 
 
 === Macro Substitution
 
+The following illustrates a macro call:
+
+ m5_foo(hello, 5)
+
 A well-formed M5 macro name begins with `m5_` and is comprised entirely of word
-characters (`a-z`, `A-Z`, `0-9`, and `_`). When a well-formed macro name appears, entirely in unquoted input text,
-delimited by non-word characters (or the beginning or end of the file), the macro
-is "called". It and its optional argument list are substituted with the text resulting from
-the macro call. The argument list begins immediately after the macro name with an unquoted `(` and ends with the matching
-unquoted `)`, such as `m5_foo(hello, 5)`. For details, see <<arguments>>.
+characters (`a-z`, `A-Z`, `0-9`, and `_`).
 
 NOTE: It is possible to define macros with names containing non-word characters, but these will
-not substitute as described above. They can only be called indirectly. In addition to macros with the
-`m5_` prefix, `m5` by itself is a legal predefined macro name. Also, the M4 macros from which M5 is
-constructed are available, prefixed by `m4_`, though their direct use is discouraged. Using `m4_`
-macros, it is possible to define macros without these prefixes, and doing so is discouraged.
+not substitute as described above. They can only be called indirectly. In addition to `m5_` macros,
+the M4 macros from which M5 is constructed are available, prefixed by `m4_`, though their
+direct use is discouraged. Though discouraged, be aware that it is possible, using `m4_` macros,
+to define macros without these prefixes.
 
-Many, but not all, M5 macros result in literal (quoted) text that will not itself substitute.
+When a well-formed macro name appears (in unquoted input text),
+delimited by non-word characters (or the beginning or end of the file), the name is looked up
+in the set of defined macro names. If the name is defined, a subsequent `(` would begin an argument
+list. This list ends with a matching, unquoted `)`. (For details, see <<arguments>>.)
+Once the argument list has been fully processed, or
+in the absence of an argument list, the macro is "called". It and its optional argument list are
+substituted with the evaluation of the text resulting from the macro call. This text is passed through
+to the output, and processing continues.
+
+Many macros result in literal (quoted) text to avoid subsequent evaluation. In some cases, literal
+result text is the normal case but alternate macros are provided with unquoted output.
+By convention these are named with an `_eval` suffix (or the `eval` macro, itself).
+Note  that the definitions (see <<m5_defn>>) of `_eval` macros will end with `['']`.
+This is required by M4 to isolate the resulting text from subsequent text.
 
 
 [[quotes]]
@@ -259,23 +272,23 @@ Unwanted substitution can be avoided using quotes. In M5, quotes are `['` and `'
 The quoted text is parsed only for `['` and `']` and ends at the corresponding `']`. Intervening
 characters that would otherwise have special treatment, such as `m5`*, `(`, and `)`,
 have no special treatment when quoted. The quoted text passes through to the
-resulting text (including internal matching quotes) without involvement in any
+resulting text, including internal matching quotes, without involvement in any
 substitutions. The outer quotes themselves are discarded.
 The end quote acts as a word boundary for subsequent text processing.
 
 Quotes can be used to delimit words. For example, the empty quotes below:
 
- Index['']m5_index
+ Index['']m5_Index
 
-enable `m5_index` to substitute, as would:
+enable `m5_Index` to substitute, as would:
 
- ['Index']m5_index
+ ['Index']m5_Index
 
-As with strings in other programming languages, it is generally good coding practice to avoid using new lines
-in the souce code to represent literal new lines. Code formatting (using new lines and indentation)
-should reflect code structure, not the formatting of strings and output.
-`m5_nl` should be used instead (or a macro that ultimately uses `m5_nl`). The one exception the this
-rule is "text blocks", described in <<text_blocks>>.
+Special syntax is provided for multi-line literal text. (See <<blocks>>.) Outside of those
+constructs, quoted text should not contain new-lines. Instead, the <<m5_nl>> macro provides
+a literal new-line character, for example:
+
+ ['Index']m5_Index['']m5_nl
 
 
 
@@ -537,10 +550,10 @@ This code corrects both issues:
 
 `m5`* macro definitions fall into three general categories:
 
-- variables: These hold values as strings.
-- functions: These operate on inputs to produce output text and side effects.
-- traditional macros: These are quick-and-dirty M4-style macros whose return text is evaluated. For the
-most part these are superceded by variables and functions. The primary motivation to supporting
+- variables: These hold literal text values.
+- functions: These operate on inputs to produce literal output text and side effects (e.g. macro assignments).
+- traditional macros: These are quick-and-dirty M4-style macros whose resulting output text is evaluated. For the
+most part these are superceded by variables and functions. The primary motivation for supporting
 these is performance.
 
 Variables, functions, and tranditional macros are defined with a name, such as `foo`, and called (aka
@@ -568,30 +581,13 @@ Here are some sample uses:
 |`Arg: hi`
 |===
 
-[[result_classes]]
-Macros return text in one of three ways, determining the treatment of the text (here `text`):
 
-- Literal: (`['text']`) The resulting text is quoted, so its evaluation results in a literal string (`text`)
-           (as long as the text itself does not contain imbalanced quotes, which is hard to do and
-           wreaks havoc). This is the behavior of variables, and functions.
-- Evaluated: (`text['']`) The resulting text is essentially evaluated in isolation from surrounding text.
-             Note that the prior ....
-             It may continue an argument list, but it will not combine with subsequent text to result in
-             a macro name to call. It is generally recommended to name such macros with a suffix of `_eval`
-             (or the `eval` macro, itself).
-- Inline: (`text`) The resulting text evaluates together with subsequent text (which could complete
-          the text for a macro name to call or provide an argument list). Problematically, it
-          could combine with subsequent text to form a quote. This is generally discouraged. It is
-          generally recommended to name such macros with a suffix of "_inline" (or the "inline" macro, itself).
-          TODO: I don't believe there's a practical use model 
+=== Substituting Dollar Parameter
 
-
-=== Substituting Numbered Parameter
-
-Numbered parameters may be used in the bodies of traditional macros and functions (and some variables,
-though this is not the intended use model). Numbered parameter
-substitutions are made throughout the entire body string regardless of the use of quotes. The following
-notations are substituted:
+All types of macros support "dollar" parameters (including "numbered" and "special" parameters) substitution
+(though their use discouraged for variables). Dollar parameter
+substitutions are made throughout the entire body string regardless of the use of quotes and adjacent text.
+The following notations are substituted:
 
 - `$1`, `$2`, etc.: These substitute with corresponding arguments.
 - `$#`: The number of arguments (including only those that are numbered). Note that `m5_foo()` has one empty macro argument, while `m5_foo` has zero.
@@ -613,11 +609,11 @@ see <<Escaping Blocks>>.
 === Variables
 
 Variables are expected to be defined without parameters and to be invoked without a parameter list. They
-simply map a name to a text string.
+simply map a name to a literal text string.
 
 Variables are defined using: `m5_var`, `m5_set`, `m5_var_str`, `m5_set_str`
 
-Parameters: Variables are not generally used with parameters, however numbered parameters are supported.
+Parameters: Though variables are not intended to be used with parameters, numbered/special (`$`) parameters are supported.
 Since variables result in literal (quoted) text, these parameters can only go so far as to expand arguments
 literally in the resulting text. Where it may be necessary to avoid inadvertent interpretation of a `$`
 in a variable value as a parameter reference, access the value of the variable using `m5_value_of`.
@@ -634,7 +630,7 @@ computations, assign variables, etc. For example:
  
  m5_foo(A,B)     ==> Yields: "Args:A,B"
 
-Traditional macros are declared using `m5_macro` and `m5_macro_inline`.
+Traditional macros are declared using `m5_macro`.
 
 
 === Functions
@@ -652,7 +648,7 @@ There is no mechanism to explicitly print to the standard output stream, as is t
 are macros for printing to the standard error stream). It is up to the caller what to do with the result. Only
 a top-level call from the source code will implicitly echo to standard output.
 
-Functions are defined using: `m5_fn`, `m5_eval_fn`, `m5_inline_fn`, m5_null_fn`, `m5_lazy_fn`, ...
+Functions are defined using: `m5_fn`, `m5_eval_fn`, `m5_null_fn`, `m5_lazy_fn`, ...
 
 Declarations take the form:
 
@@ -934,10 +930,8 @@ var(mac_spec, *['
  macro arguments that are integer values accept decimal value strings. Boolean inputs and outputs use
  `0` and `1`. Behavior for other argument values is undefined if unspecified.
  
- Resulting text is by default literal (`['text']`). Macros named with a `_eval` suffix generally result
- in text that gets evaluated (`text['']`). Macros named with a `_inline` suffix generally result in
- text that evaluates inline (`text`), so it may combine with subsequent text for further evaluation. For
- more about these categories, see <<result_classes>>.
+ Resulting output text is, by default, literal (quoted). Macros named with a `_eval` suffix generally result
+ in text that gets evaluated.
  ']
 
  === Assigning and Accessing Macros Values
@@ -1027,9 +1021,8 @@ var(mac_spec, *['
  '], ...: )
  **/
  
- m5_DocFns(['macro, macro_inline, null_macro'], ['
-  D: Declare a scoped traditional macro. See <<macros>>. The evaluation of an inline macro
-  can combine with subsequent text to evaluate further. A null macro must produce no output.
+ m5_DocFns(['macro, null_macro'], ['
+  D: Declare a scoped traditional macro. See <<macros>>. A null macro must produce no output.
   S: the macro is declared
   E: m5_macro(ParseError, <p>['
      m5_error(['Failed to parse $<p>1.'])
@@ -1143,7 +1136,7 @@ var(mac_spec, *['
   P: Hello, Joe!
  '], ...: )
 
- m5_DocFns(['substr, substr_eval, substr_inline'], ['
+ m5_DocFns(['substr, substr_eval'], ['
   D: Extract a substring from `String` starting from `Index` and extending for `Length` characters or to the end of the
   string if `Length` is omitted or exceeds the string length. The first character of the string has index 0.
   The result is empty if there is an error parsing `From` or `Length`, if `From` is beyond the end of the string,
@@ -1160,8 +1153,8 @@ var(mac_spec, *['
   
   When evaluating substrings, care must be taken with `,`, `(`, and `)` because of their meaning in argument parsing.  
   
-  `substr` is a slow operation relative to `substr_eval` and `substr_inline` (due to limitations of M4).
-  O: the substring or its (possibly-inline) evaluation
+  `substr` is a slow operation relative to `substr_eval` (due to limitations of M4).
+  O: the substring or its evaluation
   E: m5_substr(['Hello World!'], 3, 5)
   P: lo Wo
   A: (dequote, requote)
@@ -1307,16 +1300,14 @@ var(mac_spec, *['
   A: (quote)
  '], ...: )
  
- m5_DocFns(['eval, inline'], ['
-  D: Evaluate the argument. For `m5_inline`, the resulting text is then evaluated together with subsequent text.
+ m5_DocFn(eval, ['
+  D: Evaluate the argument.
   O: the result of evaluating the argument
   S: the side-effects resulting from evaluation
   E: 1: m5_eval(['m5_calc(1 + 1)'])
   2: m5_eval(['m5_'])calc(1 + 1)
-  3: m5_inline(['m5_'])calc(1 + 1)
   P: 1: 2
   2: m5_calc(1 + 1)
-  3: 2
  '], Expr: the expression to evaluate)
 
  m5_DocFns(['comment, nullify'], ['
@@ -1382,22 +1373,21 @@ var(mac_spec, *['
 
  ==== Within Functions or Code Blocks
  
- m5_DocFns(['out, out_inline, out_eval'], ['
+ /** Only utility is out_eval which can be used in scoped macro to evaluate outside of scope. Functions have
+     aftermath instead... TODO: Clean this up with this in mind and add it back.
+ m5_DocFns(['out, out_eval'], ['
   D: For use as code block statements, these append to code block output (<<m5_block_output>>) to become
   the output of the code block. Note that `m5_out` is useful only in pathological cases of dynamically
   constructed code since the shorthand syntax `~(...)` is effectively identical to `~out(...)`.
-  `~out_eval(...)` and `~out_inline(...)` capture block output that evaluates (after block evaluation).
+  `~out_eval(...)` captures block output that evaluates (after block evaluation).
   Note that these macros are not recommended for use in function blocks as functions have their own
   mechanism for side-effects. (See <<m5_on_return>>.)
   O: no direct output, though, since these indirectly result in output as a side-effect, it is recommended to use `~`
   statement syntax with these
-  S: indirectly, `out_inline` and `out_eval` can result in the side-effects of their output expressions
-  E: set_macro(ActiveMacroPrefix, [
-     ~out_inline(Foo)
-  ])
-  ActiveMacroPrefix()Bar()
+  S: indirectly, `out_eval` can result in the side-effects of its output expression
   A: (fn, --functions--, --code blocks--)
  '], String: the string to output)
+ **/
 
  /**  deprecated; we'll instead support labels on all quotes
  m5_DocFn(WRAP, ['
@@ -1473,7 +1463,7 @@ var(mac_spec, *['
 
 
 
-macro_inline(tail_doc, ['
+macro(tail_doc, ['
  == Syntax Index
 
  M5 processes the following syntaxes:
