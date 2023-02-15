@@ -519,6 +519,8 @@ m4_define(['m5_pop'],
    ['m4_popdef(['$1'])m4_ifelse($2, [''], [''], ['m5_pop'])'])
 
 // See docs.
+// TODO: stringify is missing in docs.
+// TODO: stringify doesn't work if string contains quotes. Use m5_defn(['$1']__VALUE) approach instead.
 m4_define(['m5_stringify'],
    ['m5_set_macro(['$1'], m4_patsubst(m4_dquote(m4_defn(['m5_$1'])), ['\$'], ['$']m5_close_quote()m5_open_quote()))'])
 m4_define(['m5_var_str'],
@@ -585,45 +587,10 @@ m4_define(['m5__region'],
 
 // Binding bodies.
 
-// The example below illustrates a function m5_if_neg that takes an argument that is a body to evaluate.
-// The body is defined in a calling function, m5_my_fn. Such a body is expected to evaluate
-// in the context of the calling function, m5_my_fn, meaning, its side effects should be side effects of
-// m5_my_fn. If special care is not taken, its side effects (from m5_on_return) would
-// be a side effects of m5_if_neg, not m5_my_fn, as expected. This can be addressed using
-// m5_eval_body_arg, which captures the side effects of the body and passes them along to the
-// caller.
-
-// Masking...
-
-// Note that my_fn could contain multiple nested m5_if_neg calls, and each would pass
-// the side effect along, ultimately producing the side effect in m5_my_fn.
-// Also note the distinction between body output and function side effects in that body output
-// is associated with bodies, and function side effects are associated with functions. In order for
-// body output to propogate to its calling function, each nesting level explicitly passes the
-// output along using ~. Propogation is the responsibility of the caller, not the callee.
-
-/// Example of a body argument.
-///
-/// // Evaluate a body if a value is negative.
-/// fn(if_neg, Value, Body, {
-///    ...
-///       ~on_return(m5_Body)   /// Incorrect!!!
-///       ~eval_body_arg(m5_Body)   /// Correct.
-///    ...
-/// })
-///
-/// fn(my_fn, {
-///    ~if_neg(1, [
-///       on_return(...)
-///       ~(...)
-///    ])
-/// })
-
-//------------------------------------------------------------------------
 // Deprecated: Use
 //    on_return(m5_Body)
 //    return_status(...)
-//  instead.
+//  instead (requiring execution as a aftermath).
 // TODO: This will also pop/push m5_my.
 // TODO: This could also be accomplished by popping aftermath into a temp, then pushing it after the call.
 //       This would be consistent with the above todo.
@@ -635,13 +602,8 @@ m4_define(['m5_eval_body_arg'],
 
 // These are preferred over directly setting variables whose names are given due to possible masking (name collisions with local declarations).
 
-// Set the return status of the current function. If called multiple times, the last has priority.
-// With no arguments, m5_status is implied.
-// If not called, status is explicitly preserved by the function.
+// See docs.
 m4_define(['m5_return_status'], ['m5_append_macro(fn__aftermath, m4_ifelse($#, 0, ['['m5_set(status, m5_status)']'], ['['m5_set(status, ['$1'])']']))'])
-// Call a macro upon returning from a function. Arguments are those for m5_call.
-// This is most often used to have a function declare or set a variable/macro as a side effect.
-// It is also useful for tail recursion that does not grow the call stack.
 m4_define(['m5_on_return'], ['m5_append_macro(fn__aftermath, ['m5_call($@)['']'])'])
 m4_define(['m5_on_return_inline'], ['m5_deprecated()m5_append_macro(fn__aftermath, ['m5_call($@)'])'])
 
@@ -860,9 +822,9 @@ m4_define(['m5_lazy_fn__guts'],
 /// m4_define(['m5_lazy_fn'], m5_defn(fn))  // Disable m5_lazy_fn for testing.
 
 
-// Access a func argument by position from m5_fn_args.
-// This is useful instead of e.g. $3 in function bodies within other function bodies.
-m4_define(['m5_func_arg'], ['m4_argn($1, m5_fn_args)'])
+// See docs.
+m4_define(['m5_fn_arg'], ['m4_argn($1, m5_fn_args)'])
+m4_define(['m5_func_arg'], ['m5_deprecated()']m4_defn(['m5_fn_arg']))
 // Number of arguments in m5_fn_args.
 m4_define(['m5_fn_arg_cnt'],
    ['m4_ifelse(m4_len(m4_defn(['m5_fn_args'])), 0, ['0'], ['m5_nargs(m5_fn_args)'])'])
@@ -874,10 +836,8 @@ m4_define(['m5_comma_fn_args'],
 // #############################
 // For manipulating arguments
 
-// Number of arguments.
+// See docs.
 m4_define(['m5_nargs'], ['['$#']'])
-// The nth argument (where the 2nd arg is arg 1).
-// m4_argn(#, ...)
 m4_define(['m5_argn'],
    ['m4_ifelse(['$1'], 1, ['['$2']'],
                ['m5_argn(m4_decr(['$1']), m4_shift(m4_shift($@)))'])'])
@@ -898,20 +858,20 @@ m4_define(['m5_comma_shift'],
 // Return the arguments. (Useful for processing parameters that are parenthesized argument lists.)
 m4_define(['m5_args'], ['$@'])
 
-// Verify that a macro has a minimum number of arguments.
-// m5_verify_min_args(my_fn, 2, $#)
+// See docs.
 m4_define(['m5_verify_min_args'],
-   ['m4_ifelse(m5_calc(['$3'] <  ['$2']), 1, ['m5_error(['$1 requires at least $2 arguments; given $3.'])'])'])
-// Verify that a macro has the right number of arguments.
-// m5_verify_num_args(my_fn, 2, $#)
+   ['m4_ifelse(m5_calc(['$3 < $2']), 1, ['m5_error(['$1 requires at least $2 arguments; given $3.'])'])'])
 m4_define(['m5_verify_num_args'],
-   ['m4_ifelse(m5_calc(['$3'] != ['$2']), 1, ['m5_error(['$1 requires $2 arguments; given $3.'])'])'])
+   ['m4_ifelse(m5_calc(['$3 != $2']), 1, ['m5_error(['$1 requires $2 arguments; given $3.'])'])'])
+m4_define(['m5_verify_min_max_args'],
+   ['m4_ifelse(m5_calc(['($4 < $2) || ($4 > $3)']), 1, ['m5_error(['$1 requires at least $2 and no more than $3 arguments; given $4.'])'])'])
 
-// Convert a quoted argument list to a list of arguments with a preceding comma.
-// This is necessary to properly deal with zero arguments.
-// E.g. m5_call(first['']m5_comma_args(['$@']), last)
+
+// See docs.
 m4_define(['m5_comma_args'],
    ['m4_ifelse(['$1'], [''], [''], [', $1'])'])
+// Probably deprecating this in favor of the above, which is a little messier but more general and consistent for
+// more cases.
 // m5_call_varargs(my_fn, arg1, ['$@'])
 // M4 syntax for argument lists is inconvenient for passing zero arguments.
 // This variant of m5_call has a final argument that is a list of 0 or more arguments.
@@ -938,9 +898,11 @@ m4_define(['m5_calc'], m4_defn(['m4_eval']))
 // #############################
 // Regex
 
+// See docs.
 // Same as m4_regexp, but with quoted output.
 m4_define(['m5_regex'],
-   ['m4_regexp(['$1'], ['$2']m4_ifelse(m5_calc($# > 2), 1, [', m5_open_quote['$3']m5_close_quote']))'])
+   ['m4_regexp(['$1'], ['$2']m4_ifelse(m5_calc($# > 2), 1, [', ['['$3']']']))'])
+m4_define(['m5_regex_eval'], m4_defn(['m4_regexp']))
 
 \m5
 /// Declare variables initialized with [''] values.
@@ -953,17 +915,13 @@ lazy_fn(null_vars,
    ])
 ])
 
-// Declare variables assigned to subexpressions of a regular expression. Assign `status`, non-empty iff no match.
+// See docs.
 // TODO: Surround with \(\), and increment \#s in var_regex__match_str. This should be functionally equivalent,
 //       but avoid M4 error if no match expressions. Also need to prevent () arg list from looking like a single null arg name.
 //       Also, improve on this. Since there is not lazy match, it's hard to get preceding text. Do this by
 //       adding \(.*\)$ only if no $ and surround this updated expression with \(\) assign the .* pattern to
 //       m5_post; then compute m5_pre based on the length of the surrounding match. This is compute-heavy. 
-lazy_fn(var_regex,
-   string: the string to match,
-   re: the Gnu Emacs regular expression,
-   var_list: a list in parentheses of variables to declare for subexpressions,
-{
+lazy_fn(var_regex, string, re, var_list, {
    /// Make sure var_list is as expected.
    if_eq(m4_regexp(m5_var_list, ['^(.*)$']), ['-1'], ['m5_fatal_error(['Malformed argument var_list for function var_regex should be a list in parentheses. Value is "']m5_var_list['".'])'])
    var(exp_cnt, 0)  /// Count of regexp expressions.
@@ -997,13 +955,7 @@ lazy_fn(var_regex__match_str, ..., [
 // TODO: It's not okay to call a body from a function. on_return/return_status will return status from
 //       this function, not from the funtion that calls this. Maybe we need a version of fn that doesn't
 //       do aftermath (though this one needs it)?? Others are similar.
-lazy_fn(if_regex,
-   string: the string to match,
-   re: the Gnu Emacs regular expression,
-   var_list: a list in parentheses of variables to declare for subexpressions,
-   body: the body to evaluate if the pattern matches,
-   ...: ['additional repeated re, var_list, body, ... to process if pattern doesn't match'],
-{
+lazy_fn(if_regex, string, re, var_list, body, ..., {
    return_status([''])  /// default
    var_regex(m5_value_of(string), m5_value_of(re), m5_var_list)
    ~if_so(['m5_eval(m5_body)'])   /// TODO: Use m5_eval_body_arg.
@@ -1024,21 +976,16 @@ macro(else_if_regex,
    ['m4_ifelse(m5_status, [''], [''], ['m5_if_regex($@)'])'])
 
 macro(if_status,
-   ['['$1']m5_if_so(m5_shift($@))'])
+   ['m5_deprecated()['$1']m5_if_so(m5_shift($@))'])
 macro(else_if_status,
-   ['m4_ifelse(m5_status, [''], [''], ['m5_if_status($@)'])'])
+   ['m5_deprecated()m4_ifelse(m5_status, [''], [''], ['m5_if_status($@)'])'])
 
 
+// See docs.
 macro(echo_args, ['$']['@'])
 
 // Evaluate body for every pattern matching regex in the string. m5_status is unassigned.
-lazy_fn(for_each_regex,
-   String: the string to match (containing at least one subexpression and no `$`),
-   Re: the Gnu Emacs regular expression,
-   [1]VarList: a (non-empty) list in parentheses of variables to declare for subexpressions,
-   Body: the body to evaluate for each matching expression,
-{
-   ///DEBUG(for_each_regex(m5_String, m5_Re, $@))
+lazy_fn(for_each_regex, String, Re, [1]VarList, Body, {
    var_regex(m5_value_of(String), m5_value_of(Re)['\(.*\)'], (m5_echo_args$1, Remainder))
    ~if_so([
       ~eval_body_arg(m5_Body)
@@ -1063,7 +1010,6 @@ fn(for_each_line, text, body, {
 
 
 // Strip trailing whitespace from variable.
-
 fn(strip_trailing_whitespace_from, it, {
    set(m5_it, m5_substr(m5_eval(['m5_']m5_it), 0, m5_calc(m5_length(m5_eval(['m5_']m5_it)) - m5_length(m5_regex(m5_eval(['m5_']m5_it), ['\(\s*\)$'], ['\1'])))))
 })
@@ -1079,6 +1025,7 @@ fn(strip_trailing_whitespace_from, it, {
 \m5
    // Convert a hexadecimal (string of hex digits) number to decimal.
    lazy_fn(hex_to_int, digits, {
+      deprecated()
       var(val, 0)
       set(digits, m5_lowercase(m5_digits))
       loop(, [
@@ -1195,6 +1142,7 @@ Bodies must be bound to the caller, so body calls should pop m5_my, call, push m
 
 
 \m4
+// ------------------------------------------------------
 /// Declarations of null and minimal documentation functions.
 /// m5_enable_doc can be used to enable docs.
 m4_define(['m5_null_fns'],

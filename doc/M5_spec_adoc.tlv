@@ -14,7 +14,10 @@ v1.0, 2023
 // Web page meta data.
 :keywords:    Gnu, M4, M5, macro, preprocessor, TL-Verilog, Redwood +
               EDA, HDL
-:description: M5 is a macro preprocessor on steroids. It is built on the simple principle of text +
+:description: M5 is a macro preprocessor on steroids. It is an easy tack-on to any text format to +
+              enable arbitrary text processing, extending the capabilities and syntax of the underlying +
+              language (or simply text). +
+              It is built on the simple principle of text +
               substitution but provides robust features on par with other programming languages. +
               It is optimized for simple use cases and for comprehension by non-experts while being +
               capable of general-purpose programming.
@@ -49,6 +52,7 @@ M5 was developed by Redwood EDA, LLC and is used in conjunction with TL-Verilog,
 advance macro preprocessor or code generator for any target language or even as a stand-alone language.
 M5 is constructed with a bit of pre-preprocessing, providing syntactic sugar, and then the use of the Gnu M4
 macro preprocessor with an extensive library.
+
 
 This chapter provides background and general information about M5, guidance about this specification,
 and instructions for using M5.
@@ -203,7 +207,7 @@ Second, `substr` and regular expressions manipulate bytes, not characters. This 
 result in text being split in the mid-character, resulting in invalid character
 encodings.
 
-====== Debugging features
+===== Debugging features
 M4's facilities for associating output with input only map output lines to line numbers of
 top-level calls. (TL-Verilog tools have mechanisms for line tracking.)
 
@@ -211,6 +215,23 @@ M4 does not maintain a call stack. M5 adds one which tracks function names and a
 of calls, but it cannot track line numbers.
 
 M4 and M5 have no debugger to step through code. Printing is the debugging mechanism of choice.
+
+/**
+==== M6
+
+M6 would be rebuilt from scratch without the use of M4.
+- m6() has 0 args; m6(['']) has 1 arg; m6(m6_shift(1)) has 0 args.
+- No $ substitution if no arg list. In fact definitions should be distinct between vars and macros, so
+it's always one use or the other.
+- No @*
+- `m6_` and quote chars are configurable as an attribute of quoted text or file as a whole. (If still M4 under the hood, `pre_m6`
+would substitute it for a control character prefix, and M4 would be configured to recognize
+this control character as a word.)
+- No inline behavior of macros (`['']`) implied after macro definitions.
+- Many of the M4 macros that return unquoted text would return quoted text, and other <<Limitations of M5>>
+would be fixed as well.
+
+**/
 
 === Status
 
@@ -222,9 +243,49 @@ include:
 - vanishing comments
 - use of control-character quotes
 
+/** This is a bit overstated. So we get rid of ternary vs. if. Big whoop.
+=== A Quick Taste
 
+...
 
-== Processing Text and Calling Macro
+The same condintional macros can be applied to output text, strings, statements, and expressions, so there is less
+syntax and fewer keywords to learn. Here we use the `if` (also referenced as `m5_if`) macro in various contexts and compare
+with a more traditional programming language syntax. `if`
+
+Inline conditional text:
+
+ There are m5_if(m5_BallCnt < 0, ['no'], ['m5_BallCnt']) balls remaining.
+ 
+ print("There are " + ((ball_cnt < 0) ? "no" : ball_cnt) + "balls remaining.");
+
+As a code statement producing output text:
+
+ ~if(m5_BallCnt < 0, ['no'], ['m5_BallCnt'])
+
+ print((ball_cnt < 0) ? "no" : ball_cnt);
+ or
+ out_str = out_str + ((ball_cnt < 0) ? "no" : ball_cnt);
+
+As conditional execution:
+
+ if(m5_BallCnt < 0, [
+    set(BallCnt, 0)
+ ])
+ 
+ if (ball_cnt < 0) {
+    ball_cnt = 0;
+ }
+
+As a conditional assignment:
+
+ ~set(BallCnt, m5_if(m5_BallCnt < 0, ['0'], ['m5_BallCnt'])
+ 
+ ball_cnt = (ball_cnt < 0) ? 0 : ball_cnt;
+
+...
+**/
+
+== Processing Text and Calling Macros
 
 === Macro Preprocessing in General
 
@@ -731,31 +792,18 @@ Additionally, and in summary:
                           context in which it is defined. For example a function may define another function that is
                           customized to the parameters of the outer function.
 
-==== Passing Arguments by Reference
-
-It is possible for a function to make assignments (and, actually do anything) in the calling scope.
-This can be done using <<m5_out_eval>>, <<m5_on_return>>, or <<m5_return_status>>.
-
-In particular, functions can pass variables by reference and make assignments to the referenced
-variables. The parameter would be a named parameter, say `foo_ref`, passed the name of the referenced variable.
-A function can modify a variable using a parameter, say `foo_ref`, and calling in its code block
-`on_return(set, m5_foo_ref, ['updated value'])`.
-A function can declare a variable using a parameter, say `foo_ref`, and calling in its code block
-`on_return(var, m5_foo_ref, ['init value'])`.
-
-
 ==== Function Arguments Example
 
 In the context of a code block, function `foo` is declared to output its prameters.
 
   // Context:
-  var(inherit2, two)
+  var(Inherit2, two)
   // Define foo:
-  fn(foo, param1, ?[1]param2: an optional parameter, ?^inherit1, [2]^inherit2, ..., {
-    ~nl(param1: m5_param1)
-    ~nl(param2: m5_param2)
-    ~nl(inherit1: m5_inherit1)
-    ~nl(inherit2: m5_inherit2)
+  fn(foo, Param1, ?[1]Param2: an optional parameter, ?^Inherit1, [2]^Inherit2, ..., {
+    ~nl(Param1: m5_Param1)
+    ~nl(Param2: m5_Param2)
+    ~nl(Inherit1: m5_Inherit1)
+    ~nl(Inherit2: m5_Inherit2)
     ~nl(['numbered args: $@'])
   })
 
@@ -766,15 +814,90 @@ And it can be called (again, in this example, from a code block):
 
 And this expands to:
 
- param1: arg1
- param2: arg2
- inherit1:
- inherit2: two
+ Param1: arg1
+ Param2: arg2
+ Inherit1:
+ Inherit2: two
  numbered args: ['arg2'],['two'],['extra1'],['extra2']
 
-==== Functions with Body Arguments
+==== Aftermath
 
+It is possible for a function to make assignments (and, actually do anything) in the calling scope.
+This can be done using <<m5_out_eval>>, <<m5_on_return>>, or <<m5_return_status>>.
 
+This is important for:
+
+- passing arguments by reference
+- returning status
+- evaluating body arguments
+- tail recursion
+
+Each of these is discussed in its own section, next.
+
+==== Passing Arguments by Reference
+
+Functions can pass variables by reference and make assignments to the referenced
+variables. The parameter would be a named parameter, say `FooRef`, passed the name of the referenced variable.
+A function can modify a variable using a parameter, say `FooRef`, and calling in its code block
+`on_return(set, m5_FooRef, ['updated value'])`.
+Similarly, a function can declare a variable using a parameter, again say `FooRef`, and calling in its code block
+`on_return(var, m5_FooRef, ['init value'])`.
+
+The use of `on_return` avoids a potential masking issue resulting from a local variable of the
+function having a conflicting name with the referenced variable.
+
+==== Returning Status
+
+TODO...
+
+==== Functions (and Tranditional Macros) with Body Arguments
+
+The example below illustrates a function `m5_if_neg` that takes an argument that is a body to evaluate.
+The body is defined in a calling function, `m5_my_fn` on lines 12-15. Such a body is expected to evaluate
+in the context of the calling function, `m5_my_fn`. Its side effects from `on_return` in
+line 13 should be side effects of `m5_my_fn`. If the body is evaluated inside the function body,
+its side effects would be side effects of `m5_if_neg`, not `m5_my_fn`, as expected. This can be addressed using
+`m5_on_return`.
+
+Note that `m5_return_status` is called after evaluating `m5_Body`. Both `m5_on_return` and `m5_return_status`
+add to the "aftermath" of the function, and `m5_status` must be set after evaluating the body (which
+could affect `m5_status`.
+
+Masking...
+
+TODO...
+Note that my_fn could contain multiple nested m5_if_neg calls, and each would pass
+the side effect along, ultimately producing the side effect in m5_my_fn.
+Also note the distinction between body output and function side effects in that body output
+is associated with bodies, and function side effects are associated with functions. In order for
+body output to propogate to its calling function, each nesting level explicitly passes the
+output along using ~. Propogation is the responsibility of the caller, not the callee.
+
+Example of a body argument.
+
+  1: // Evaluate a body if a value is negative.
+  2: fn(if_neg, Value, Body, {
+  3:    var(Neg, m5_calc(Value < 0))
+  4:    if(Neg, [
+  5:      ///~eval(m5_Body)    /// Incorrect!!!
+  6:      ~on_return(Body)     /// Correct.
+  7:    ])
+  8:    ~return_status(if(Neg, [''], else))
+  9: })
+ 10: 
+ 11: fn(my_fn, {
+ 12:    ~if_neg(1, [
+ 13:       on_return(...)   /// Should be a side-effect of my_fn.
+ 14:       ~(...)
+ 15:    ])
+ 16: })
+
+Traditional macros defined using a scoped code block have a similar issue resolved by using `~out_eval`.
+TODO: explain and find the right home for this.
+
+==== Tail Recursion
+
+...
 
 
 == Contexts: Scope, Namespaces, and Libraries
@@ -884,7 +1007,7 @@ WIP...
 It's important to keep in mind that variables are macros, and macro calls substitute `$` parameters, whether
 parameters are given or not. (This is legacy from M4, and working around it would impact performance appreciably.)
 Whenever dealing using variables containing arbitrary strings, use `m5_value_of`, or use `m5_str` and `m5_set_str`.
-See [[String Processing]].
+See [[Working with Strings]].
 
 
 [[masking]]
@@ -926,6 +1049,8 @@ var(mac_spec, *['
  
  === Specification Conventions
  ['
+ Macros are listed by category in a logical order. An alphabetical <<Index>> of macros can be found at the end of
+ this document (at least in the `.pdf` version).
  Macros that return integer values, unless otherwise specified, return decimal value strings. Similarly,
  macro arguments that are integer values accept decimal value strings. Boolean inputs and outputs use
  `0` and `1`. Behavior for other argument values is undefined if unspecified.
@@ -997,17 +1122,18 @@ var(mac_spec, *['
 
  ==== Declaring Functions
 
- /**
- m5_DocFn(, ['
-  D: 
-  O: 
-  S: none
-  E: 
-  P: 
-  A: ()
- '], ...: )
- **/
- 
+ m5_DocFns(['fn, lazy_fn'], ['
+  D: Declare a function. For details, see <<Functions>>. `fn` and `lazy_fn` are functionally equivalent but
+  have different performance profiles, and lazy functions do not support inherited (`^`) parameters.
+  Lazy functions wait until they are used before defining themselves, so they are generally preferred
+  in libraries except for the most commonly-used functions.
+  S: the function is declared
+  E: fn(add, Addend1, Addend2, {
+     ~calc(Addend1 + Addend2)
+  })
+  A: (<<Functions>>)
+ '], ...: arguments and body)
+
  ==== Declaring/Setting Traditional Macros
 
  /**
@@ -1134,7 +1260,7 @@ var(mac_spec, *['
   m5_append_var([', ']m5_Name['!']) /// equivalent to m5_var(Hi, ['Hello'][', ']m5_Name['!'])
   m5_Hi
   P: Hello, Joe!
- '], ...: )
+ '], Name: the variable name, String: the string to append/prepend)
 
  m5_DocFns(['substr, substr_eval'], ['
   D: Extract a substring from `String` starting from `Index` and extending for `Length` characters or to the end of the
@@ -1192,6 +1318,11 @@ var(mac_spec, *['
   A: (repeat)
  '], Cnt: the number of repetitions, String: the string to repeat)
 
+ m5_DocFn(strip_trailing_whitespace_from, ['
+  D: Strip trailing whitespace from the given variable.
+  S: the variable is updated
+ '], Var: the variable)
+
  ==== Formatting Strings
  
  m5_DocFn(format_eval, ['
@@ -1213,7 +1344,7 @@ var(mac_spec, *['
   For more details on the functioning of `printf`, see the C Library Manual, or the POSIX specification.
   O: the formatted string
   E: 1: m5_var(Foo, Hello)
-     m5_format_eval(`The string "%s" uses %d characters.', Foo, m5_length(Foo))
+     m5_format_eval(`String "%s" uses %d chars.', Foo, m5_length(Foo))
   2: m5_format_eval(`%*.*d', `-1', `-1', `1')
   3: m5_format_eval(`%.0f', `56789.9876')
   4: m5_length(m5_format(`%-*X', `5000', `1'))
@@ -1221,7 +1352,7 @@ var(mac_spec, *['
   6: m5_format_eval(`%.1A', `1.999')
   7: m5_format_eval(`%g', `0xa.P+1')
   P: 1: 
-     The string "Hello" uses 5 characters.
+     String "Hello" uses 5 chars.
   2: 1
   3: 56790
   4: 5000
@@ -1243,6 +1374,13 @@ var(mac_spec, *['
  m5_DocFn(num_lines, ['
   O: the number of new-lines in the given string
  '], String: the string)
+ 
+ m5_DocFn(for_each_line, ['
+  D: Evaluate `m5_Body` for every line of `m5_Text`, with `m5_Line` assigned to the line (without any new-lines).
+  O: output from `m5_Body`
+  S: side-effects of `m5_Body`
+ '], Text: the block of text, Body: the body to evaluate for every `m5_Line` of `m5_Text`)
+
 
  ==== Safely Working with Strings
 
@@ -1264,6 +1402,87 @@ var(mac_spec, *['
  '], String: the string to test)
  
  ==== Regular Expressions
+
+ ['
+ Regular expressions in M5 use the same regular expression syntax as GNU Emacs. (See
+ [GNU Emacs Regular Expressions](https://www.gnu.org/software/emacs/manual/html_node/emacs/Regexps.html).)
+ This syntax is similar to BRE, Basic Regular Expressions in POSIX and is regrettably rather limited.
+ Extended Regular Expressions are not supported.
+ ']
+
+ /**
+ m5_DocFn(, ['
+  D: 
+  O: 
+  S: none
+  E: 
+  P: 
+  A: ()
+ '], ...: )
+ **/
+
+ m5_DocFns(['regex, regex_eval'], ['
+  D: Searches for `Regexp` in `String`, resulting in either the position of the match or the given replacement.
+  
+  `Replacement` provides the output text. It may contain references to subexpressions of `Regex` to expand
+  in the output. In `Replacement`, `\n` references the nth parenthesized subexpression of `Regexp`, up to nine
+  subexpressions, while `\&` refers to the text of the entire regular expression matched. For all other
+  characters, a preceding `\` treats the character literally.
+  O: If `Replacement` is omitted, the index of the first match of `Regexp` in `String` is produced (where the
+  first character in the string has an index of 0), or -1 is produced if there is no match.
+  
+  If `Replacement` is given and there was a match, this argument provides the output, with `\n`
+  replaced by the corresponding matched subexpressions of `Regex` and `\&` replaced by the entire matched
+  substring. If there was no match result is empty.
+  
+  The resulting text is literal for `regex` and is evaluated for `regex_eval`.
+  S: `regex_eval` may result in side-effects resulting from the evaluation of `Replacement`. 
+  E: m5_regex_eval(['Hello there'], ['\w+'], ['First word: m5_translit(['\&']).'])
+  P: First word: Hello.
+  A: (var_regex, if_regex, foreach_regex)
+ '], String: the string to search,
+     Regex: the regular expression to match,
+     ?Replacement: the replacement)
+
+ m5_DocFn(var_regex, ['
+  D: Declare variables assigned to subexpressions of a regular expression.
+  S: `status` is assigned, non-empty iff no match.
+  E: m5_var_regex(['mul A, B'], ['^\(\w+\)\s+\(w+\),\s*\(w+\)$'], (Operation, Src1, Src2))
+  m5_if_so(['m5_DEBUG(Matched: m5_Src1[','] m5_Src2)'])
+  m5_else(['m5_error(['Match failed.'])'])
+  A: (regex, regex_eval, if_regex, foreach_regex)
+ '], String: the string to match,
+     Regex: the Gnu Emacs regular expression,
+     VarList: a list in parentheses of variables to declare for subexpressions)
+
+ m5_DocFns(['if_regex, else_if_regex'], ['
+  D: For chaining `var_regex` to parse text that could match a number of formats.
+  Each pattern match is in its own scope. `else_if_regex` does nothing if `m5_status` is non-empty.
+  O: output of the matching body
+  S: `m5_status` is non-null if no expression matched; side-effects of the bodies
+  E: ~if_regex(m5_Instruction, ['^mul\s+\(w+\),\s*\(w+\)$'], (Src1, Src2), [
+     ~m5_calc(m5_Src1 * m5_Src2)
+  ], ['^incr\s+\(w+\)$'], (Src1), [
+     ~m5_calc(m5_Src1 + 1)
+  ])
+  A: (var_regex)
+ '], String: the string to match,
+     Regex: the Gnu Emacs regular expression,
+     VarList: a list in parentheses of variables to declare for subexpressions,
+     Body: the body to evaluate if the pattern matches,
+     ...: ['additional repeated Regex, VarList, Body, ... to process if pattern doesn't match'])
+
+ m5_DocFn(for_each_regex, ['
+  D: Evaluate body for every pattern matching regex in the string. m5_status is unassigned.
+  S: side-effects of the body
+  E: m5_for_each_regex(H1dd3n D1git5, ['\([0-9]\)'], (Digit), ['Found m5_Digit. '])
+  P: Found 1. Found 3. Found 1. Found 5. 
+  A: (regex, regex_eval, if_regex, else_if_regex)
+ '], String: the string to match (containing at least one subexpression and no `$`),
+     Regex: the Gnu Emacs regular expression,
+     VarList: a (non-empty) list in parentheses of variables to declare for subexpressions,
+     Body: the body to evaluate for each matching expression)
+
 
  === Utilities
  
@@ -1342,13 +1561,54 @@ var(mac_spec, *['
 
  ==== Argument Processing
 
- m5_DocFn(shift, ['
-  D: Removes the first argument.
+ m5_DocFns(['shift, comma_shift'], ['
+  D: Removes the first argument. `comma_shift` includes a leading `,` if there are more than zero arguments.
   O: a list of remaining arguments, or `['']` if less than two arguments
   S: none
-  E: m5_foo(m5_shift($@))
-  A: (comma_shift)
+  E: m5_foo(m5_shift($@))         //']['/ $@ has at least 2 arguments
+  m5_call(foo['']m5_comma_shift($@)) //']['/ $@ has at least 1 argument
  '], ...: arguments to shift)
+
+ m5_DocFn(nargs, ['
+  O: the number of arguments given (useful for variables that contain lists)
+  E: m5_set(ExampleList, ['hi, there'])
+  m5_nargs(m5_ExampleList)
+  P: 
+  2
+ '], ...: arguments)
+
+ m5_DocFn(argn, ['
+  O: the nth of the given `arguments` or `['']` for non-existent arguments
+  E: m5_set(ExampleList, ['hi, there'])
+  m5_argn(2, ExampleList)
+  P: 
+  there
+ '], ArgNum: the argument number (n) (must be positive), ...: arguments)
+
+ m5_DocFn(comma_args, ['
+  D: Convert a quoted argument list to a list of arguments with a preceding comma.
+  This is necessary to properly work with argument lists that may contain zero arguments.
+  E: m5_call(first['']m5_comma_args(['$@']), last)
+  A: (call_varargs)
+ '], ...: quoted argument list)
+
+ /** Use above instead for better consistency
+ m5_DocFn(call_varargs, ['
+  D: For working with argument lists that can have zero arguments, this is a bit cleaner
+  looking that using `m5_comma_args` for common cases. This is a variant of `m5_call` that has a
+  final argument that is a list of 0 or more additional arguments.
+  E: m5_call_varargs(my_fn, arg1, ['$@'])
+  A: (comma_args)
+ '], ...: quoted, argument list)
+ **/
+ 
+ m5_DocFn(echo_args, ['
+  D: For rather pathological use illustrated in the example, ...
+  O: the argument list (`$@`)
+  E: m5_macro(append_to_paren_list, ['m5_echo_args$1, $2'])
+  m5_append_to_paren_list((one, two), three)
+  P: (one,two,three)
+ '], ...: the arguments to output)
 
  /**
  m5_DocFn(, ['
@@ -1363,6 +1623,51 @@ var(mac_spec, *['
 
  ==== Arithmetic Macros
  
+ m5_DocFn(calc, ['
+  D: Calculate an expression.
+  Calculations are done with 32-bit signed integers. Overflow silently results in wraparound.
+  A warning is issued if division by zero is attempted, or if the expression could not be parsed.
+  Expressions can contain the following operators, listed in order of decreasing precedence.
+
+  - `()`: For grouping subexpressions
+  - `+`, `-`, `~`, `!`: Unary plus and minus, and bitwise and logical negation
+  - `**`: Exponentiation (exponent must be non-negative, and at least one argument must be non-zero)
+  - `*`, `%`: Multiplication, division, and modulo
+  - `+ -`: Addition and subtraction
+  - `<<`, `>>`: Shift left or right (for shift amounts > 32, the amount is implicitly ANDed with `0x1f`)
+  - `>`, `>=`, `<`, `<=`: Relational operators
+  - `==`, `!=`: Equality operators
+  - `&`: Bitwise AND
+  - `^`: Bitwise XOR (exclusive or)
+  - `\|`: Bitwise OR
+  - `&&`: Logical AND
+  - `\|\|`: Logical OR
+
+  All binary operators, except exponentiation, are left-associative. Exponentiation is right-associative.
+  
+  Immediate values in `Expr` may be expressed in any radix (aka base) from 1 to 36 using prefixes as follows:
+  
+  - (none): Decimal (base 10)
+  - `0`: Octal (base 8)
+  - `0x`: hexadecimal (base 16)
+  - `0b`: binary (base 2)
+  - `0r:`, where `r` is the radix in decimal: Base `r`.
+  
+  Digits are `0`, `1`, `2`, …, `9`, `a`, `b` … `z`. Lower and upper case letters can be used
+  interchangeably in numbers and prefixes. For radix 1, leading zeros are ignored, and all remaining
+  digits must be `1`.
+
+  For the relational operators, a true relation returns 1, and a false relation return 0.
+  O: the calculated value of the expression in the given `Radix`; the value is zero-extended as requested by `Width`; values may
+  have a negative sign (`-`) and they have no radix prefix; digits > 9 use lower-case letters; output is empty if the expression is invalid
+  E: 1: m5_calc(2**3 <= 4)
+  2: m5_calc(-0xf, 2, 8)
+  P: 1: 0
+  2: -00001111
+ '], Expr: the expression to calculate,
+     ?Radix: the radix of the output (default 10),
+     ?Width: ['a minimum width to which to zero-pad the result if necessary (excluding a possible negative sign)'])
+
  ==== Boolean Macros
  
  These have boolean (`0` / `1`) results. Note that some <<m5_calc>> expressions result in boolean values as well.
@@ -1373,6 +1678,40 @@ var(mac_spec, *['
 
  ==== Within Functions or Code Blocks
  
+ m5_DocFns(['fn_args, comma_fn_args'], ['
+  D: `fn_args` is the numbered argument list of the current function. This is like `$@`, but it can be used in a nested
+  function without escaping (e.g. `$<label>@`). `comma_fn_args` is the same, but has a preceeding comma if the list is
+  non empty.
+  O: 
+  S: none
+  E: m5_foo(1, m5_fn_args)           //']['/ works for 1 or more fn_args
+  m5_foo(1['']m5_comma_fn_args)   //']['/ works for 0 or more fn_args
+  A: (fn_arg, fn_arg_cnt)
+ '])
+ 
+ m5_DocFn(fn_arg, ['
+  D: Access a function argument by position from `m5_fn_args`.
+  This is like, e.g. `$3`, but is can be used in a nested function without escaping (e.g. `$<label>3`), and
+  can be parameterized (e.g. `m5_fn_arg(m5_ArgNum)`).
+  O: the argument value.
+  A: (fn_args, fn_arg_cnt)
+ '], num: the argument number)
+
+ m5_DocFn(fn_arg_cnt, ['
+  D: The number of arguments in `m5_fn_args` or `$#`.
+  This is like, e.g. `$#`, but is can be used in a nested function without escaping (e.g. `$<label>#`).
+  O: the argument value.
+  A: (fn_args, fn_arg)
+ '])
+
+ m5_DocFn(comma_fn_args, ['
+  D: Access a function argument by position from m5_fn_args.
+  This is like, e.g. `$3`, but is can be used in a nested function without escaping (e.g. `$<label>@`), and
+  can be parameterized (e.g. `m5_fn_arg(m5_ArgNum)`).
+  O: the argument value.
+  A: (fn_args, fn_arg_cnt)
+ '])
+
  /** Only utility is out_eval which can be used in scoped macro to evaluate outside of scope. Functions have
      aftermath instead... TODO: Clean this up with this in mind and add it back.
  m5_DocFns(['out, out_eval'], ['
@@ -1407,22 +1746,48 @@ var(mac_spec, *['
  '])
  **/
 
- m5_DocFn(eval_body_arg, ['
-  D: Evaluate a body argument in the context of the caller....
+ m5_DocFn(return_status, ['
+  D: Provide return status. (Shorthand for `m5_on_return(set, status, m5_Value)`.) This negates any prior calls
+  to `return_status` from the same function.
+  S: sets `m5_status`
+  A: (on_return, <<status>>, <<aftermath>>)
+ '], ?Value: ['the status value to return, defaulting to the current value of `m5_status`'])
+ 
+ m5_DocFn(on_return, ['
+  D: Call a macro upon returning from a function. Arguments are those for m5_call.
+  This is most often used to have a function declare or set a variable/macro as a side effect.
+  It is also useful to perform a tail recursive call without growing the call stack.
+  S: that of the resulting function call
+  E: fn(set_to_five, VarName, {
+     on_return(set, m5_VarName, 5)
+  })
+  A: (return_status, <<aftermath>>)
+ '], ...: )
+
+
+ === Checking and Debugging
+
+ /**
+ m5_DocFn(, ['
+  D: 
   O: 
   S: none
   E: 
   P: 
   A: ()
  '], ...: )
+ **/
 
- === Debugging
-
- ==== Writing to STDERR
+ ==== Checking and Reporting to STDERR
  
  These macros output text to the standard error output stream (STDERR) (with `[{empty}'` / `'{empty}]` quotes represented by single characters).
  (Note that STDOUT is the destination for the evaluated output.)
  
+ m5_DocFns(['errprint, errprint_nl'], ['
+  D: Write to STDERR stream (with a trailing new-line for `errprint_nl`).
+  E: m5_errprint_nl(['Hello World.'])
+ '], text: ['the text to output'])
+
  m5_DocFns(['warning, error, fatal_error, DEBUG'], ['
   D: Report an error/warning/debug message and stack trace (except for `DEBUG_if`).
   Exit for fatal_error, with non-zero exit code.
@@ -1440,11 +1805,16 @@ var(mac_spec, *['
   E: m5_assert(m5_Cnt < 0)
  '], message: ['the message to report; (`Error:` pre-text (for example) provided by the macro)'])
 
- m5_DocFns(['errprint, errprint_nl'], ['
-  D: Write to STDERR stream (with a trailing new-line for `errprint_nl`).
-  E: m5_errprint_nl(['Hello World.'])
- '], text: ['the text to output'])
-
+ m5_doc_as_fn(verify_min_args, ['
+ '], Name, Min, Actual)
+ m5_doc_as_fn(verify_num_args, ['
+ '], Name, Min, Actual)
+ m5_DocFns(['verify_min_args, verify_num_args, verify_min_max_args'], ['
+  D: Verify that a traditional macro has a minimum number, a range, or an exact number of arguments.
+  E: m5_verify_min_args(my_fn, 2, $#)
+ '], Name: the name of this macro (for error message), Min: the required minimum or exact number of arguments,
+     Max: the maximum number of arguments, Actual: the actual number of arguments)
+ 
  ==== Uncategorized Debug Macros
  
  m5_DocVar(recursion_limit, ['
