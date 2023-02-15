@@ -230,6 +230,7 @@ this control character as a word.)
 - No inline behavior of macros (`['']`) implied after macro definitions.
 - Many of the M4 macros that return unquoted text would return quoted text, and other <<Limitations of M5>>
 would be fixed as well.
+- All m6_... are interpreted as a call; error reported if macro doesn't exist.
 
 **/
 
@@ -1150,9 +1151,9 @@ var(mac_spec, *['
  m5_DocFns(['macro, null_macro'], ['
   D: Declare a scoped traditional macro. See <<macros>>. A null macro must produce no output.
   S: the macro is declared
-  E: m5_macro(ParseError, <p>['
-     m5_error(['Failed to parse $<p>1.'])
-  '])
+  E: m5_macro(ParseError, <p>[
+     error(['Failed to parse $<p>1.'])
+  ])
   A: (var, set_macro)
  '], Name: the macro name, Body: the body of the macro)
 
@@ -1182,6 +1183,8 @@ var(mac_spec, *['
  
  === Code Constructs
  
+ ==== Status
+
  m5_DocVar(status, ['
  D: This universal variable is set as a side-effect of some macros to indicate an exceptional
  condition or non-evaluation of a body argument. It may be desirable to check this condition
@@ -1189,11 +1192,118 @@ var(mac_spec, *['
  of `m5_status`. An empty value indicates no special condition.
  Macros either always set it (to an empty or non-empty value) or never set it. Those that set
  it list this in their "Side Effect(s)".
+ A: (fn, return_status, else)
  '])
 
  ==== Conditionals
 
+ m5_doc_as_fn(unless, [''], Cond, TrueBody, FalseBody)
+ m5_DocFns(['if, unless, else_if'], ['
+  D: An if/else construct. The condition is an expression that evaluates using <<m5_calc>> (generally boolean (0/1)).
+  The first block is evaluated if the condition is non-0 for `if` and `else_if` or 0 for `unless`,
+  otherwise, subsequent conditions are evaluated, or if only one argument remains, it is the
+  final else block, and it is evaluate. (`unless` cannot have subsequent conditions.) `if_else` does
+  nothing if `m5_status` is initially empty.
+  
+  NOTE: As an alternative to providing else blocks within `m5_if`, <<m5_else>> and similar macros may be used subsequent to
+  `m5_if` / `m5_unless` and other macros producing <<m5_status>>, and this may be easier to read.
+  O: the output of the evaluated body
+  S: status is set, empty iff a block was evaluated; side-effects of the evaluated body
+  E: m5_if(m5_eq(m4_Ten, 10) && m5_Val > 3, [
+     ~do_something(...)
+  ], m5_Val > m5_Ten, [
+     ~do_something_else(...)
+  ], [
+     ~default_case(...)
+  ])
+  A: (else, case)
+ '], Cond: ['['['['['the condition for evaluation']']']']'],
+     TrueBody: ['['['the body to evaluate if the condition is true (1)']']'],
+     ...: ['['['either a `FalseBody` or (for `m5_if` only) recursive `Cond`, `TrueBody`, `...` arguments to evaluate if the condition is false (not 1)']']'])
+
+ m5_DocFns(['if_eq, if_neq'], ['
+  D: An if/else construct where each condition is a comparison of an independent pair of strings.
+  The first block is evaluated if the strings match for `if` or mismatch for `if_neq`, otherwise, the
+  remaining arguments are processed in a recursive call, either comparing the next pair of strings
+  or, if only one argument remains, evaluating it as the final else block.
+   
+  NOTE: As an alternative to providing else blocks, <<m5_else>> and similar macros may be used subsequently,
+  and this may be easier to read.
+  O: the output of the evaluated body
+  S: status is set, empty iff a block was evaluated; side-effects of the evaluated body
+  E: m5_if_eq(m4_Zero, 0, [
+     ~zero_is_zero(...)
+  ], m5_calc(m5_Zero < 0), 1, [
+     ~zero_is_negative(...)
+  ], [
+     ~zero_is_positive(...)
+  ])
+  A: (else, case)
+ '], String1: the first string to compare,
+     String2: the second string to compare,
+     TrueBody: the body to evaluate if the strings match,
+     ...: ['either a `FalseBody` or recursive `String1`, `String2`, `TrueBody`, `...` arguments to evaluate if the strings do not match'])
+
+ m5_DocFn(case, ['
+  D: Similar to <<m5_if>>, but each condition is a string comparison against a value in the `Name` variable.
+  O: the output of the evaluated body
+  S: status is set, empty iff a block was evaluated; side-effects of the evaluated body
+  E: m5_case(m5_Response, ok, [
+     ~ok_response(...)
+  ], bad, [
+     ~bad_response(...)
+  ], [
+     error(Unrecognized response: m5_Response)
+  ])
+  A: (else, case)
+ '], VarName: the name of the case variable whose value to compare against all cases,
+     Value: the first string value to compare `VarName` against,
+     TrueBody: the body to evaluate if the strings match,
+     ...: ['either a `FalseBody` or recursive `Value`, `TrueBody`, `...` arguments to evaluate if the strings do not match'])
+
+
  ==== Loops
+ 
+ m5_DocFn(loop, ['
+  D: A generalized loop construct. Implicit variable `m5_LoopCnt` starts at 0 and increments by 1
+  with each iteration (after both blocks).
+  O: output of the blocks
+  S: side-effects of the blocks
+  E: m5_loop((MyVar, 0), [
+     do_stuff(...)
+  ], m5_LoopCnt < 10, [
+     do_more_stuff(...)
+  ])
+  A: (repeat, for, calc)
+ '], InitList: ['a parenthesized list, e.g. `(Foo, 5, Bar, ok)` of at least one variabl, initial-value pair providing variables scoped to the loop, or `['']`'],
+     DoBody: ['a block to evaluate before evaluating `WhileCond`'],
+     WhileCond: ['an expression (evaluated with <<m5_calc>>) that determines whether to continue the loop'],
+     ?WhileBody: ['a block to evaluate if `WhileCond` evaluates to true (1)'])
+
+ m5_DocFn(repeat, ['
+  D: Evaluate a block a predetermined number of times. Implicit variable `m5_LoopCnt` starts at 0
+  and increments by 1 with each iteration.
+  O: output of the block
+  S: side-effects of the block
+  E: m4_repeat(10, [
+     m4_do_stuff(...)
+  ])  // Iterates m5_LoopCnt 0..9.
+  A: (loop)
+ '], Cnt: ['the number of times to evaluate the body'],
+     Body: ['a block to evaluate `Cnt` times'])
+
+ m5_DocFn(for, ['
+  D: Evaluate a block for each item in a listed. Implicit variable `m5_LoopCnt` starts at 0
+  and increments by 1 with each iteration.
+  O: output of the block
+  S: side-effects of the block
+  E: m5_for(fruit, ['apple, orange, '], [
+     m4_do_stuff(...)
+  ])  // (also maintains m5_LoopCnt)
+  A: (loop)
+ '], Var: ['the loop item variable'],
+     List: ['a list of items to iterate over, the last of which will be skipped if empty; for each item, `Var` is set to the item, and `Body` is evaluated'],
+     Body: ['a block to evaluate for each item'])
 
  ==== Recursion
  
@@ -1379,7 +1489,7 @@ var(mac_spec, *['
   D: Evaluate `m5_Body` for every line of `m5_Text`, with `m5_Line` assigned to the line (without any new-lines).
   O: output from `m5_Body`
   S: side-effects of `m5_Body`
- '], Text: the block of text, Body: the body to evaluate for every `m5_Line` of `m5_Text`)
+ '], Text: the block of text, Body: ['the body to evaluate for every `m5_if` of `m5_Text`'])
 
 
  ==== Safely Working with Strings
@@ -1668,6 +1778,26 @@ var(mac_spec, *['
      ?Radix: the radix of the output (default 10),
      ?Width: ['a minimum width to which to zero-pad the result if necessary (excluding a possible negative sign)'])
 
+ m5_DocFns(['equate, operate_on'], ['
+  D: Set a variable to the result of an arithmetic expression computed by <<m5_calc>>. For
+  `m5_operate_on`, the variable value implicitly preceeds the expression, similar to `+=`, `*=`, etc. in other languages.
+  S: the variable is set
+  E: m5_equate(Foo, 1+2)
+  m5_operate_on(Foo, * (3-1))
+  m5_Foo
+  P: 
+  
+  6
+  A: (set, calc)
+ '], Name: name of the variable to set, Expr: the expression/partial-expression to evaluate)
+
+ m5_DocFns(['increment, decrement'], ['
+  D: Increment/decrement a variable holding an integer value by one or by the given amount.
+  S: the variable is updated
+  E: m5_increment(Cnt)
+  A: (set, calc, operate_on)
+ '], Name: name of the variable to set, ?Amount: ['the integer amount to increment/decrement, defaulting to zero'])
+
  ==== Boolean Macros
  
  These have boolean (`0` / `1`) results. Note that some <<m5_calc>> expressions result in boolean values as well.
@@ -1675,6 +1805,12 @@ var(mac_spec, *['
  m5_DocFns(['is_null, isnt_null'], ['
   O: [`0` / `1`] indicating whether the value of the given variable (which must exist) is empty
  '], Name: the variable name)
+
+ m5_DocFns(['eq, neq'], ['
+  O: [`0` / `1`] indicating whether the given `String1` is/is-not equivalent to `String2` or any of the remaining string arguments
+  E: m5_if(m5_neq(m5_Response, ok, bad), ['m5_error(Unknown response: m5_Response.)'])
+ '], String1: the first string, String2: the second string, ...: further strings to also compare)
+
 
  ==== Within Functions or Code Blocks
  
@@ -1695,7 +1831,7 @@ var(mac_spec, *['
   can be parameterized (e.g. `m5_fn_arg(m5_ArgNum)`).
   O: the argument value.
   A: (fn_args, fn_arg_cnt)
- '], num: the argument number)
+ '], Num: the argument number)
 
  m5_DocFn(fn_arg_cnt, ['
   D: The number of arguments in `m5_fn_args` or `$#`.

@@ -278,7 +278,7 @@ m4_define(['m5_replicate'],
 // Note that, 'var' is assumed to be a variable (so quoted).
 m4_define(['m5_extract_prefix'],
           ['m4_ifelse(m5_substr(m5_$2, 0, m4_len(['$1'])), ['$1'],
-                      ['m5_substr(m5_$2, 0, m4_len(['$1']))['']m5_set($2, m5_substr(m5_$2, m4_len(['$1'])))'])'])
+                      ['['$1']m5_set($2, m5_substr(m5_$2, m4_len(['$1'])))'])'])
 // m5_extract_prefix_eval(<prefix>, var)
 // A faster alternative to m5_extract_prefix that evaluates both the prefix and the assigned values (so a safe
 // alternative if these are known not to be affected by evaluation).
@@ -286,6 +286,7 @@ m4_define(['m5_extract_prefix_eval'],
           ['m4_ifelse(m4_substr(m5_$2, 0, m4_len(['$1'])), ['$1'],
                       ['['$1']m5_set($2, m4_substr(m5_$2, m4_len(['$1'])))'])'])
 // m5_extract_regex(regex, var) like m5_extract_prefix, except the prefix is given as a regex subexpression.
+// Note that for optimal performance m5_value_of is not used on the string.
 m4_define(['m5_extract_prefix_regex'],
           ['m4_regexp(m5_$2, ['^\($1\)?\(.*\)'], ['m5_var(['$2'], ['\2'])['\1']'])'])
 
@@ -707,8 +708,6 @@ m4_define(['m5_fn__param_comment'], ['
 '])
 
 
-// TODO: m5_extract_prefix_eval evaluates comments, which can cause problems. Use m4_index of ":" to remove comment.
-
 // Recursive guts of m5_fn for arg processing.
 // ...: arg list
 // Return quoted body (final arg quoted)
@@ -721,7 +720,7 @@ m4_define(
                   ['m5_error(['In declaration of function ']m5_func_name[', empty function argument no longer permitted.'])'],
                   ['// First, look for ['...'].
                     m4_pushdef(['m5__param'], ['['$1']'])
-                    m4_ifelse(m5_extract_prefix_eval(..., _param), ['...'], ['
+                    m4_ifelse(m5_extract_prefix_regex(['\.\.\.'], _param), ['...'], ['
                        m4_define(['m4_extra_args'], ['['[', ']']']m4_defn(['m4_varargs']))
                        m4_define(['m5__param_name'], ...)
                        m5_def(out_var_prefix, [''])
@@ -731,11 +730,11 @@ m4_define(
                     '], ['
                        // Extract possible '*', '?', '[<number>]', and/or '^' prefixes from argument value.
                        // TODO: These should be pushdef/popdef:
-                       m5_def(out_var_prefix, m5_extract_prefix_eval(*, _param))  /// Deprecated.
-                       m4_def(optional_prefix, m5_extract_prefix_eval(?, _param))
+                       m5_def(out_var_prefix, m5_extract_prefix_regex(\*, _param))  /// Deprecated.
+                       m4_def(optional_prefix, m5_extract_prefix_regex(\?, _param))
                        m4_def(cnt_prefix, [''])
                        m4_regexp(m5__param, ['^\[\([0-9]+\)\]\(.*\)'], ['m4_def(cnt_prefix, ['\1'])m4_define(['m5__param'], ['\2'])'])
-                       m4_def(inherit_prefix, m5_extract_prefix_eval(^, _param))
+                       m4_def(inherit_prefix, m5_extract_prefix_regex(\^, _param))
                        m4_define(['m5__param_name'], m5_extract_prefix_regex(['\w*'], _param))
                        m5_fn__param_comment(['parameter "']m5__param_name['"'])   /// TODO: This should only be done in debug mode.
                        // Done processing m5__param. It's value is now its comment.
@@ -1142,7 +1141,6 @@ Bodies must be bound to the caller, so body calls should pop m5_my, call, push m
 
 
 \m4
-// ------------------------------------------------------
 /// Declarations of null and minimal documentation functions.
 /// m5_enable_doc can be used to enable docs.
 m4_define(['m5_null_fns'],
@@ -1471,24 +1469,19 @@ m5__begin_scope()
 // String comparison.
 // Compare strings for equality.
 m4_define(['m5_eq'],
-   ['m4_ifelse(['$1'], ['$2'], 1, 0)'])
+   ['m4_ifelse(['$1'], ['$2'], 1, ['m4_ifelse(m5_calc($# > 2), 1, ['m5_eq(['$1'], m5_shift(m5_shift($@)))'], 0)'])'])
 // Compare strings for inequality.
 m4_define(['m5_neq'],
-   ['m4_ifelse(['$1'], ['$2'], 0, 1)'])
+   ['m4_ifelse(['$1'], ['$2'], 0, ['m4_ifelse(m5_calc($# > 2), 1, ['m5_neq(['$1'], m5_shift(m5_shift($@)))'], 1)'])'])
 
 // Arithmetic functions.
-// Set a variable to the result of an arithmetic expression.
+// See docs.
 m4_define(['m5_equate'],
    ['m5_set(['$1'], m5_calc(['$2']))'])
-// Perform an arithmetic operation on variable holding an integer value. E.g. m4_operate_on(cnt, ['*2']).
 m4_define(['m5_operate_on'],
    ['m5_equate(['$1'], m5_$1[' $2'])'])
-// Increment a variable holding an integer value. Optionally, a second argument
-// provides an increment amount. E.g. m4_increment(total, 5)
 m4_define(['m5_increment'],
    ['m5_operate_on(['$1'], ['+ ']m4_ifelse(['$2'], [''], ['1'], ['['$2']']))'])
-// Increment a variable holding an integer value. Optionally, a second argument
-// provides an decrement amount. E.g. m4_decrement(total, 5)
 m4_define(['m5_decrement'],
    ['m4_operate_on(['$1'], ['- ']m4_ifelse(['$2'], [''], ['1'], ['['$2']']))'])
 
@@ -1499,59 +1492,38 @@ m4_define(['m5_decrement'],
 //   o m4_block
 //   o m4_loop/repeat/for
 
-// m5_loop((var_name, value, ...), do_block, while_cond, ?while_block)
-// m5_loop((my_var, 0), ['
-//    do_stuff(...)
-// '], ['m5_loop_cnt < 10'], ['
-//    do_more_stuff(...)
-// '])
-// Implicit variable m5_loop_cnt starts at 0 and increments by 1 with each iteration (after both blocks).
+// See docs.
 m4_define(['m5_loop'],
-   ['m4_ifelse(m5_calc(($# < 3) || ($# > 4)), ['1'], ['m5_error(['$0 requires 3 or 4 arguments.'])'])m5_var(loop_cnt, 0)m4_ifelse(['$1'], [''], [''], ['m5_var$1'])['']$2['']m5_loop__body(m4_shift($@))'])
+   ['m4_ifelse(m5_calc(($# < 3) || ($# > 4)), ['1'], ['m5_error(['$0 requires 3 or 4 arguments.'])'])m5_var(LoopCnt, 0)m4_ifelse(['$1'], [''], [''], ['m5_var$1'])['']$2['']m5_loop__body(m4_shift($@))'])
 m4_define(['m5_loop__body'],
-   ['m4_ifelse(m4_eval(m5_loop_cnt > 1000), 1, ['m5_error(['Loop with while expression ['$2'] reached max of 1000 iterations.'])'])m4_ifelse(m4_eval($2), 1, ['$3['']m5_increment(loop_cnt)$1['']$0($@)'])'])
+   ['m4_ifelse(m4_eval(m5_LoopCnt > 1000), 1, ['m5_error(['Loop with while expression ['$2'] reached max of 1000 iterations.'])'])m4_ifelse(m4_eval($2), 1, ['$3['']m5_increment(LoopCnt)$1['']$0($@)'])'])
 
-// m4_repeat(10, ['
-//    m4_do_stuff(...)
-// '])  // Iterates m5_loop_cnt 0..9.
+// See docs.
 m4_define(['m5_repeat'],
    ['m5_loop([''],
         [''],
-     ['m5_loop_cnt < ['$1']'],
+     ['m5_LoopCnt < ['$1']'],
         ['$2'])'])
 
-// m4_for(fruit, ['apple, orange, '], ['
-//    m4_do_stuff(...)
-// '])  // (also maintains m5_loop_cnt)
-// A final empty arg in the $2 list will be ignored.
+// See docs.
 // m4_for__guts(var, body, garbage, remaining-args...)   // (Use of "garbage" prevents having an empty arg in last iteration.)
 m4_define(['m5_for__guts'],
-   ['m4_ifelse(m4_eval($# > 4 || ($# == 4 && m5_neq(['$4'], ['']))), 1, ['m5_var(['$1'], ['$4'])$2['']m5_increment(loop_cnt)m5_for__guts(['$1'], ['$2'], m4_shift(m4_shift(m4_shift($@))))'])'])
+   ['m4_ifelse(m4_eval($# > 4 || ($# == 4 && m5_neq(['$4'], ['']))), 1, ['m5_var(['$1'], ['$4'])$2['']m5_increment(LoopCnt)m5_for__guts(['$1'], ['$2'], m4_shift(m4_shift(m4_shift($@))))'])'])
 m4_define(['m5_for'],
-   ['m5_push_var(loop_cnt, 0)m5_for__guts(['$1'], ['$3'], [''], $2)['']m5_pop(loop_cnt)'])
+   ['m5_push_var(LoopCnt, 0)m5_for__guts(['$1'], ['$3'], [''], $2)['']m5_pop(LoopCnt)'])
 
 
 \m4
 
-// An if/else construct. The condition is an expression that evaluates to an integer (generally boolean (0/1)).
-// The first block is evaluated if the condition is not 0, otherwise, subsequent conditions are evaluated,
-// or if only one argument remains, it is the final else block, and it is evaluate.
-// The block that is evaluated is evaluated in its own scope.
-// Return status is set, empty iff a block was evaluated.
-// E.g:
-//    m4_if(m4_eq(m4_ten, 10) && m4_val > 3, ['
-//       m4_do_something(...)
-//    '], m4_condition, ['
-//       m4_do_something_else(...)
-//    '], ['
-//       m4_default_case(...)
-//    '])
+// See docs.
 m4_define(['m5_if'],
    ['m4_ifelse(m4_eval(['$1']), 0,
                ['m4_ifelse(m4_eval($# <= 3), 1,
                            ['$3['']m5_set(status, m4_ifelse($#, 3, [''], ['else']))'],
                            ['m5_if(m4_shift(m4_shift($@)))'])'],
                ['$2['']m5_set(status, [''])'])'])
+m4_define(['m5_unless'],
+   ['m4_ifelse(m4_eval(['$1']), 0, ['$2['']m5_set(status, [''])'], ['$3['']m5_set(status, else)'])'])
 // A short form of m5_if(m5_eq(...), ...).
 // if $1 eq $2, then $3, or
 // if $1 eq $2, then $3, else $4, or
@@ -1576,7 +1548,7 @@ m4_define(['m5_ifne'], ['m5_deprecated()']m4_defn(['m5_if_neq']))
 
 // Similar to m5_if, but each condition is an eq comparison with the same case_var.
 // m5_case(case_var, value1, block1[, value2, block2[, ...]][, default_block])
-m4_define(['m5_case'],
+m4_define(['m5_case__guts'],
    ['m4_ifelse(
         m5_calc($# <= 2), 1,
            ['m4_ifelse(m5_calc(['$# > 1']), 1,
@@ -1587,7 +1559,10 @@ m4_define(['m5_case'],
                ['$2'],
                ['$3['']m5_set(status, [''])'],
                ['$0(['$1']m5_comma_shift(m4_shift(m4_shift($@))))'])'])'])
+m4_define(['m5_case'],
+   ['m4_ifdef(['m5_$1'], ['m5_case__guts(m5_value_of(['$1']), m5_shift($@))'], ['m5_error(No variable named "$1".)'])'])
 
+// ------------------------------------------------------
 // Do something if m5_status isn't [''] and given condition calculates to tru.
 m4_define(['m5_else_if'],
    ['m4_ifelse(m5_status, [''], [''], ['m5_if($@)'])'])
