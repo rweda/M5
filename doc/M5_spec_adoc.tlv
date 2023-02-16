@@ -1180,6 +1180,10 @@ var(mac_spec, *['
   A: (var_str, set_str)
  '], Name: name of the variable)
 
+ m5_DocFn(must_exist, ['
+  D: Ensure that the `Name`d macro exists.
+ '], Name: name of the macro)
+
  
  === Code Constructs
  
@@ -1209,7 +1213,7 @@ var(mac_spec, *['
   `m5_if` / `m5_unless` and other macros producing <<m5_status>>, and this may be easier to read.
   O: the output of the evaluated body
   S: status is set, empty iff a block was evaluated; side-effects of the evaluated body
-  E: m5_if(m5_eq(m4_Ten, 10) && m5_Val > 3, [
+  E: ~if(m5_eq(m4_Ten, 10) && m5_Val > 3, [
      ~do_something(...)
   ], m5_Val > m5_Ten, [
      ~do_something_else(...)
@@ -1230,8 +1234,8 @@ var(mac_spec, *['
   NOTE: As an alternative to providing else blocks, <<m5_else>> and similar macros may be used subsequently,
   and this may be easier to read.
   O: the output of the evaluated body
-  S: status is set, empty iff a block was evaluated; side-effects of the evaluated body
-  E: m5_if_eq(m4_Zero, 0, [
+  S: status is set, empty iff a body was evaluated; side-effects of the evaluated body
+  E: ~if_eq(m4_Zero, 0, [
      ~zero_is_zero(...)
   ], m5_calc(m5_Zero < 0), 1, [
      ~zero_is_negative(...)
@@ -1244,11 +1248,33 @@ var(mac_spec, *['
      TrueBody: the body to evaluate if the strings match,
      ...: ['either a `FalseBody` or recursive `String1`, `String2`, `TrueBody`, `...` arguments to evaluate if the strings do not match'])
 
+ m5_DocFns(['else, if_so'], ['
+  D: Likely following a macro that sets `m5_status`, this evaluates a body if <<m5_status>> is non-empty (for `else`) or empty (for `if_so`).
+  O: the output of the evaluated body
+  S: status is set, empty iff a body was evaluated; side-effects of the evaluated body
+  E: ~if(m5_Cnt > 0, [
+     decrement(Cnt)
+  ])
+  else([
+     ~(Done)
+  ])
+  A: (if, if_eq, if_neq, if_null, if_def, if_ndef, var_regex)
+ '], Body: the body to evaluate based on <<m5_status>>)
+
+ m5_DocFn(else_if_def, ['
+  D: Evaluate `Body` iff the `Name`d variable is defined.
+  O: the output of the evaluated body
+  S: status is set, empty iff a body was evaluated; side-effects of the evaluated body
+  E: m5_set(Either, if_def(First, m5_First)m5_else_if_def(Second, m5_Second))
+  A: (else_if, if_def)
+ '], Name: the name of the case variable whose value to compare against all cases,
+     Body: the body to evaluate based on <<m5_status>>)
+
  m5_DocFn(case, ['
   D: Similar to <<m5_if>>, but each condition is a string comparison against a value in the `Name` variable.
   O: the output of the evaluated body
   S: status is set, empty iff a block was evaluated; side-effects of the evaluated body
-  E: m5_case(m5_Response, ok, [
+  E: ~case(m5_Response, ok, [
      ~ok_response(...)
   ], bad, [
      ~bad_response(...)
@@ -1256,10 +1282,23 @@ var(mac_spec, *['
      error(Unrecognized response: m5_Response)
   ])
   A: (else, case)
- '], VarName: the name of the case variable whose value to compare against all cases,
+ '], Name: the name of the case variable whose value to compare against all cases,
      Value: the first string value to compare `VarName` against,
      TrueBody: the body to evaluate if the strings match,
      ...: ['either a `FalseBody` or recursive `Value`, `TrueBody`, `...` arguments to evaluate if the strings do not match'])
+ 
+ m5_DocFns(['if_null, if_def, if_ndef'], ['
+  D: Evaluate `Body` if the `Name`ed variable is empty (`if_null`), defined (`if_def`), or not defined (`if_ndef`),
+  or `ElseBody` otherwise.
+  O: the output of the evaluated body
+  S: status is set, empty iff a body was evaluated; side-effects of the evaluated body
+  E: if_null(Tag, [
+     error(No tag.)
+  ])
+  A: (if)
+ '], Name: the variable's name,
+     Body: the body to evaluate based on `m5_Name`'s existence or definition,
+     ?ElseBody: a body to evaluate if the condition if `Body` is not evaluated)
 
 
  ==== Loops
@@ -1269,10 +1308,10 @@ var(mac_spec, *['
   with each iteration (after both blocks).
   O: output of the blocks
   S: side-effects of the blocks
-  E: m5_loop((MyVar, 0), [
-     do_stuff(...)
+  E: ~loop((MyVar, 0), [
+     ~do_stuff(...)
   ], m5_LoopCnt < 10, [
-     do_more_stuff(...)
+     ~do_more_stuff(...)
   ])
   A: (repeat, for, calc)
  '], InitList: ['a parenthesized list, e.g. `(Foo, 5, Bar, ok)` of at least one variabl, initial-value pair providing variables scoped to the loop, or `['']`'],
@@ -1285,8 +1324,8 @@ var(mac_spec, *['
   and increments by 1 with each iteration.
   O: output of the block
   S: side-effects of the block
-  E: m4_repeat(10, [
-     m4_do_stuff(...)
+  E: ~repeat(10, [
+     ~do_stuff(...)
   ])  // Iterates m5_LoopCnt 0..9.
   A: (loop)
  '], Cnt: ['the number of times to evaluate the body'],
@@ -1297,8 +1336,8 @@ var(mac_spec, *['
   and increments by 1 with each iteration.
   O: output of the block
   S: side-effects of the block
-  E: m5_for(fruit, ['apple, orange, '], [
-     m4_do_stuff(...)
+  E: ~for(fruit, ['apple, orange, '], [
+     ~do_stuff(...)
   ])  // (also maintains m5_LoopCnt)
   A: (loop)
  '], Var: ['the loop item variable'],
