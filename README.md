@@ -4,7 +4,7 @@ The M5 Text Processing Language
 
 # M5 Docs
 
-The [PDF docs](doc/M5_spec.pdf) built from this repo are included in this repo for easy reference.
+The [latest PDF docs](https://docs.google.com/viewer?url=https://raw.githubusercontent.com/rweda/M5/main/doc/M5_spec.pdf) built from this repo are included in this repo for easy reference.
 
 # Build
 
