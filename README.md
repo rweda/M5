@@ -4,7 +4,7 @@ The M5 Text Processing Language
 
 # M5 Docs
 
-The docs built from this repo are included in this repo for easy reference. [View latest PDF docs](https://docs.google.com/viewer?url=https://raw.githubusercontent.com/rweda/M5/main/doc/M5_spec.pdf). Navigating hyperlinks requires download :(.
+The docs can be viewed [here](doc/M5_spec.adoc), but the index does not render in GitHub, so for anything more than window shopping, [download the PDF](doc/M5_spec.pdf).
 
 # Build
 
@@ -15,9 +15,9 @@ cd doc
 ./build_docs
 ```
 
-The M5 docs are specified using M5 itself (as a `.tlv` file) in `doc/M5_spec_adoc.tlv`. The build
-process runs SandPiper-SaaS in order to run M5, then runs `asciidoctor` to produce `.pdf` and
-`.html` docs.
+The M5 docs are specified using M5 itself (as a `.tlv` file) in `doc/M5_spec_adoc.tlv`. `build_docs` runs SandPiper-SaaS
+in order to process `M5_spec_adoc.tlv` using M5, then it runs `asciidoctor` to produce `.pdf` and
+`.html` docs. Installation of `asciidoctor` is left as an exercise for the reader.
 
 # Issues
 
