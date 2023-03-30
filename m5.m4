@@ -133,21 +133,6 @@ m4_define(['m5_errprint_nl'],
 // #############################
 // Code Blocks
 
-// These are produced by pre_m4.
-m4_define(['m5__block'],
-   ['['m4_pushdef(['m5_block_output'], [''])m5_exec(['$1'])m5_eval(m5_defn(block_output))m4_popdef(['m5_block_output'])']'])
-m4_define(['m5__scope'],
-   ['['m4_pushdef(['m5_block_output'], [''])m5__begin_scope['']m5_exec(['$1'])m5__end_scope['']m5_eval(m5_defn(block_output))m4_popdef(['m5_block_output'])']'])
-// For text blocks. Strip leading new line (which requires a regexp, which doesn't work with \n).
-m4_define(['m5__text_block'],
-   ['m4_regexp(m4_translit(['['$1']'], m5_nl, ['']), ['^\(.*\)$'], ['m4_translit(['['\1']'], [''], m5_nl)'])'])
-m4_define(['m5__stmt'],
-   ['m4_ifelse(m4_pushdef(['m5__tmp'], m4_quote(m4_indir($@)))m4_defn(['m5__tmp']), [''], [''], ['m5__stmt_err(m4_defn(['m5__tmp']), $@)'])'])
-m4_define(['m5__stmt_err'],
-   ['m5_error(['Code block statement: $2(']m5_abbreviate_args(5, 12, m4_shift(m4_shift($@)))[')']m5_nl['     produced unexpected output: ']m5_substr(m5_dequote(['$1']), 0, 30)m4_ifelse(m4_eval(m4_len(['$1']) > 30), 1, ['['...']']))['$1']'])
-m4_define(['m5__out_stmt'],
-   ['m5_out(m4_indir($@))'])
-
 m4_define(['m5_status'], ['['']'])
 
 
@@ -576,11 +561,6 @@ m4_define(['m5_null_macro'],
 m4_define(['m5_push_macro'],
    m5__declare_push_body(m4_dollar(2), push_macro))
 
-
-// \m5 region results in m5_region(['...']).
-// m4_null should check emptiness.
-m4_define(['m5__region'],
-   ['m4_exec(['$1'])'])
 
 
 // =======================
@@ -1165,7 +1145,8 @@ m4_define(['m5__doc_only_fn'], ['m4_pushdef(['m5__fn_def'], m5_defn(nullify))m5_
 // If the final line does not end with a new-line, one is added.
 lazy_fn(indent_text_block, Ind, Text, {
    ~for_each_line(m5_value_of(Text), [
-      ~(m5_Ind['']m5_value_of(Line))
+      ~Ind
+      ~value_of(Line)
       ~nl
    ])
 })
@@ -1562,19 +1543,13 @@ m4_define(['m5_case__guts'],
 m4_define(['m5_case'],
    ['m4_ifdef(['m5_$1'], ['m5_case__guts(m5_value_of(['$1']), m5_shift($@))'], ['m5_error(No variable named "$1".)'])'])
 
-// ------------------------------------------------------
-// Do something if m5_status isn't [''] and given condition calculates to tru.
+// See docs.
 m4_define(['m5_else_if'],
    ['m4_ifelse(m5_status, [''], [''], ['m5_if($@)'])'])
-// Do something if m5_status isn't ['']. Set status to [''].
-// This can follow on to any macro that sets status, such as m5_if*, m5_case, m5_var_regex, etc.
 m4_define(['m5_else'],
    ['m4_ifelse(m5_status, [''], [''], ['$1['']m5_set(status, [''])'])'])
-// Do something if m5_status is ['']. Status is explicitly preserved from its initial state.
-// This can follow on to any macro that sets status, such as m5_if*, m5_case, m5_var_regex, etc.
 m4_define(['m5_if_so'],
    ['m4_ifelse(m5_status, [''], ['$1['']m5_set(status, [''])'])'])
-// If a variable is null.
 m4_define(['m5_if_null'],
    ['m5_must_exist(['$1'])m5_if_eq(m5_$1, [''], ['$2']m4_ifelse(m5_calc($# >= 3), 1, [', ['$3']m4_ifelse(m5_calc($# > 3), 1, ['m5_error(['Too many arguments to $0.'])'])']))'])
 m4_define(['m5_ifdef'], ['m5_deprecated()m4_ifdef(['m5_$1'], m5_shift($@))'])
@@ -1607,7 +1582,7 @@ m4_define(['m5_def_body'],
                                                           ['m5_$1(m4_shift(m4_shift(m4_shift(m4_shift(m4_shift($@))))))'],
                                                           ['['$6']'])'])'])
 m4_define(['m5_def'],
-          ['m5_deprecated(['$0'])m5_def_body(['def'], ['define'], [''], m4_process_description($@))'])
+          ['m5_if_ndef(def_ok, ['m5_deprecated(['$0'])'])m5_def_body(['def'], ['define'], [''], m4_process_description($@))'])
 m4_define(['m5_default_def'],
    ['m5_deprecated(['$0'])m5_def_body(['default_def'], ['default'], [''], m4_process_description($@))'])
 
@@ -1628,9 +1603,9 @@ m4_define(['m5_strip_prefix'], ['m4_patsubst(['$1'], ['^\W*'], [''])'])
 //   '>>' -> ' + '
 //   '<>' -> ' + '
 // Eg:
-//   @m4_stage_calc(@(2-1))
-//   @m4_stage_calc(@2<<1)
-//   >>m4_stage_calc((@2 - @1)<<1)
+//   @m5_stage_calc(@(2-1))
+//   @m5_stage_calc(@2<<1)
+//   >>m5_stage_calc((@2 - @1)<<1)
 m4_define(['m5_stage_calc'],
    ['m4_eval(m4_patsubst(m4_dquote(m4_patsubst(m4_dquote(m4_patsubst(m4_dquote(m4_patsubst(['['$1']'], ['@'], [''])), ['>>'], [' + '])), ['<<'], [' - '])), ['<>'], [' + ']))'])
 
@@ -1638,7 +1613,7 @@ m4_define(['m5_stage_calc'],
 // Provides an ahead alignment identifier value (which can be negative), to consume from from_stage into to_stage.
 // Eg:
 //   >>m4_align(@2, @1-1)  ==>  >>2
-m4_define(['m5_align'], ['m4_stage_calc(($1) - ($2))'])
+m4_define(['m5_align'], ['m5_stage_calc(($1) - ($2))'])
 
 
 
@@ -1694,7 +1669,7 @@ fn(define_hier, scope, high, ?low, [
    define_vector(m5_scope, m5_high, m5_low)
    define_vector(m5_scope['_INDEX'], m5_binary_width(m5_call(m5_scope['_MAX'])))
    define_vector(m5_scope['_CNT'], m5_binary_width(m5_call(m5_scope['_CNT']) + 1))
-   var(m5_scope['_HIER'], m5_lowercase(m5_scope)[['m5_']m5_scope['_MAX:m5_']m5_scope['_MIN']])
+   var(m5_scope['_HIER'], m5_lowercase(m5_scope)[m5_value_of(m5_scope['_MAX']):m5_value_of(m5_scope['_MIN'])])
 ])
 
 // Define m5 constants for a bit field.

@@ -1,4 +1,4 @@
-\m4_TLV_version 1d: tl-x.org
+\m5_TLV_version 1d: tl-x.org
 \SV
 // This M5 spec is generated with the help of M5 itself.
 // Since M5 syntax appears throughout, we have to be careful about M5's processing of this syntax
@@ -1034,7 +1034,7 @@ function body. In either case, this prefix constructs a name that is implicitly 
 '])
 \m4
    m4_define(['m5_need_docs'], yes)
-   m4_use(m5-0.1)
+   m4_use(m5-0.2)
 \m5
 
 enable_doc(adoc)
