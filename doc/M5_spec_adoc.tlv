@@ -42,7 +42,7 @@ endif::[]
 The M5 macro preprocessor enhances the Gnu M4 macro preprocessor,
 adding features typical of programming languages.
 
-== General Information
+== General information
 
 === Overview
 
@@ -465,7 +465,7 @@ evaluate code conditionally, iterate in loops, call other functions, recurse, et
 
 M5 supports a special multi-line syntax convenient for body arguments, called "code blocks". These look more
 like blocks of code in a traditional programming language. Aside from comments and whitespace, they
-contain only macro calls ("statements"). The resulting text of the code block is constructed from the results
+contain only macro calls and variable elaborations ("statements"). The resulting text of the code block is constructed from the results
 of these macro calls.
 
 The code below is equivalent to the example above, expressed using a code body, and assuming it is
@@ -489,7 +489,7 @@ are statements in the above example.)
 Lines with deeper indentation would continue a statement. A continuation line either begins a macro argument
 or is part of its own (nested) code block argument.
 
-Statements that produce output (as all statements in the above example do) must be preceded by `~`
+Statements that produce output (as all statements in the above example do) and variable elaborations must be preceded by `~`
 (and others may be). This simply helps to identify
 the source of code block ouput. The `~(...)` syntax has the same effect as `~out(m5_...)` and
 is used to directly provide output text. A `m5_` prefix is implicit on statements.
@@ -1034,7 +1034,7 @@ function body. In either case, this prefix constructs a name that is implicitly 
 '])
 \m4
    m4_define(['m5_need_docs'], yes)
-   m4_use(m5-0.2)
+   m4_include_lib(['./m5.m4'])
 \m5
 
 enable_doc(adoc)
@@ -1059,7 +1059,7 @@ var(mac_spec, *['
  Resulting output text is, by default, literal (quoted). Macros named with a `_eval` suffix generally result
  in text that gets evaluated.
  ']
-
+ 
  === Assigning and Accessing Macros Values
 
  ==== Declaring/Setting Variables
@@ -1248,6 +1248,23 @@ var(mac_spec, *['
      TrueBody: the body to evaluate if the strings match,
      ...: ['either a `FalseBody` or recursive `String1`, `String2`, `TrueBody`, `...` arguments to evaluate if the strings do not match'])
 
+ m5_doc_as_fn(if_null, [''], Var, Body, ?ElseBody)
+ m5_doc_as_fn(if_def, [''], Var, Body, ?ElseBody)
+ m5_doc_as_fn(if_ndef, [''], Var, Body, ?ElseBody)
+ m5_DocFns(['if_null, if_def, if_ndef, if_defined_as'], ['
+  D: Evaluate `Body` if the named variable is empty (`if_null`), defined (`if_def`), not defined (`if_ndef`), or not defined and equal to the given value (`if_defined_as`).,
+  or `ElseBody` otherwise.
+  O: the output of the evaluated body
+  S: status is set, empty iff a body was evaluated; side-effects of the evaluated body
+  E: if_null(Tag, [
+     error(No tag.)
+  ])
+  A: (if)
+ '], Var: the variable's name,
+     Value: ['for `if_defined_as` only, the value to compare against'],
+     Body: the body to evaluate based on `m5_Name`'s existence or definition,
+     ?ElseBody: a body to evaluate if the condition if `Body` is not evaluated)
+
  m5_DocFns(['else, if_so'], ['
   D: Likely following a macro that sets `m5_status`, this evaluates a body if <<m5_status>> is non-empty (for `else`) or empty (for `if_so`).
   O: the output of the evaluated body
@@ -1259,7 +1276,7 @@ var(mac_spec, *['
      ~(Done)
   ])
   A: (if, if_eq, if_neq, if_null, if_def, if_ndef, var_regex)
- '], Body: the body to evaluate based on <<m5_status>>)
+ '], Body: ['the body to evaluate based on <<m5_status>>'])
 
  m5_DocFn(else_if_def, ['
   D: Evaluate `Body` iff the `Name`d variable is defined.
@@ -1268,7 +1285,7 @@ var(mac_spec, *['
   E: m5_set(Either, if_def(First, m5_First)m5_else_if_def(Second, m5_Second))
   A: (else_if, if_def)
  '], Name: the name of the case variable whose value to compare against all cases,
-     Body: the body to evaluate based on <<m5_status>>)
+     Body: ['the body to evaluate based on <<m5_status>>'])
 
  m5_DocFn(case, ['
   D: Similar to <<m5_if>>, but each condition is a string comparison against a value in the `Name` variable.
@@ -1287,19 +1304,6 @@ var(mac_spec, *['
      TrueBody: the body to evaluate if the strings match,
      ...: ['either a `FalseBody` or recursive `Value`, `TrueBody`, `...` arguments to evaluate if the strings do not match'])
  
- m5_DocFns(['if_null, if_def, if_ndef'], ['
-  D: Evaluate `Body` if the `Name`ed variable is empty (`if_null`), defined (`if_def`), or not defined (`if_ndef`),
-  or `ElseBody` otherwise.
-  O: the output of the evaluated body
-  S: status is set, empty iff a body was evaluated; side-effects of the evaluated body
-  E: if_null(Tag, [
-     error(No tag.)
-  ])
-  A: (if)
- '], Name: the variable's name,
-     Body: the body to evaluate based on `m5_Name`'s existence or definition,
-     ?ElseBody: a body to evaluate if the condition if `Body` is not evaluated)
-
 
  ==== Loops
  
@@ -1952,6 +1956,15 @@ var(mac_spec, *['
   A: ()
  '], ...: )
  **/
+ 
+ m5_DocFn(debug_level, ['
+  D: Get or set the debug level.
+  O: with zero args, the current debug level
+  S: sets `debug_level`
+  E: debug_level(max)
+  use(m5-1.0)
+ '], ?level: ['[`min`, `default`, `max`] the debug level to set'])
+ 
 
  ==== Checking and Reporting to STDERR
  
@@ -2078,7 +2091,7 @@ macro(tail_doc, ['
  |`~(...)`
  |===
 
-Though not essential, block labels can be used to improve maintainability and performance in extreme cases.
+ Though not essential, block labels can be used to improve maintainability and performance in extreme cases.
 
  [cols="2,3,5a"]
  .Block Label Syntax

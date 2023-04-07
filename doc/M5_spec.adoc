@@ -4,7 +4,7 @@
 // Since M5 syntax appears throughout, we have to be careful about M5's processing of this syntax
 // with careful use of quotes, etc.
 
-//_\source M5_spec_adoc.tlv 2106
+//_\source M5_spec_adoc.tlv 2119
 //_\SV
 = M5 Text Processing Language User's Guide
 Steve Hoover <steve.hoover@redwoodeda.com>
@@ -42,7 +42,7 @@ endif::[]
 The M5 macro preprocessor enhances the Gnu M4 macro preprocessor,
 adding features typical of programming languages.
 
-== General Information
+== General information
 
 === Overview
 
@@ -465,7 +465,7 @@ evaluate code conditionally, iterate in loops, call other functions, recurse, et
 
 M5 supports a special multi-line syntax convenient for body arguments, called "code blocks". These look more
 like blocks of code in a traditional programming language. Aside from comments and whitespace, they
-contain only macro calls ("statements"). The resulting text of the code block is constructed from the results
+contain only macro calls and variable elaborations ("statements"). The resulting text of the code block is constructed from the results
 of these macro calls.
 
 The code below is equivalent to the example above, expressed using a code body, and assuming it is
@@ -489,7 +489,7 @@ are statements in the above example.)
 Lines with deeper indentation would continue a statement. A continuation line either begins a macro argument
 or is part of its own (nested) code block argument.
 
-Statements that produce output (as all statements in the above example do) must be preceded by `~`
+Statements that produce output (as all statements in the above example do) and variable elaborations must be preceded by `~`
 (and others may be). This simply helps to identify
 the source of code block ouput. The `~(...)` syntax has the same effect as `~out(m5_...)` and
 is used to directly provide output text. A `m5_` prefix is implicit on statements.
@@ -1486,6 +1486,46 @@ and this may be easier to read.
 |===
 
 
+
+
+
+`m5_((if_null))(Var, Body, ElseBody)` +
+`m5_((if_def))(Var, Body, ElseBody)` +
+`m5_((if_ndef))(Var, Body, ElseBody)` +
+`m5_((if_defined_as))(Var, Value, Body, ElseBody)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Evaluate `Body` if the named variable is empty (`if_null`), defined (`if_def`), not defined (`if_ndef`), or not defined and equal to the given value (`if_defined_as`).,
+or `ElseBody` otherwise.
+
+|Output:
+|the output of the evaluated body
+
+|Side Effect(s):
+|status is set, empty iff a body was evaluated; side-effects of the evaluated body
+
+|Parameter(s):
+|. `Var`: the variable's name
+
+. `Value`: for `if_defined_as` only, the value to compare against
+
+. `Body`: the body to evaluate based on `m5_Name`'s existence or definition
+
+. `ElseBody`(opt) : a body to evaluate if the condition if `Body` is not evaluated
+
+|Example(s):
+|....
+if_null(Tag, [
+   error(No tag.)
+])
+....
+
+|See also:
+|`m5_if`
+|===
+
+
 `m5_((else))(Body)` +
 `m5_((if_so))(Body)`
 [frame=none,grid=none,cols=">1, 5a"]
@@ -1500,7 +1540,7 @@ and this may be easier to read.
 |status is set, empty iff a body was evaluated; side-effects of the evaluated body
 
 |Parameter(s):
-|. `Body`: the body to evaluate based on <<>>
+|. `Body`: the body to evaluate based on <<m5_status>>
 
 |Example(s):
 |....
@@ -1532,7 +1572,7 @@ else([
 |Parameter(s):
 |. `Name`: the name of the case variable whose value to compare against all cases
 
-. `Body`: the body to evaluate based on <<>>
+. `Body`: the body to evaluate based on <<m5_status>>
 
 |Example(s):
 |....
@@ -1578,40 +1618,6 @@ m5_set(Either, if_def(First, m5_First)m5_else_if_def(Second, m5_Second))
 
 |See also:
 |`m5_else`, `m5_case`
-|===
-
-
-`m5_((if_null))(Name, Body, ElseBody)` +
-`m5_((if_def))(Name, Body, ElseBody)` +
-`m5_((if_ndef))(Name, Body, ElseBody)`
-[frame=none,grid=none,cols=">1, 5a"]
-|===
-|Description:
-|Evaluate `Body` if the `Name`ed variable is empty (`if_null`), defined (`if_def`), or not defined (`if_ndef`),
-or `ElseBody` otherwise.
-
-|Output:
-|the output of the evaluated body
-
-|Side Effect(s):
-|status is set, empty iff a body was evaluated; side-effects of the evaluated body
-
-|Parameter(s):
-|. `Name`: the variable's name
-
-. `Body`: the body to evaluate based on `m5_Name`'s existence or definition
-
-. `ElseBody`(opt) : a body to evaluate if the condition if `Body` is not evaluated
-
-|Example(s):
-|....
-if_null(Tag, [
-   error(No tag.)
-])
-....
-
-|See also:
-|`m5_if`
 |===
 
 
@@ -3058,6 +3064,31 @@ fn(set_to_five, VarName, {
 
 
 
+
+
+
+`m5_((debug_level))(level)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Get or set the debug level.
+
+|Output:
+|with zero args, the current debug level
+
+|Side Effect(s):
+|sets `debug_level`
+
+|Parameter(s):
+|. `level`(opt) : [`min`, `default`, `max`] the debug level to set
+
+|Example(s):
+|....
+debug_level(max)
+use(m5-1.0)
+....
+
+|===
 
 
 

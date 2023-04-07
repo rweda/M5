@@ -3,10 +3,12 @@
 set -e 
 
 # Use SandPiper-SaaS to build the docs.
-sandpiper-saas -i M5_spec_adoc.tlv -o M5_spec_adoc.sv --noline
+#sandpiper-saas -i M5_spec_adoc.tlv -o M5_spec_adoc.sv --noline
+/home/steve/repos/mono/sandpiper/bin/sandpiper -i M5_spec_adoc.tlv -o M5_spec_adoc.sv --noline --debug
 mv M5_spec_adoc.sv M5_spec.adoc
+rm M5_spec_adoc_gen.sv
 
-# Remove lines that are TLV.
+# Remove SV lines.
 sed -i 's/^`undef BOGUS_USE$//' M5_spec.adoc   # Remove SV line from end of file.
 
 asciidoctor M5_spec.adoc 
