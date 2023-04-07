@@ -23,6 +23,10 @@ m4_define(['m5_recursion_limit'], ['['300']'])
 
 m4_define(['m5__stack_depth'], ['['0']'])
 
+/// These are set in TL-Verilog use model, but may not be otherwise.
+m4_ifdef(['m5__stmt_line'],,['m4_define(['m5__stmt_line'], ?)'])
+m4_ifdef(['m5__debug_level'],,['m4_define(['m5__debug_level'], default)'])
+
 
 // Abbreviate a string, replacing long strings with ['...'].
 // m5_abbreviate(string, max-length)
@@ -44,35 +48,33 @@ m4_define(['m5_abbreviate_args__guts'],
                                              ['['['$4']']'])m5_recurse(20, abbreviate_args__guts, [','], m4_eval(['$2-1']), ['$3']m5_comma_shift(m4_shift(m4_shift(m4_shift($@)))))'])'])'])
 
 // Abbreviate m5_func_stack_top (just the top value) by truncating args. This is done lazily only when needed.
-m4_define(['m5__abbreviate_func_stack_top'],
-   ['m4_define(['m5_func_stack_top'],
-               m5_quote(m4_patsubst(m5_translit(m5_func_stack_top, m5_nl, ['']),   /// Transliterated to remove new lines, which affect regex.
-                                    ['^\(\w+\)(\(.*\))$'],
-                                    ['['\1(']m5_abbreviate_args(6, 15, \2)[')']'])))'])
+m4_define(['m5__stack_element'],
+   ['  ['$1']m5_nl()    -> m5_printable(m4_patsubst(m5_translit(m5_fn__to_call(m4_shift($@)), m5_nl, ['']),   /// Transliterated to remove new lines, which affect regex.
+                                                    ['^\(\w+\)(\(.*\))$'],
+                                                    ['['\1(']m5_abbreviate_args(6, 15, \2)[')']']))'])
 
 // Dump the function call stack by recursively peeling into m5_func_stack_top.
 // We abbreviate lines as they are processed (even if they have already been abbreviated).
 // TODO: Do this instead in m5_fn__to_call.
 m4_define(['m5_func_stack'],
-   ['m4_ifelse(m4_defn(['m5_func_stack_top']), [''], [''],
+   ['m4_ifdef(['m5_func_stack_top'],
       ['m5_eval(m5__concat(
-         ['m5__abbreviate_func_stack_top()'],
          ['m4_pushdef(['m5_func_stack_tmp'], m4_defn(['m5_func_stack_top']))'],
          ['m4_popdef(['m5_func_stack_top'])'],
          ['m5_func_stack(['$1'])'],
          ['m4_pushdef(['m5_func_stack_top'], m4_defn(['m5_func_stack_tmp']))'],
          ['m4_popdef(['m5_func_stack_tmp'])'],
-         ['m5_nl['$1']m5_printable(m5_func_stack_top)']))'])'])
+         ['m5_nl()m5_func_stack_top']))'])'])
 
 // Given function and args-list, add the call to the stack.
 m4_define(['m5_fn__push_stack'],
-   ['m4_pushdef(['m5_func_stack_top'], ['m5_fn__to_call($@)'])m4_define(['m5__stack_depth'], m4_eval(m5__stack_depth + 1))m4_ifelse(m4_eval(m5__stack_depth > m5_recursion_limit), 1, ['m5_fatal_error(['Call stack reached maximum depth. Exiting.'])'])'])
+   ['m4_pushdef(['m5_func_stack_top'], ['m5__stack_element($@)'])m4_define(['m5__stack_depth'], m4_eval(m5__stack_depth + 1))m4_ifelse(m4_eval(m5__stack_depth > m5_recursion_limit), 1, ['m5_fatal_error(['Call stack reached maximum depth. Exiting.'])'])'])
 // Given function and args-list, represent them as a call.
 m4_define(['m5_fn__to_call'],
    ['['$1']m4_ifelse(['$2'], [''], [''], ['['($2)']'])'])
 
 m4_define(['m5_fn__pop_stack'],
-   ['m4_popdef(['m5_func_stack_top'])m4_define(['m5__stack_depth'], m4_eval(m5__stack_depth - 1))'])
+   ['m4_popdef(['m5_func_stack_top'])m4_popdef(['m5_func_stack_top'])m4_define(['m5__stack_depth'], m4_eval(m5__stack_depth - 1))'])
 
 // Report error/warning.
 //  $1: error/warning
@@ -88,7 +90,7 @@ m4_define(['m5_report'],
       ['m5_comment(['Initialize or increment count (including no-tag case).'])'],
       ['m4_define(['m5_report__cnt_$3'], m4_ifdef(['m5_report__cnt_$3'], ['m4_incr(m5_report__cnt_$3)'], ['1']))'],
       ['m5_comment(['Report error if we should.'])'],
-      ['m4_ifelse(m4_eval(m5_report__cnt_$3 <= m5_report__max_$3), 1, ['m5_errprint_nl(m5_nl()m5_printable(['$2'])m5_nl()m4_ifelse(m5_report__cnt_$3, m5_report__max_$3, ['['(Subsequent $1s of this type ($3) will be ignored.)']m5_nl()'])['  Call Stack:']m5_nl['    ']m4_ifdef(['m5_func_stack_header'], ['m5_func_stack_header'], ['['No stack']'])['']m5_func_stack(['    -> ']))'])']))
+      ['m4_ifelse(m4_eval(m5_report__cnt_$3 <= m5_report__max_$3), 1, ['m5_errprint_nl(m5_nl()m5_printable(['$2'])m4_ifelse(m5_report__cnt_$3, m5_report__max_$3, ['m5_nl['(Subsequent $1s of this type ($3) will be ignored.)']'])m5_func_stack()m5_nl['  ']m5__stmt_file:m5__stmt_line)'])']))
 
 // See docs.
 m4_define(['m5_warning'],
@@ -159,7 +161,7 @@ m4_define(['m5__new_uniquifier'],
 m4_define(['m5_WRAP'], m4_defn(['m4_dnl']))
 m4_define(['m5_shift'], m4_defn(['m4_shift']))
 m4_define(['m5_defn'], ['m4_ifdef(['m5_$1'], ['m4_defn(['m5_$1'])'], ['m5_error(['No definition for m5_$1.'])'])'])
-m4_define(['m5_call'], ['m4_indir(['m5_$1']m5_comma_shift($@))'])
+m4_define(['m5_call'], ['m4_indir(['m5_$1']m5_comma_shift($@))'])    /// TODO: I think m5_comma_shift($@) can be m5_defn(comma_shift).
 m4_define(['m5_length'], m4_defn(['m4_len']))
 m4_define(['m5_index_of'], m4_defn(['m4_index']))
 m4_define(['m5_format_eval'], m4_defn(['m4_format']))
@@ -189,7 +191,7 @@ m4_define(['m5_nquote'],
 // Misc
 
 m4_define(['m5_eval'], ['$1['']'])
-m4_define(['m5_inline'], ['m5_deprecated()$1'])
+m4_define(['m5_inline'], ['m5_deprecated(['$0'])$1'])
 m4_define(['m5_comment'], [''])
 m4_define(['m5_nullify'], [''])
 
@@ -299,6 +301,11 @@ m4_define(['m5_orig_close_quote'],
    ['['''][']']'])
 
 
+// Establish scope, like m5__scope, but without stack trace tracking (so also without the first arg).
+m4_define(['m5__raw_scope'],
+   ['['m4_pushdef(['m5_block_output'], [''])m5__begin_scope['']m5_exec(['$1'])m5__end_scope['']m5_eval(m5_defn(block_output))m4_popdef(['m5_block_output'])']'])
+
+
 /// Use of control characters (surrogates) by M5.
 /// Char Hex  Description          Replaces  Scenario
 /// ---- ---  -----------          --------  --------
@@ -366,9 +373,9 @@ m4_define(['m5_no_quotes'],
 
 // See docs.
 m4_define(['m5_substr'],
-   m5__scope(['m5_var(ret, m5__unsafe_string(m4_substr(m5__safe_string_with_check(m5__alt_dequote(['$1'])), m5_shift($@))))m4_ifelse(m4_ifelse(m4_index(m5_ret, ['']), ['-1'], ['m4_index(m5_ret, [''])'], ['['0']']), ['-1'], [''], ['m5_error(['$0 extracted a substring containing quotes. Use m5_dequote/m5_requote, perhaps. String: ']"m5_ret")'])m5_out(m5_ret)']))
+   m5__raw_scope(['m5_var(ret, m5__unsafe_string(m4_substr(m5__safe_string_with_check(m5__alt_dequote(['$1'])), m5_shift($@))))m4_ifelse(m4_ifelse(m4_index(m5_ret, ['']), ['-1'], ['m4_index(m5_ret, [''])'], ['['0']']), ['-1'], [''], ['m5_error(['$0 extracted a substring containing quotes. Use m5_dequote/m5_requote, perhaps. String: ']"m5_ret")'])m5_out(m5_ret)']))
 m4_define(['m5_substr_eval'], m4_defn(['m4_substr'])['['']'])
-m4_define(['m5_substr_inline'], ['m5_deprecated()']m4_defn(['m4_substr']))
+m4_define(['m5_substr_inline'], ['m5_deprecated(['$0'])']m4_defn(['m4_substr']))
 
 // Private macros to deal with the fact that m4_substr produces an unquoted result.
 
@@ -388,7 +395,7 @@ m4_define(['m5__safe_string'],
    ['m4_translit(['$1'], ['()_/,['']'], ['['']'])'])
 // Same as m5__safe_string, but verifies its safety (in current context).
 m4_define(['m5__safe_string_with_check'],
-   m5__scope(['m5_var(orig, ['$1'])m5_var(ret, m5__safe_string(['$1']))m5_var(restored_str, m5__unsafe_string(m5_eval(m5_ret)))m4_ifelse(m5_orig, m5_restored_str, [''], ['m5_error(['$0 produced a string that reverses to "']m5_restored_str['" which does not match the input string.'])'])m5_out(m5_ret)']))
+   m5__raw_scope(['m5_var(orig, ['$1'])m5_var(ret, m5__safe_string(['$1']))m5_var(restored_str, m5__unsafe_string(m5_eval(m5_ret)))m4_ifelse(m5_orig, m5_restored_str, [''], ['m5_error(['$0 produced a string that reverses to "']m5_restored_str['" which does not match the input string.'])'])m5_out(m5_ret)']))
 m4_define(['m5__unsafe_string'],
    ['m4_translit(['$1'], [''], ['()_/,['']['']'])'])
 
@@ -410,12 +417,12 @@ m4_define(['m5__unsafe_string'],
 //                          // though the "~" has no effect. 
 m4_define(['m5_out'],        ['m4_define(['m5_block_output'], m4_defn(['m5_block_output'])['['$1']'])m4_ifelse(m4_eval(['$# > 1']), 1, ['$0(m4_shift($@))'])'])
 m4_define(['m5_out_nl'],     ['m4_define(['m5_block_output'], m4_defn(['m5_block_output'])['['$1']']m4_quote(m5_nl))m4_ifelse(m4_eval(['$# > 1']), 1, ['$0(m4_shift($@))'])'])
-m4_define(['m5_out_inline'], ['m5_deprecated()m4_define(['m5_block_output'], m4_defn(['m5_block_output'])['$1'])m4_ifelse(m4_eval(['$# > 1']), 1, ['$0(m4_shift($@))'])'])
+m4_define(['m5_out_inline'], ['m5_deprecated(['$0'])m4_define(['m5_block_output'], m4_defn(['m5_block_output'])['$1'])m4_ifelse(m4_eval(['$# > 1']), 1, ['$0(m4_shift($@))'])'])
 m4_define(['m5_out_eval'],   ['m4_define(['m5_block_output'], m4_defn(['m5_block_output'])['$1['']'])m4_ifelse(m4_eval(['$# > 1']), 1, ['$0(m4_shift($@))'])'])
 m4_define(['m5_eval_out'],
-   ['m5_deprecated()m5_out_eval($@)'])
+   ['m5_deprecated(['$0'])m5_out_eval($@)'])
 m4_define(['m5_inline_out'],
-   ['m5_deprecated()m5_out_inline($@)'])
+   ['m5_deprecated(['$0'])m5_out_inline($@)'])
 
 
 
@@ -529,8 +536,7 @@ m4_define(['m5_null_vars'],
 // This evaluates the variable definition, rather than expanding the variable. It also reports an error if the
 // variable doesn't exist.
 m4_define(['m5_value_of'],
-   ['m5_ifdef(['$1'], ['m5_eval(m5_defn(['$1']))'], ['m5_error(['Can't get value_of non-existant variable "$1".'])'])'])
-
+   ['m5_if_def(['$1'], ['m5_eval(m5_defn(['$1']))'], ['m5_error(['Can't get value_of non-existent variable "$1".'])'])'])
 
 // =======================
 // Traditional Macros
@@ -548,7 +554,7 @@ m4_define(['m5_set_macro'],
 
 // See docs.
 m4_define(['m5_macro_inline'],
-   ['m5_deprecated()']m5__declare_body($['']2, ['']))
+   ['m5_deprecated(['$0'])']m5__declare_body($['']2, ['']))
 m4_define(['m5_inline_macro'],
    ['m5_macro_inline($@)'])
 
@@ -586,7 +592,7 @@ m4_define(['m5_eval_body_arg'],
 // See docs.
 m4_define(['m5_return_status'], ['m5_append_macro(fn__aftermath, m4_ifelse($#, 0, ['['m5_set(status, m5_status)']'], ['['m5_set(status, ['$1'])']']))'])
 m4_define(['m5_on_return'], ['m5_append_macro(fn__aftermath, ['m5_call($@)['']'])'])
-m4_define(['m5_on_return_inline'], ['m5_deprecated()m5_append_macro(fn__aftermath, ['m5_call($@)'])'])
+m4_define(['m5_on_return_inline'], ['m5_deprecated(['$0'])m5_append_macro(fn__aftermath, ['m5_call($@)'])'])
 
 
 // Evaluate $1 that should not produce any output other than whitespace and comments. No output is produced, and an error is reported if the evaluation was non-empty.
@@ -597,6 +603,15 @@ m4_define(['m5_exec'],
 /// m5_fn uses this for the definitions it creates (function and its body).
 /// It is used by m5_doc_as_fn to configure m5_fn for docs with low overhead.
 m4_define(['m5__fn_def'], m4_defn(['m4_pushdef']))
+
+
+/// Helpers for m5_fn.
+/// m4_fn__too_many_args_check(fn_name, given_args, arg_cnt, arg1). Accept a single empty arg as zero args.
+m4_define(['m4_fn__too_many_args_check'],
+   ['m4_ifelse(m4_eval(['$2 > $3']), 1, ['m4_ifelse(['$2$3$4'], ['10'], [''], ['m5_error(['Too many arguments ($2) given to function "$1" which accepts $3.'])'])'])'])
+// m4_fn__check_args(fn_name, given_args, arg_cnt, required_arg_cnt, var_args(0/1), arg1)
+m4_define(['m4_fn__check_args'],
+   ['m4_ifelse(m4_eval(['$2 < $4']), 1, ['m5_error(['Function "$1" requires $4 arguments; $2 given.'])'])m4_ifelse(['$5'], 0, ['m4_fn__too_many_args_check(['$1'], ['$2'], ['$3'], ['$6'])'])'])
 
 // m5_fn(...)
 // See docs.
@@ -626,7 +641,7 @@ m5_null_macro(fn, ['
       m4_pushdef(['m4_push_named_args'],   ['['']'])
       m4_pushdef(['m4_dollar_args'],       ['['']'])
       m4_pushdef(['m4_varargs'],           ['['m4_dollar(@)']'])
-      m4_pushdef(['m4_extra_args'],        ['['['['']m4_ifelse(']']m4_dquote(m4_arg(#)['']m4_arg_cnt['']m4_arg(1))['[', ['10'], [''], ['m4_error(['Too many arguments (']']']']m4_dollar(#)['['['[') given to function "']']']']m5_func_name['['['['" which accepts ']']']']m4_arg_cnt['['['['.'])'])']']'])
+      m4_pushdef(['m4_extra_args'],        [''])
       m4_pushdef(['m4_assign_outputs'],    ['['']'])
       m4_pushdef(['m4_pop_named_args'],    [''])
       m4_pushdef(['m4_arg_cnt'],           0)
@@ -646,10 +661,10 @@ m5_null_macro(fn, ['
                 m5__concat(
                  ['m4_pushdef(['m5_status'], [''])'],   /// Give function its own status, so we can restore status on return.
                  ['m4_pushdef(['m5_fn__aftermath'],['m4_popdef(['m5_fn__aftermath'])['']'])'],
-                 ['m4_ifdef(['m5_func_stack_top'], [''], ['m4_define(['m5_func_stack_header'], m4_dquote(['File "']m4___file__['", line ']m4___line__[' called:']))'])'],
-                 ['m5_fn__push_stack(']m5_func_name[', ']m4_arg(@)[')'],
-                 ['m4_ifelse(m4_eval(']m4_dollar(#)[' < ']m4_required_arg_cnt['), 1, ['m5_error(['Function ']']']m5_func_name['['[' requires ']']']m4_required_arg_cnt['['[' arguments; ']']']m4_dollar(#)['['[' given.'])'])'],
+                 /// Check parameter count.
+                 ['m4_fn__check_args(']m5_func_name[', $']['#, ']m4_arg_cnt[', ']m4_required_arg_cnt[', ']m4_ifelse(m4_defn(['m4_extra_args']), [''], 0, 1)[', ']m4_arg(1)[')'],
                  m5_eval(m4_push_named_args),
+                 ['m5_fn__push_stack(m5__stmt_file:m5__stmt_line:, ']m5_func_name[', ']m4_arg(@)[')'],
                  ['m5_eval(['m4_indir(['m4_']']']m5_func_name['['['__body']']'],
                    m4_defn(['m4_dollar_args']),
                    ['m4_ifelse(m4_eval(']m4_dollar(#)[' > ']m4_arg_cnt['), 1, ']m4_dquote(m4_dquote(m5_eval(m4_extra_args)))[')'],
@@ -703,14 +718,14 @@ m4_define(
                     m4_ifelse(m5_extract_prefix_regex(['\.\.\.'], _param), ['...'], ['
                        m4_define(['m4_extra_args'], ['['[', ']']']m4_defn(['m4_varargs']))
                        m4_define(['m5__param_name'], ...)
-                       m5_def(out_var_prefix, [''])
+                       m4_define(['m5_out_var_prefix'], [''])
                        m4_def(optional_prefix, [''], cnt_prefix, [''])
                        m5_fn__param_comment(['parameter "..."'])
                        m5_doc_fn__param()
                     '], ['
                        // Extract possible '*', '?', '[<number>]', and/or '^' prefixes from argument value.
                        // TODO: These should be pushdef/popdef:
-                       m5_def(out_var_prefix, m5_extract_prefix_regex(\*, _param))  /// Deprecated.
+                       m4_define(['m5_out_var_prefix'], m5_extract_prefix_regex(\*, _param))  /// Deprecated.
                        m4_def(optional_prefix, m5_extract_prefix_regex(\?, _param))
                        m4_def(cnt_prefix, [''])
                        m4_regexp(m5__param, ['^\[\([0-9]+\)\]\(.*\)'], ['m4_def(cnt_prefix, ['\1'])m4_define(['m5__param'], ['\2'])'])
@@ -803,7 +818,7 @@ m4_define(['m5_lazy_fn__guts'],
 
 // See docs.
 m4_define(['m5_fn_arg'], ['m4_argn($1, m5_fn_args)'])
-m4_define(['m5_func_arg'], ['m5_deprecated()']m4_defn(['m5_fn_arg']))
+m4_define(['m5_func_arg'], ['m5_deprecated(['$0'])']m4_defn(['m5_fn_arg']))
 // Number of arguments in m5_fn_args.
 m4_define(['m5_fn_arg_cnt'],
    ['m4_ifelse(m4_len(m4_defn(['m5_fn_args'])), 0, ['0'], ['m5_nargs(m5_fn_args)'])'])
@@ -870,8 +885,12 @@ m4_define(['m5_shift_quoted'],
 // #############################
 // Math
 
-m4_define(['m5_calc'], m4_defn(['m4_eval']))
 
+m4_ifelse(m5__debug_level, ['max'], ['
+   m4_define(['m5_calc'], ['m4_pushdef(['m4__tmp'], m4_eval($@))m4_ifelse(m4__tmp, , ['m5_error(['Bad calc expression: "$1".'])'])m4_ifelse(['$1'], , ['m5_error(['Empty calc expression.'])'])m4__tmp['']m4_popdef(['m4__tmp'])'])
+'], ['
+   m4_define(['m5_calc'], m4_defn(['m4_eval']))
+'])
 
 
 // #############################
@@ -955,9 +974,9 @@ macro(else_if_regex,
    ['m4_ifelse(m5_status, [''], [''], ['m5_if_regex($@)'])'])
 
 macro(if_status,
-   ['m5_deprecated()['$1']m5_if_so(m5_shift($@))'])
+   ['m5_deprecated(['$0'])['$1']m5_if_so(m5_shift($@))'])
 macro(else_if_status,
-   ['m5_deprecated()m4_ifelse(m5_status, [''], [''], ['m5_if_status($@)'])'])
+   ['m5_deprecated(['$0'])m4_ifelse(m5_status, [''], [''], ['m5_if_status($@)'])'])
 
 
 // See docs.
@@ -1154,13 +1173,14 @@ lazy_fn(indent_text_block, Ind, Text, {
 // Returns a comma separated list of macros (which must be defined).
 lazy_fn(doc_macro__see_also, Macro, ..., {
    ~if_def(Macro, [
-     ~([', `m5_']m5_Macro['`'])
+      ~([', `m5_'])
+      ~Macro
+      ~(['`'])
    ], [
       error(['"See also" macro "']m5_Macro['" isn't defined.'])
    ])
    ~if($# >= 1, ['m5_doc_macro__see_also($@)'])
 })
-
 // Enable function prototype documentation.
 // This should be called prior to declarations.
 //
@@ -1221,7 +1241,7 @@ lazy_fn(enable_doc,
          ~if_neq(m5_value_of(P), [''], ['['|Example Output:']m5_nl['|....']m5_nl()m5_value_of(P)....m5_nl(m5_nl)'])
          ~if_neq(m5_A, [''], [
             ~(['|See also:']m5_nl['|'])
-            ~substr(m5_eval(['m5_doc_macro__see_also']m5_A), 2)
+            ~substr(m5_eval(['m5']['_doc_macro__see_also']m5_A), 2)
          ])
       ])
    })
@@ -1521,10 +1541,10 @@ m4_define(['m5_if_eq'],
            $#, 4,
               ['['$4['']m5_set(status, [''])']'],
               ['m5_shift(m5_shift(m5_shift($@)))']))'])
-m4_define(['m5_ifeq'], ['m5_deprecated()']m4_defn(['m5_if_eq']))
+m4_define(['m5_ifeq'], ['m5_deprecated(['$0'])']m4_defn(['m5_if_eq']))
 m4_define(['m5_if_neq'],
    ['m4_ifelse($#, 3, ['m5_if_eq(['$1'], ['$2'], ['m5_set(status, ['else'])'], ['$3['']m5_set(status, [''])'])'], ['m5_error(['$0 requires exactly three arguments; $# given.'])'])'])
-m4_define(['m5_ifne'], ['m5_deprecated()']m4_defn(['m5_if_neq']))
+m4_define(['m5_ifne'], ['m5_deprecated(['$0'])']m4_defn(['m5_if_neq']))
 
 
 // Similar to m5_if, but each condition is an eq comparison with the same case_var.
@@ -1552,7 +1572,7 @@ m4_define(['m5_if_so'],
    ['m4_ifelse(m5_status, [''], ['$1['']m5_set(status, [''])'])'])
 m4_define(['m5_if_null'],
    ['m5_must_exist(['$1'])m5_if_eq(m5_$1, [''], ['$2']m4_ifelse(m5_calc($# >= 3), 1, [', ['$3']m4_ifelse(m5_calc($# > 3), 1, ['m5_error(['Too many arguments to $0.'])'])']))'])
-m4_define(['m5_ifdef'], ['m5_deprecated()m4_ifdef(['m5_$1'], m5_shift($@))'])
+m4_define(['m5_ifdef'], ['m5_deprecated(['$0'])m4_ifdef(['m5_$1'], m5_shift($@))'])
 m4_define(['m5_if_def'],
    ['m5_if(m4_ifdef(['m5_$1'], 1, 0), ['$2']m4_ifelse(m5_calc($# >= 3), 1, [', ['$3']m4_ifelse(m5_calc($# > 3), 1, ['m5_error(['Too many arguments to $0.'])'])']))'])
 m4_define(['m5_if_ndef'],
@@ -1561,6 +1581,9 @@ m4_define(['m5_else_if_def'],
    ['m4_ifelse(m5_status, [''], [''], ['m5_if_def($@)'])'])
 m4_define(['m5_must_exist'],
    ['m5_if_ndef(['$1'], ['m5_error(['Macro "$1" does not exist.'])'])'])
+m4_define(['m5_if_defined_as'],
+   ['m5_if(m5_if_def(['$1'], ['m5_eq(['$1'], ['$2'])'], 0), m5_shift(m5_shift($@)))'])
+
 
 
 // #############################
