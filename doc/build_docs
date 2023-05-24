@@ -1,6 +1,6 @@
 #/usr/bash
 
-set -e 
+set -e
 
 # Use SandPiper-SaaS to build the docs.
 #sandpiper-saas -i M5_spec_adoc.tlv -o M5_spec_adoc.sv --noline
@@ -11,6 +11,6 @@ rm M5_spec_adoc_gen.sv
 # Remove SV lines.
 sed -i 's/^`undef BOGUS_USE$//' M5_spec.adoc   # Remove SV line from end of file.
 
-asciidoctor M5_spec.adoc 
+asciidoctor -w M5_spec.adoc 
 asciidoctor-pdf M5_spec.adoc
 #asciidoctor -b docbook5 M5_spec.adoc
