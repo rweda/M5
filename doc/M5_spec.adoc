@@ -1346,7 +1346,2170 @@ options are listed here for completeness:
 * Macros declaring their body using a string: Push/pop local variables named using `${empty}0__` prefix.
 
 
-m5_mac_spec
+== Macro Library
+
+=== Specification Conventions
+Macros are listed by category in a logical order. An alphabetical <<Index>> of macros can be found at the end of
+this document (at least in the `.pdf` version).
+Macros that return integer values, unless otherwise specified, return decimal value strings. Similarly,
+macro arguments that are integer values accept decimal value strings. Boolean inputs and outputs use
+`0` and `1`. Behavior for other argument values is undefined if unspecified.
+
+Resulting output text is, by default, literal (quoted). Macros named with a `_eval` suffix generally result
+in text that gets evaluated.
+
+=== Assigning and Accessing Macros/Variables
+
+==== Declaring/Setting Variables
+
+[[m_var,`m5_var`]]`m5_((var))(Name, Value, ...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Declare a scoped variable. See <<variables>>.
+
+|Side Effect(s):
+|the variable is defined
+
+|Parameter(s):
+|. `Name`: variable name
+
+. `Value`(opt) : the value for the variable
+
+. `...`: additional variables and values to declare (values are required)
+
+|Example(s):
+|....
+var(Foo, 5)
+....
+
+|See also:
+|<<m_macro>>, <<m_fn>>
+|===
+
+
+
+[[m_set,`m5_set`]]`m5_((set))(Name, Value)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Set the value of a scoped variable. See <<variables>>.
+
+|Side Effect(s):
+|the variable's value is set
+
+|Parameter(s):
+|. `Name`: variable name
+
+. `Value`: the value
+
+|Example(s):
+|....
+set(Foo, 5)
+....
+
+|See also:
+|<<m_var>>
+|===
+
+
+[[m_push_var,`m5_push_var`]]`m5_((push_var))(Name, Value)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Declare a variable that must be explicitly popped.
+
+|Side Effect(s):
+|the variable is defined
+
+|Parameter(s):
+|. `Name`: variable name
+
+. `Value`: the value
+
+|Example(s):
+|....
+push_var(Foo, 5)
+...
+pop(Foo)
+....
+
+|See also:
+|<<m_pop>>
+|===
+
+
+[[m_pop,`m5_pop`]]`m5_((pop))(Name)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Pop a variable or traditional macro declared using `push_var` or `push_macro`.
+
+|Side Effect(s):
+|the macro is popped
+
+|Parameter(s):
+|. `Name`: variable name
+
+|Example(s):
+|....
+push_var(Foo, 5)
+...
+pop(Foo)
+....
+
+|See also:
+|<<m_push_var>>, <<m_push_macro>>
+|===
+
+
+[[m_null_vars,`m5_null_vars`]]`m5_((null_vars))(...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Declare variables with empty values.
+
+|Side Effect(s):
+|the variables are declared
+
+|Parameter(s):
+|. `...`: names of variables to declare
+
+|===
+
+
+==== Declaring Macros
+
+[[m_fn,`m5_fn`]]`m5_((fn))(...)` +
+[[m_lazy_fn,`m5_lazy_fn`]]`m5_((lazy_fn))(...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Declare a function. For details, see <<Functions>>. `fn` and `lazy_fn` are functionally equivalent but
+have different performance profiles, and lazy functions do not support inherited (`^`) parameters.
+Lazy functions wait until they are used before defining themselves, so they are generally preferred
+in libraries except for the most commonly-used functions.
+
+|Side Effect(s):
+|the function is declared
+
+|Parameter(s):
+|. `...`: arguments and body
+
+|Example(s):
+|....
+fn(add, Addend1, Addend2, {
+   ~calc(Addend1 + Addend2)
+})
+....
+
+|See also:
+|<<Functions>>
+|===
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[[m_macro,`m5_macro`]]`m5_((macro))(Name, Body)` +
+[[m_null_macro,`m5_null_macro`]]`m5_((null_macro))(Name, Body)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Declare a scoped macro. See <<Declaring Macros>>. A null macro must produce no output.
+
+|Side Effect(s):
+|the macro is declared
+
+|Parameter(s):
+|. `Name`: the macro name
+
+. `Body`: the body of the macro
+
+|Example(s):
+|....
+m5_macro(ParseError, <p>[
+   error(['Failed to parse $<p>1.'])
+])
+....
+
+|See also:
+|<<m_var>>, <<m_set_macro>>
+|===
+
+
+[[m_set_macro,`m5_set_macro`]]`m5_((set_macro))(Name, Body)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Set the value of a scoped(?) macro. See <<Declaring Macros>>. Using this macro is rare.
+
+|Side Effect(s):
+|the macro value is set
+
+|Parameter(s):
+|. `Name`: the macro name
+
+. `Body`: the body of the macro
+
+|See also:
+|<<m_var>>, <<m_set_macro>>
+|===
+
+
+[[m_push_macro,`m5_push_macro`]]`m5_((push_macro))(Name, Body)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Push a new value of a macro that must be explicitly popped. Using this macro is rare.
+
+|Side Effect(s):
+|the macro value is pushed
+
+|Parameter(s):
+|. `Name`: the macro name
+
+. `Body`: the body of the macro
+
+|See also:
+|<<m_pop>>, <<m_macro>>, <<m_set_macro>>
+|===
+
+
+==== Accessing Macro/Variable Values
+
+[[m_get,`m5_get`]]`m5_((get))(Name)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|the value of a variable without `$` substitution (even if not assigned as a string)
+
+|Parameter(s):
+|. `Name`: name of the variable
+
+|Example(s):
+|....
+var(OneDollar, ['$1.00'])
+get(OneDollar)
+....
+
+|Example Output:
+|....
+
+$1.00
+....
+
+|See also:
+|<<m_var>>, <<m_set>>
+|===
+
+
+[[m_must_exist,`m5_must_exist`]]`m5_((must_exist))(Name)` +
+[[m_var_must_exist,`m5_var_must_exist`]]`m5_((var_must_exist))(Name)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Ensure that the `Name`d macro (`must_exist`) or variable (`var_must_exist`) exists.
+
+|Parameter(s):
+|. `Name`: name of the macro/variable
+
+|===
+
+
+
+=== Code Constructs
+
+==== Status
+
+[[v_status,`m5_status`]]`m5_((status))` (Universal variable)
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|This universal variable is set as a side-effect of some macros to indicate an exceptional
+condition or non-evaluation of a body argument. It may be desirable to check this condition
+after calling such macros. Macros, like `m5_else` take action based on the value
+of `m5_status`. An empty value indicates no special condition.
+Macros either always set it (to an empty or non-empty value) or never set it. Those that set
+it list this in their "Side Effect(s)".
+
+|See also:
+|<<m_fn>>, <<m_return_status>>, <<m_else>>, <<m_sticky_status>>
+|===
+
+
+
+[[v_sticky_status,`m5_sticky_status`]]`m5_((sticky_status))` (Universal variable)
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Used by the <<m_sticky_status>> macro to capture the value of `m5_status`.
+
+|See also:
+|<<v_status>>, <<m_sticky_status>>
+|===
+
+
+
+[[m_sticky_status,`m5_sticky_status`]]`m5_((sticky_status))()`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Used to capture the first non-empty status of multiple macro calls.
+
+|Side Effect(s):
+|<<v_sticky_status>> is set to <<v_status>> if it is empty and <<v_status>> is not.
+
+|Example(s):
+|....
+if(m5_A >= m5_Min, [''])
+sticky_status()
+if(m5_A <= m5_Max, [''])
+sticky_status()
+if(m5_reset_sticky_status(), ['m5_error(m5_get(A) is out of range.)'])
+....
+
+|See also:
+|<<v_status>>, <<m_sticky_status>>, <<m_reset_sticky_status>>
+|===
+
+
+[[m_reset_sticky_status,`m5_reset_sticky_status`]]`m5_((reset_sticky_status))()`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Tests and resets <<v_sticky_status>>.
+
+|Output:
+|[`0` / `1`] the original nullness of <<v_sticky_status>>
+
+|Side Effect(s):
+|<<v_sticky_status>> is reset (emptied/nullified)
+
+|See also:
+|<<m_sticky_status>>
+|===
+
+
+==== Conditionals
+
+
+[[m_if,`m5_if`]]`m5_((if))(Cond, TrueBody, ...)` +
+[[m_unless,`m5_unless`]]`m5_((unless))(Cond, TrueBody, FalseBody)` +
+[[m_else_if,`m5_else_if`]]`m5_((else_if))(Cond, TrueBody, ...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|An if/else construct. The condition is an expression that evaluates using <<m_calc>> (generally boolean (0/1)).
+The first block is evaluated if the condition is non-0 (for `if` and `else_if`) or 0 (for `unless`),
+otherwise, subsequent conditions are evaluated, or if only one argument remains, it is the
+final else block, and it is evaluate. (`unless` cannot have subsequent conditions.) `if_else` does
+nothing if `m5_status` is initially empty.
+
+NOTE: As an alternative to providing else blocks within `m5_if`, <<m_else>> and similar macros may be used subsequent to
+`m5_if` / `m5_unless` and other macros producing <<v_status>>, and this may be easier to read.
+
+|Output:
+|the output of the evaluated body
+
+|Side Effect(s):
+|status is set, empty iff a block was evaluated; side-effects of the evaluated body
+
+|Parameter(s):
+|. `Cond`: the condition for evaluation
+
+. `TrueBody`: the body to evaluate if the condition is true (1)
+
+. `...`: ['either a `FalseBody` or (for `m5_if` only) recursive `Cond`, `TrueBody`, `...` arguments to evaluate if the condition is false (not 1)']
+
+|Example(s):
+|....
+~if(m5_eq(m4_Ten, 10) && m5_Val > 3, [
+   ~do_something(...)
+], m5_Val > m5_Ten, [
+   ~do_something_else(...)
+], [
+   ~default_case(...)
+])
+....
+
+|See also:
+|<<m_else>>, <<m_case>>
+|===
+
+
+[[m_if_eq,`m5_if_eq`]]`m5_((if_eq))(String1, String2, TrueBody, ...)` +
+[[m_if_neq,`m5_if_neq`]]`m5_((if_neq))(String1, String2, TrueBody, ...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|An if/else construct where each condition is a comparison of an independent pair of strings.
+The first block is evaluated if the strings match (for `if`) or mismatch (for `if_neq`), otherwise, the
+remaining arguments are processed in a recursive call, either comparing the next pair of strings
+or, if only one argument remains, evaluating it as the final else block.
+
+NOTE: As an alternative to providing else blocks, <<m_else>> and similar macros may be used subsequently,
+and this may be easier to read.
+
+|Output:
+|the output of the evaluated body
+
+|Side Effect(s):
+|status is set, empty iff a body was evaluated; side-effects of the evaluated body
+
+|Parameter(s):
+|. `String1`: the first string to compare
+
+. `String2`: the second string to compare
+
+. `TrueBody`: the body to evaluate if the strings match
+
+. `...`: either a `FalseBody` or recursive `String1`, `String2`, `TrueBody`, `...` arguments to evaluate if the strings do not match
+
+|Example(s):
+|....
+~if_eq(m4_Zero, 0, [
+   ~zero_is_zero(...)
+], m5_calc(m5_Zero < 0), 1, [
+   ~zero_is_negative(...)
+], [
+   ~zero_is_positive(...)
+])
+....
+
+|See also:
+|<<m_else>>, <<m_case>>
+|===
+
+
+
+
+
+[[m_if_null,`m5_if_null`]]`m5_((if_null))(Var, Body, ElseBody)` +
+[[m_if_def,`m5_if_def`]]`m5_((if_def))(Var, Body, ElseBody)` +
+[[m_if_ndef,`m5_if_ndef`]]`m5_((if_ndef))(Var, Body, ElseBody)` +
+[[m_if_defined_as,`m5_if_defined_as`]]`m5_((if_defined_as))(Var, Value, Body, ElseBody)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Evaluate `Body` if the named variable is empty (`if_null`), defined (`if_def`), not defined (`if_ndef`), or not defined and equal to the given value (`if_defined_as`).,
+or `ElseBody` otherwise.
+
+|Output:
+|the output of the evaluated body
+
+|Side Effect(s):
+|status is set, empty iff a body was evaluated; side-effects of the evaluated body
+
+|Parameter(s):
+|. `Var`: the variable's name
+
+. `Value`: for `if_defined_as` only, the value to compare against
+
+. `Body`: the body to evaluate based on `m5_Name`'s existence or definition
+
+. `ElseBody`(opt) : a body to evaluate if the condition if `Body` is not evaluated
+
+|Example(s):
+|....
+if_null(Tag, [
+   error(No tag.)
+])
+....
+
+|See also:
+|<<m_if>>
+|===
+
+
+[[m_else,`m5_else`]]`m5_((else))(Body)` +
+[[m_if_so,`m5_if_so`]]`m5_((if_so))(Body)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Likely following a macro that sets `m5_status`, this evaluates a body if <<v_status>> is non-empty (for `else`) or empty (for `if_so`).
+
+|Output:
+|the output of the evaluated body
+
+|Side Effect(s):
+|status is set, empty iff a body was evaluated; side-effects of the evaluated body
+
+|Parameter(s):
+|. `Body`: the body to evaluate based on <<v_status>>
+
+|Example(s):
+|....
+~if(m5_Cnt > 0, [
+   decrement(Cnt)
+])
+else([
+   ~(Done)
+])
+....
+
+|See also:
+|<<m_if>>, <<m_if_eq>>, <<m_if_neq>>, <<m_if_null>>, <<m_if_def>>, <<m_if_ndef>>, <<m_var_regex>>
+|===
+
+
+[[m_else_if_def,`m5_else_if_def`]]`m5_((else_if_def))(Name, Body)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Evaluate `Body` iff the `Name`d variable is defined.
+
+|Output:
+|the output of the evaluated body
+
+|Side Effect(s):
+|status is set, empty iff a body was evaluated; side-effects of the evaluated body
+
+|Parameter(s):
+|. `Name`: the name of the case variable whose value to compare against all cases
+
+. `Body`: the body to evaluate based on <<v_status>>
+
+|Example(s):
+|....
+m5_set(Either, if_def(First, m5_First)m5_else_if_def(Second, m5_Second))
+....
+
+|See also:
+|<<m_else_if>>, <<m_if_def>>
+|===
+
+
+[[m_case,`m5_case`]]`m5_((case))(Name, Value, TrueBody, ...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Similar to <<m_if>>, but each condition is a string comparison against a value in the `Name` variable.
+
+|Output:
+|the output of the evaluated body
+
+|Side Effect(s):
+|status is set, empty iff a block was evaluated; side-effects of the evaluated body
+
+|Parameter(s):
+|. `Name`: the name of the case variable whose value to compare against all cases
+
+. `Value`: the first string value to compare `VarName` against
+
+. `TrueBody`: the body to evaluate if the strings match
+
+. `...`: either a `FalseBody` or recursive `Value`, `TrueBody`, `...` arguments to evaluate if the strings do not match
+
+|Example(s):
+|....
+~case(m5_Response, ok, [
+   ~ok_response(...)
+], bad, [
+   ~bad_response(...)
+], [
+   error(Unrecognized response: m5_Response)
+])
+....
+
+|See also:
+|<<m_else>>, <<m_case>>
+|===
+
+
+
+==== Loops
+
+[[m_loop,`m5_loop`]]`m5_((loop))(InitList, DoBody, WhileCond, WhileBody)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|A generalized loop construct. Implicit variable `m5_LoopCnt` starts at 0 and increments by 1
+with each iteration (after both blocks).
+
+|Output:
+|output of the blocks
+
+|Side Effect(s):
+|side-effects of the blocks
+
+|Parameter(s):
+|. `InitList`: a parenthesized list, e.g. `(Foo, 5, Bar, ok)` of at least one variable, initial-value pair providing variables scoped to the loop, or `['']`
+
+. `DoBody`: a block to evaluate before evaluating `WhileCond`
+
+. `WhileCond`: an expression (evaluated with <<m_calc>>) that determines whether to continue the loop
+
+. `WhileBody`(opt) : a block to evaluate if `WhileCond` evaluates to true (1)
+
+|Example(s):
+|....
+~loop((MyVar, 0), [
+   ~do_stuff(...)
+], m5_LoopCnt < 10, [
+   ~do_more_stuff(...)
+])
+....
+
+|See also:
+|<<m_repeat>>, <<m_for>>, <<m_calc>>
+|===
+
+
+[[m_repeat,`m5_repeat`]]`m5_((repeat))(Cnt, Body)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Evaluate a block a predetermined number of times. Implicit variable `m5_LoopCnt` starts at 0
+and increments by 1 with each iteration.
+
+|Output:
+|output of the block
+
+|Side Effect(s):
+|side-effects of the block
+
+|Parameter(s):
+|. `Cnt`: the number of times to evaluate the body
+
+. `Body`: a block to evaluate `Cnt` times
+
+|Example(s):
+|....
+~repeat(10, [
+   ~do_stuff(...)
+])
+....
+
+|See also:
+|<<m_loop>>
+|===
+
+
+[[m_for,`m5_for`]]`m5_((for))(Var, List, Body)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Evaluate a block for each item in a listed. Implicit variable `m5_LoopCnt` starts at 0
+and increments by 1 with each iteration.
+
+|Output:
+|output of the block
+
+|Side Effect(s):
+|side-effects of the block
+
+|Parameter(s):
+|. `Var`: the loop item variable
+
+. `List`: a list of items to iterate over, the last of which will be skipped if empty; for each item, `Var` is set to the item, and `Body` is evaluated
+
+. `Body`: a block to evaluate for each item
+
+|Example(s):
+|....
+~for(fruit, ['apple, orange, '], [
+   ~do_stuff(...)
+])
+....
+
+|See also:
+|<<m_loop>>
+|===
+
+
+==== Recursion
+
+[[m_recurse,`m5_recurse`]]`m5_((recurse))(max_depth, macro, ...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Call a macro recursively to a given maximum recursion depth. Functions have a built-in recursion
+limit, so this is only useful for macros.
+
+|Output:
+|the output of the recursive call
+
+|Side Effect(s):
+|the side effects of the recursive call
+
+|Parameter(s):
+|. `max_depth`: the limit on the depth of recursive calls made through this macro
+
+. `macro`: the recursive macro to call
+
+. `...`: arguments for `macro`
+
+|Example(s):
+|....
+m5_recurse(20, myself, args)
+....
+
+|See also:
+|<<v_recursion_limit>>, <<m_on_return>>
+|===
+
+
+
+=== Working with Strings
+
+==== Special Characters
+
+[[m_nl,`m5_nl`]]`m5_((nl))()`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Produce a new-line. Programmatically-generated output should always use this macro
+(directly or indirectly) to produce new-lines, rather than using an actual new-line in
+the source file. Thus the input file formatting can reflect the code structure, not the output
+formatting.
+
+|Output:
+|a new-line
+
+|===
+
+
+[[m_open_quote,`m5_open_quote`]]`m5_((open_quote))()` +
+[[m_close_quote,`m5_close_quote`]]`m5_((close_quote))()`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Produce an open or close quote. These should rarely (never?) be needed and should be used with extra
+caution since they can create undetected imbalanced quoting. The resulting quote is literal,
+but it will be interpreted as a quote if evaluated.
+
+|Output:
+|the literal quote
+
+|See also:
+|<<m_quote>>
+|===
+
+
+[[m_orig_open_quote,`m5_orig_open_quote`]]`m5_((orig_open_quote))()` +
+[[m_orig_close_quote,`m5_orig_close_quote`]]`m5_((orig_close_quote))()`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Produce `['` or `']`. These quotes in the original file are translated internally to ASCII
+control characters, and in output (STDOUT and STDERR) these control characters are translated to single-unicode-character
+"printable quotes". This original quote syntax is most easily produced using these macros, and
+once produced, has no special meaning in strings (though `[` and `]` have special meaning in
+regular expressions).
+
+|Output:
+|the literal quote
+
+|See also:
+|<<m_printable_open_quote>>, <<m_printable_close_quote>>
+|===
+
+
+[[m_printable_open_quote,`m5_printable_open_quote`]]`m5_((printable_open_quote))()` +
+[[m_printable_close_quote,`m5_printable_close_quote`]]`m5_((printable_close_quote))()`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Produce the single unicode character used to represent `['` or `']` in output (STDOUT and STDERR).
+
+|Output:
+|the printable quote
+
+|See also:
+|<<m_orig_open_quote>>, <<m_orig_close_quote>>
+|===
+
+
+[[m_UNDEFINED,`m5_UNDEFINED`]]`m5_((UNDEFINED))()`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|A unique untypeable value indicating that no assignment has been made.
+This is not used by any standard macro, but is available for explicit use.
+
+|Output:
+|the value indicating "undefined"
+
+|Example(s):
+|....
+m5_var(Foo, m5_UNDEFINED)
+m5_if_eq(Foo, m5_UNDEFINED, ['['Foo is undefined.']'])
+R: Foo is undefined.
+....
+
+|===
+
+
+==== Slicing and Dicing Strings
+
+[[m_append_var,`m5_append_var`]]`m5_((append_var))(Name, String)` +
+[[m_prepend_var,`m5_prepend_var`]]`m5_((prepend_var))(Name, String)` +
+[[m_append_macro,`m5_append_macro`]]`m5_((append_macro))(Name, String)` +
+[[m_prepend_macro,`m5_prepend_macro`]]`m5_((prepend_macro))(Name, String)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Append or prepend to a variable or macro. (A macro evaluates its context; a variable does not.)
+
+|Parameter(s):
+|. `Name`: the variable name
+
+. `String`: the string to append/prepend
+
+|Example(s):
+|....
+m5_var(Hi, ['Hello'])
+m5_append_var([', ']m5_Name['!'])
+m5_Hi
+....
+
+|Example Output:
+|....
+Hello, Joe!
+....
+
+|===
+
+
+[[m_substr,`m5_substr`]]`m5_((substr))(String, From, Length)` +
+[[m_substr_eval,`m5_substr_eval`]]`m5_((substr_eval))(String, From, Length)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Extract a substring from `String` starting from `Index` and extending for `Length` ASCII characters (unicode bytes)
+or to the end of the
+string if `Length` is omitted or exceeds the string length. The first character of the string has index 0.
+The result is empty if there is an error parsing `From` or `Length`, if `From` is beyond the end of the string,
+or if `Length` is negative.
+
+Extracting substrings from strings with quotes is dangerous as it can lead to imbalanced quoting.
+If the resulting string would contain any quotes, an error is reported suggesting the use of `dequote` and `requote`
+and the resulting string has its quotes replaced by control characters.
+
+Extracting substrings from UTF-8 strings (supporting unicode characters) is also dangerous. M5
+treats characters as bytes and UTF-8 characters can use multiple bytes, so substrings can split
+UTF-8 characters. Such split UTF-8 characters will result in bytes/M5-characters that have no
+special treatment in M5. They can be rejoined to reform valid UTF-8 strings.
+
+When evaluating substrings, care must be taken with `,`, `(`, and `)` because of their meaning in argument parsing.
+
+`substr` is a slow operation relative to `substr_eval` (due to limitations of M4).
+
+|Output:
+|the substring or its evaluation
+
+|Parameter(s):
+|. `String`: the string
+
+. `From`: the starting position of the substring
+
+. `Length`(opt) : the length of the substring
+
+|Example(s):
+|....
+m5_substr(['Hello World!'], 3, 5)
+....
+
+|Example Output:
+|....
+lo Wo
+....
+
+|See also:
+|<<m_dequote>>, <<m_requote>>
+|===
+
+
+[[m_join,`m5_join`]]`m5_((join))(Delimiter, ...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|the arguments, delimited by the given delimiter string
+
+|Parameter(s):
+|. `Delimiter`: text to delimit arguments
+
+. `...`: arguments to concatenate (with delimitation)
+
+|Example(s):
+|....
+m5_join([', '], ['new-line'], ['m5_nl'], ['macro'])
+....
+
+|Example Output:
+|....
+new-line, m5_nl, macro
+....
+
+|===
+
+
+[[m_translit,`m5_translit`]]`m5_((translit))(String, InChars, OutChars)` +
+[[m_translit_eval,`m5_translit_eval`]]`m5_((translit_eval))(String, InChars, OutChars)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Transliterate a string, providing a set of character-for-character substitutions (where a character
+is a unicode byte). `translit_eval` evaluates the resulting string.
+Note that `['` and `']` are internally single characters. It is possible to
+substitute these quotes (if balanced in the string and in the result) using `translit_eval` but not using `translit`.
+
+|Output:
+|the transliterated string (or its evaluation for `translit_eval`)
+
+|Side Effect(s):
+|for `translit_eval`, the side-effects of the evaluation
+
+|Parameter(s):
+|. `String`: the string to tranliterate
+
+. `InChars`: the input characters to replace
+
+. `OutChars`: the corresponding character replacements
+
+|Example(s):
+|....
+m5_translit(['Testing: 1, 2, 3.'], ['123'], ['ABC'])
+....
+
+|Example Output:
+|....
+Testing: A, B, C.
+....
+
+|===
+
+
+[[m_uppercase,`m5_uppercase`]]`m5_((uppercase))(String)` +
+[[m_lowercase,`m5_lowercase`]]`m5_((lowercase))(String)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Convert upper-case ASCII characters to lower-case.
+
+|Output:
+|the converted string
+
+|Parameter(s):
+|. `String`: the string
+
+|Example(s):
+|....
+m5_uppercase(['Hello!'])
+....
+
+|Example Output:
+|....
+HELLO!
+....
+
+|===
+
+
+[[m_replicate,`m5_replicate`]]`m5_((replicate))(Cnt, String)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Replicate a string the given number of times. (A non-evaluating version of `m5_repeat`.)
+
+|Output:
+|the replicated string
+
+|Parameter(s):
+|. `Cnt`: the number of repetitions
+
+. `String`: the string to repeat
+
+|Example(s):
+|....
+m5_replicate(3, ['.'])
+....
+
+|Example Output:
+|....
+...
+....
+
+|See also:
+|<<m_repeat>>
+|===
+
+
+[[m_strip_trailing_whitespace_from,`m5_strip_trailing_whitespace_from`]]`m5_((strip_trailing_whitespace_from))(Var)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Strip trailing whitespace from the given variable.
+
+|Side Effect(s):
+|the variable is updated
+
+|Parameter(s):
+|. `Var`: the variable
+
+|===
+
+
+==== Formatting Strings
+
+[[m_format_eval,`m5_format_eval`]]`m5_((format_eval))(string, ...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Produce formatted output, much like the C `printf` function. The `string` argument may contain `%`
+specifications that format values from `...` arguments.
+
+From the https://www.gnu.org/software/m4/manual/m4.html#Format[M4 Manual], `%` specifiers include
+`c`, `s`, `d`, `o`, `x`, `X`, `u`, `a`, `A`, `e`, `E`, `f`, `F`, `g`, `G`, and `%`. The following are also supported:
+
+- field widths and precisions
+- flags `+`, `-`, ` `, `0`, `#`, and `'`
+- for integer specifiers, the width modifiers `hh`, `h`, and `l`
+- for floating point specifiers, the width modifier `l`
+
+Items not supported include positional arguments, the `n`, `p`, `S`, and `C` specifiers, the `z`,
+`t`, `j`, `L` and `ll` modifiers, escape sequences, and any platform extensions available in the native printf (for example,
+`%a` is supported even on platforms that haven’t yet implemented C99 hexadecimal floating point output natively).
+
+For more details on the functioning of `printf`, see the C Library Manual, or the POSIX specification.
+
+|Output:
+|the formatted string
+
+|Parameter(s):
+|. `string`: the string to format
+
+. `...`: values to format, one for each `%` sequence in `string`
+
+|Example(s):
+|....
+1: m5_var(Foo, Hello)
+   m5_format_eval(`String "%s" uses %d chars.', Foo, m5_length(Foo))
+2: m5_format_eval(`%*.*d', `-1', `-1', `1')
+3: m5_format_eval(`%.0f', `56789.9876')
+4: m5_length(m5_format(`%-*X', `5000', `1'))
+5: m5_format_eval(`%010F', `infinity')
+6: m5_format_eval(`%.1A', `1.999')
+7: m5_format_eval(`%g', `0xa.P+1')
+....
+
+|Example Output:
+|....
+1:
+   String "Hello" uses 5 chars.
+2: 1
+3: 56790
+4: 5000
+5:        INF
+6: 0X2.0P+0
+7: 20
+....
+
+|===
+
+
+==== Inspecting Strings
+
+[[m_length,`m5_length`]]`m5_((length))(String)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|the length of a string in ASCII characters (unicode bytes)
+
+|Parameter(s):
+|. `String`: the string
+
+|===
+
+
+[[m_index_of,`m5_index_of`]]`m5_((index_of))(String, Substring)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|the position in a string in ASCII characters (unicode bytes) of the first occurence of a given substring or -1 if not present, where the string starts with character zero
+
+|Parameter(s):
+|. `String`: the string
+
+. `Substring`: the substring to find
+
+|===
+
+
+[[m_num_lines,`m5_num_lines`]]`m5_((num_lines))(String)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|the number of new-lines in the given string
+
+|Parameter(s):
+|. `String`: the string
+
+|===
+
+
+[[m_for_each_line,`m5_for_each_line`]]`m5_((for_each_line))(Text, Body)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Evaluate `m5_Body` for every line of `m5_Text`, with `m5_Line` assigned to the line (without any new-lines).
+
+|Output:
+|output from `m5_Body`
+
+|Side Effect(s):
+|side-effects of `m5_Body`
+
+|Parameter(s):
+|. `Text`: the block of text
+
+. `Body`: the body to evaluate for every `m5_if` of `m5_Text`
+
+|===
+
+
+
+==== Safely Working with Strings
+
+[[m_dequote,`m5_dequote`]]`m5_((dequote))(String)` +
+[[m_requote,`m5_requote`]]`m5_((requote))(String)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|For strings that may contain quotes, working with substrings can lead to imbalanced quotes
+and unpredictable behavior. `dequote` replaces quotes for (different) control-character/byte quotes, aka "surrogate-quotes"
+that have no special meaning. Dequoted strings can be safely sliced and diced, and once reconstructed into
+strings containing balanced (surrogate) quotes, dequoted strings can be requoted using `requote`.
+
+|Output:
+|dequoted or requoted string
+
+|Parameter(s):
+|. `String`: the string to dequote or requote
+
+|===
+
+
+[[m_output_with_restored_quotes,`m5_output_with_restored_quotes`]]`m5_((output_with_restored_quotes))(String)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|the given string with quotes, surrogate quotes and printable quotes replaced by their original format ([''])
+
+|Parameter(s):
+|. `String`: the string to output
+
+|See also:
+|<<m_printable_open_quote>>, <<m_printable_close_quote>>
+|===
+
+
+[[m_no_quotes,`m5_no_quotes`]]`m5_((no_quotes))(String)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Assert that the given string contains no quotes.
+
+|Parameter(s):
+|. `String`: the string to test
+
+|===
+
+
+==== Regular Expressions
+
+Regular expressions in M5 use the same regular expression syntax as GNU Emacs. (See
+https://www.gnu.org/software/emacs/manual/html_node/emacs/Regexps.html[GNU Emacs Regular Expressions].)
+This syntax is similar to BRE, Basic Regular Expressions in POSIX and is regrettably rather limited.
+Extended Regular Expressions are not supported.
+
+
+
+
+
+
+
+
+
+
+
+
+[[m_regex,`m5_regex`]]`m5_((regex))(String, Regex, Replacement)` +
+[[m_regex_eval,`m5_regex_eval`]]`m5_((regex_eval))(String, Regex, Replacement)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Searches for `Regexp` in `String`, resulting in either the position of the match or the given replacement.
+
+`Replacement` provides the output text. It may contain references to subexpressions of `Regex` to expand
+in the output. In `Replacement`, `\n` references the nth parenthesized subexpression of `Regexp`, up to nine
+subexpressions, while `\&` refers to the text of the entire regular expression matched. For all other
+characters, a preceding `\` treats the character literally.
+
+|Output:
+|If `Replacement` is omitted, the index of the first match of `Regexp` in `String` is produced (where the
+first character in the string has an index of 0), or -1 is produced if there is no match.
+
+If `Replacement` is given and there was a match, this argument provides the output, with `\n`
+replaced by the corresponding matched subexpressions of `Regex` and `\&` replaced by the entire matched
+substring. If there was no match result is empty.
+
+The resulting text is literal for `regex` and is evaluated for `regex_eval`.
+
+|Side Effect(s):
+|`regex_eval` may result in side-effects resulting from the evaluation of `Replacement`.
+
+|Parameter(s):
+|. `String`: the string to search
+
+. `Regex`: the regular expression to match
+
+. `Replacement`(opt) : the replacement
+
+|Example(s):
+|....
+m5_regex_eval(['Hello there'], ['\w+'], ['First word: m5_translit(['\&']).'])
+....
+
+|Example Output:
+|....
+First word: Hello.
+....
+
+|See also:
+|<<m_var_regex>>, <<m_if_regex>>, <<m_for_each_regex>>
+|===
+
+
+[[m_var_regex,`m5_var_regex`]]`m5_((var_regex))(String, Regex, VarList)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Declare variables assigned to subexpressions of a regular expression.
+
+|Side Effect(s):
+|`status` is assigned, non-empty iff no match.
+
+|Parameter(s):
+|. `String`: the string to match
+
+. `Regex`: the Gnu Emacs regular expression
+
+. `VarList`: a list in parentheses of variables to declare for subexpressions
+
+|Example(s):
+|....
+m5_var_regex(['mul A, B'], ['^\(\w+\)\s+\(w+\),\s*\(w+\)$'], (Operation, Src1, Src2))
+m5_if_so(['m5_DEBUG(Matched: m5_Src1[','] m5_Src2)'])
+m5_else(['m5_error(['Match failed.'])'])
+....
+
+|See also:
+|<<m_regex>>, <<m_regex_eval>>, <<m_if_regex>>, <<m_for_each_regex>>
+|===
+
+
+[[m_if_regex,`m5_if_regex`]]`m5_((if_regex))(String, Regex, VarList, Body, ...)` +
+[[m_else_if_regex,`m5_else_if_regex`]]`m5_((else_if_regex))(String, Regex, VarList, Body, ...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|For chaining `var_regex` to parse text that could match a number of formats.
+Each pattern match is in its own scope. `else_if_regex` does nothing if `m5_status` is non-empty.
+
+|Output:
+|output of the matching body
+
+|Side Effect(s):
+|`m5_status` is non-null if no expression matched; side-effects of the bodies
+
+|Parameter(s):
+|. `String`: the string to match
+
+. `Regex`: the Gnu Emacs regular expression
+
+. `VarList`: a list in parentheses of variables to declare for subexpressions
+
+. `Body`: the body to evaluate if the pattern matches
+
+. `...`: additional repeated Regex, VarList, Body, ... to process if pattern doesn't match
+
+|Example(s):
+|....
+~if_regex(m5_Instruction, ['^mul\s+\(w+\),\s*\(w+\)$'], (Src1, Src2), [
+   ~calc(m5_Src1 * m5_Src2)
+], ['^incr\s+\(w+\)$'], (Src1), [
+   ~calc(m5_Src1 + 1)
+])
+....
+
+|See also:
+|<<m_var_regex>>
+|===
+
+
+[[m_for_each_regex,`m5_for_each_regex`]]`m5_((for_each_regex))(String, Regex, VarList, Body)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Evaluate body for every pattern matching regex in the string. <<v_status>> is unassigned.
+
+|Side Effect(s):
+|side-effects of evaluating the body
+
+|Parameter(s):
+|. `String`: the string to match (containing at least one subexpression and no `$`)
+
+. `Regex`: the Gnu Emacs regular expression
+
+. `VarList`: a (non-empty) list in parentheses of variables to declare for subexpressions
+
+. `Body`: the body to evaluate for each matching expression
+
+|Example(s):
+|....
+m5_for_each_regex(H1dd3n D1git5, ['\([0-9]\)'], (Digit), ['Found m5_Digit. '])
+....
+
+|Example Output:
+|....
+Found 1. Found 3. Found 1. Found 5.
+....
+
+|See also:
+|<<m_regex>>, <<m_regex_eval>>, <<m_if_regex>>, <<m_else_if_regex>>
+|===
+
+
+
+=== Utilities
+
+==== Fundamental Macros
+
+[[m_defn,`m5_defn`]]`m5_((defn))(Name)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|the M4 definition of a macro; note that the M4 definition is slightly different from the M5 definition
+
+|Parameter(s):
+|. `Name`: the name of the macro
+
+|===
+
+
+[[m_call,`m5_call`]]`m5_((call))(Name, ...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Call a macro. Versus directly calling a macro, this indirect mechanism has two primary uses.
+First it provides a consistent syntax for calls with zero arguments as for calls with a non-zero
+number of arguments. Second, the macro name can be constructed.
+
+|Output:
+|the output of the called macro
+
+|Side Effect(s):
+|the side-effects of the called macro
+
+|Parameter(s):
+|. `Name`: the name of the macro to call
+
+. `...`: the arguments of the macro to call
+
+|Example(s):
+|....
+m5_call(error, ['Fail!'])
+....
+
+|See also:
+|<<m_comma_shift>>, <<m_comma_args>>
+|===
+
+
+[[m_quote,`m5_quote`]]`m5_((quote))(...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|a comma-separated list of quoted arguments, i.e. `${empty}@`
+
+|Parameter(s):
+|. `...`: arguments to be quoted
+
+|Example(s):
+|....
+m5_quote(A, ['B'])
+....
+
+|Example Output:
+|....
+['A'],['B']
+....
+
+|See also:
+|<<m_nquote>>
+|===
+
+
+[[m_nquote,`m5_nquote`]]`m5_((nquote))(...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|the arguments within the given number of quotes, the innermost applying individually to
+each argument, separated by commas. A `num` of `0` results in the inlining of `${empty}@`.
+
+|Parameter(s):
+|. `...`: 
+
+|Example(s):
+|....
+1: m5_nquote(3, A, ['m5_nl'])
+2: m5_nquote(3, m5_nquote(0, A, ['m5_nl'])xx)
+....
+
+|Example Output:
+|....
+1: ['['['A'],['m5_nl']']']
+2: ['['['A'],['m5_nlxx']']']
+....
+
+|See also:
+|<<m_quote>>
+|===
+
+
+[[m_eval,`m5_eval`]]`m5_((eval))(Expr)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Evaluate the argument.
+
+|Output:
+|the result of evaluating the argument
+
+|Side Effect(s):
+|the side-effects resulting from evaluation
+
+|Parameter(s):
+|. `Expr`: the expression to evaluate
+
+|Example(s):
+|....
+1: m5_eval(['m5_calc(1 + 1)'])
+2: m5_eval(['m5'])_calc(1 + 1)
+....
+
+|Example Output:
+|....
+1: 2
+2: m5_calc(1 + 1)
+....
+
+|===
+
+
+[[m_comment,`m5_comment`]]`m5_((comment))(...)` +
+[[m_nullify,`m5_nullify`]]`m5_((nullify))(...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|nothing at all; used to provide a comment (though <<comments>> are preferred) or to discard the result of an evaluation
+
+|Parameter(s):
+|. `...`: 
+
+|===
+
+
+==== Manipulating Macro Stacks
+
+See <<stacks>>.
+
+[[m_get_ago,`m5_get_ago`]]`m5_((get_ago))(Name, Ago)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|['a value from a variable's stack, or empty if not defined']
+
+|Parameter(s):
+|. `Name`: variable name
+
+. `Ago`: 0 for current definition, 1 for previous, and so on
+
+|Example(s):
+|....
+*{
+   var(Foo, A)
+   var(Foo, B)
+   ~get_ago(Foo, 1)
+   ~get_ago(Foo, 0)
+}
+....
+
+|Example Output:
+|....
+AB
+....
+
+|===
+
+
+[[m_depth_of,`m5_depth_of`]]`m5_((depth_of))(Name)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|the number of values on a variable's stack
+
+|Parameter(s):
+|. `Name`: macro name
+
+|Example(s):
+|....
+m5_depth_of(Foo)
+m5_push_var(Foo, A)
+m5_depth_of(Foo)
+....
+
+|Example Output:
+|....
+0
+
+1
+....
+
+|===
+
+
+==== Argument Processing
+
+[[m_shift,`m5_shift`]]`m5_((shift))(...)` +
+[[m_comma_shift,`m5_comma_shift`]]`m5_((comma_shift))(...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Removes the first argument. `comma_shift` includes a leading `,` if there are more than zero arguments.
+
+|Output:
+|a list of remaining arguments, or `['']` if less than two arguments
+
+|Side Effect(s):
+|none
+
+|Parameter(s):
+|. `...`: arguments to shift
+
+|Example(s):
+|....
+m5_foo(m5_shift($@))         /// $@ has at least 2 arguments
+m5_call(foo['']m5_comma_shift($@)) /// $@ has at least 1 argument
+....
+
+|===
+
+
+[[m_nargs,`m5_nargs`]]`m5_((nargs))(...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|the number of arguments given (useful for variables that contain lists)
+
+|Parameter(s):
+|. `...`: arguments
+
+|Example(s):
+|....
+m5_set(ExampleList, ['hi, there'])
+m5_nargs(m5_ExampleList)
+....
+
+|Example Output:
+|....
+
+2
+....
+
+|===
+
+
+[[m_argn,`m5_argn`]]`m5_((argn))(ArgNum, ...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|the nth of the given `arguments` or `['']` for non-existent arguments
+
+|Parameter(s):
+|. `ArgNum`: the argument number (n) (must be positive)
+
+. `...`: arguments
+
+|Example(s):
+|....
+m5_set(ExampleList, ['hi, there'])
+m5_argn(2, ExampleList)
+....
+
+|Example Output:
+|....
+
+there
+....
+
+|===
+
+
+[[m_comma_args,`m5_comma_args`]]`m5_((comma_args))(...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Convert a quoted argument list to a list of arguments with a preceding comma.
+This is necessary to properly work with argument lists that may contain zero arguments.
+
+|Parameter(s):
+|. `...`: quoted argument list
+
+|Example(s):
+|....
+m5_call(foo['']m5_comma_args(['$@']), last)
+....
+
+|See also:
+|<<m_comma_shift>>, <<m_comma_fn_args>>
+|===
+
+
+
+
+
+
+
+
+
+
+
+
+[[m_echo_args,`m5_echo_args`]]`m5_((echo_args))(...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|For rather pathological use illustrated in the example, ...
+
+|Output:
+|the argument list (`${empty}@`)
+
+|Parameter(s):
+|. `...`: the arguments to output
+
+|Example(s):
+|....
+m5_macro(append_to_paren_list, ['m5_echo_args$1, ${empty}2'])
+m5_append_to_paren_list((one, two), three)
+....
+
+|Example Output:
+|....
+(one,two,three)
+....
+
+|===
+
+
+
+
+
+
+
+
+
+
+
+
+
+==== Arithmetic Macros
+
+[[m_calc,`m5_calc`]]`m5_((calc))(Expr, Radix, Width)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Calculate an expression.
+Calculations are done with 32-bit signed integers. Overflow silently results in wraparound.
+A warning is issued if division by zero is attempted, or if the expression could not be parsed.
+Expressions can contain the following operators, listed in order of decreasing precedence.
+
+- `()`: For grouping subexpressions
+- `+`, `-`, `~`, `!`: Unary plus and minus, and bitwise and logical negation
+- `**`: Exponentiation (exponent must be non-negative, and at least one argument must be non-zero)
+- `*`, `%`: Multiplication, division, and modulo
+- `+ -`: Addition and subtraction
+- `<<`, `>>`: Shift left or right (for shift amounts > 32, the amount is implicitly ANDed with `0x1f`)
+- `>`, `>=`, `<`, `<=`: Relational operators
+- `==`, `!=`: Equality operators
+- `&`: Bitwise AND
+- `^`: Bitwise XOR (exclusive or)
+- `\|`: Bitwise OR
+- `&&`: Logical AND
+- `\|\|`: Logical OR
+
+All binary operators, except exponentiation, are left-associative. Exponentiation is right-associative.
+
+Immediate values in `Expr` may be expressed in any radix (aka base) from 1 to 36 using prefixes as follows:
+
+- (none): Decimal (base 10)
+- `0`: Octal (base 8)
+- `0x`: hexadecimal (base 16)
+- `0b`: binary (base 2)
+- `0r:`, where `r` is the radix in decimal: Base `r`.
+
+Digits are `0`, `1`, `2`, …, `9`, `a`, `b` … `z`. Lower and upper case letters can be used
+interchangeably in numbers and prefixes. For radix 1, leading zeros are ignored, and all remaining
+digits must be `1`.
+
+For the relational operators, a true relation returns 1, and a false relation return 0.
+
+|Output:
+|the calculated value of the expression in the given `Radix`; the value is zero-extended as requested by `Width`; values may
+have a negative sign (`-`) and they have no radix prefix; digits > 9 use lower-case letters; output is empty if the expression is invalid
+
+|Parameter(s):
+|. `Expr`: the expression to calculate
+
+. `Radix`(opt) : the radix of the output (default 10)
+
+. `Width`(opt) : a minimum width to which to zero-pad the result if necessary (excluding a possible negative sign)
+
+|Example(s):
+|....
+1: m5_calc(2**3 <= 4)
+2: m5_calc(-0xf, 2, 8)
+....
+
+|Example Output:
+|....
+1: 0
+2: -00001111
+....
+
+|===
+
+
+[[m_equate,`m5_equate`]]`m5_((equate))(Name, Expr)` +
+[[m_operate_on,`m5_operate_on`]]`m5_((operate_on))(Name, Expr)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Set a variable to the result of an arithmetic expression computed by <<m_calc>>. For
+`m5_operate_on`, the variable value implicitly preceeds the expression, similar to `+=`, `*=`, etc. in other languages.
+
+|Side Effect(s):
+|the variable is set
+
+|Parameter(s):
+|. `Name`: name of the variable to set
+
+. `Expr`: the expression/partial-expression to evaluate
+
+|Example(s):
+|....
+m5_equate(Foo, 1+2)
+m5_operate_on(Foo, * (3-1))
+m5_Foo
+....
+
+|Example Output:
+|....
+
+
+6
+....
+
+|See also:
+|<<m_set>>, <<m_calc>>
+|===
+
+
+[[m_increment,`m5_increment`]]`m5_((increment))(Name, Amount)` +
+[[m_decrement,`m5_decrement`]]`m5_((decrement))(Name, Amount)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Increment/decrement a variable holding an integer value by one or by the given amount.
+
+|Side Effect(s):
+|the variable is updated
+
+|Parameter(s):
+|. `Name`: name of the variable to set
+
+. `Amount`(opt) : the integer amount to increment/decrement, defaulting to zero
+
+|Example(s):
+|....
+m5_increment(Cnt)
+....
+
+|See also:
+|<<m_set>>, <<m_calc>>, <<m_operate_on>>
+|===
+
+
+==== Boolean Macros
+
+These have boolean (`0` / `1`) results. Note that some <<m_calc>> expressions result in boolean values as well.
+
+[[m_is_null,`m5_is_null`]]`m5_((is_null))(Name)` +
+[[m_isnt_null,`m5_isnt_null`]]`m5_((isnt_null))(Name)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|[`0` / `1`] indicating whether the value of the given variable (which must exist) is empty
+
+|Parameter(s):
+|. `Name`: the variable name
+
+|===
+
+
+[[m_eq,`m5_eq`]]`m5_((eq))(String1, String2, ...)` +
+[[m_neq,`m5_neq`]]`m5_((neq))(String1, String2, ...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Output:
+|[`0` / `1`] indicating whether the given `String1` is/is-not equivalent to `String2` or any of the remaining string arguments
+
+|Parameter(s):
+|. `String1`: the first string
+
+. `String2`: the second string
+
+. `...`: further strings to also compare
+
+|Example(s):
+|....
+m5_if(m5_neq(m5_Response, ok, bad), ['m5_error(Unknown response: m5_Response.)'])
+....
+
+|===
+
+
+
+==== Within Functions or Code Blocks
+
+[[m_fn_args,`m5_fn_args`]]`m5_((fn_args))()` +
+[[m_comma_fn_args,`m5_comma_fn_args`]]`m5_((comma_fn_args))()`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|`m5_fn_args()` results in the numbered argument list of the current function. This is like `${empty}@`, but it can be used in a nested
+function without escaping (e.g. `${empty}<label>@`). `m5_comma_fn_args()` is the same, but has a preceeding comma if the list is
+non-empty. Note that these can be used as variables (`m5_fn_args` and `m5_comman_fn_args`) to provide quoted versions of these.
+
+|Output:
+|
+
+|Side Effect(s):
+|none
+
+|Example(s):
+|....
+m5_foo(1, m5_fn_args())           /// works for 1 or more fn_args
+m5_foo(1['']m5_comma_fn_args())   /// works for 0 or more fn_args
+....
+
+|See also:
+|<<m_fn_arg>>, <<m_fn_arg_cnt>>
+|===
+
+
+[[m_fn_arg,`m5_fn_arg`]]`m5_((fn_arg))(Num)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Access a function argument by position from `m5_fn_args`.
+This is like, e.g. `${empty}3`, but is can be used in a nested function without escaping (e.g. `${empty}<label>3`), and
+can be parameterized (e.g. `m5_fn_arg(m5_ArgNum)`).
+
+|Output:
+|the argument value.
+
+|Parameter(s):
+|. `Num`: the argument number
+
+|See also:
+|<<m_fn_args>>, <<m_fn_arg_cnt>>
+|===
+
+
+[[m_fn_arg_cnt,`m5_fn_arg_cnt`]]`m5_((fn_arg_cnt))()`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|The number of arguments in `m5_fn_args` or `${empty}#`.
+This is like, e.g. `${empty}#`, but is can be used in a nested function without escaping (e.g. `${empty}<label>#`).
+
+|Output:
+|the argument value.
+
+|See also:
+|<<m_fn_args>>, <<m_fn_arg>>
+|===
+
+
+[[m_out,`m5_out`]]`m5_((out))(String)` +
+[[m_out_eval,`m5_out_eval`]]`m5_((out_eval))(String)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|These append to code block output that is expanded after the evaluation of the block. `m5_out` captures
+literal text, while the argument to `m5_get(out_eval)` gets evaluated. Thus `m5_get(out_eval)` is useful for code
+block side effects. `m5_out` is useful only in pathological cases within statements and by dynamically
+constructed code since the shorthand syntax `~(...)` is effectively identical to `~out(...)`.
+Note that these macros are not recommended for use in function blocks as functions have their own
+mechanism for side effects that applies outside of the function (after popping parameters). (See <<Aftermath>>.)
+
+|Output:
+|no direct output, though, since these indirectly result in output as a side-effect, it is recommended to use `~`
+statement syntax with these
+
+|Side Effect(s):
+|indirectly, `out_eval` can result in the side effects of its output expression
+
+|Parameter(s):
+|. `String`: the string to output
+
+|See also:
+|<<Code Blocks>>, <<Aftermath>>
+|===
+
+
+[[m_return_status,`m5_return_status`]]`m5_((return_status))(Value)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Provide return status. (Shorthand for `m5_on_return(set, status, m5_Value)`.) This negates any prior calls
+to `return_status` from the same function.
+
+|Side Effect(s):
+|sets `m5_status`
+
+|Parameter(s):
+|. `Value`(opt) : the status value to return, defaulting to the current value of `m5_status`
+
+|See also:
+|<<m_on_return>>, <<status>>, <<Aftermath>>
+|===
+
+
+[[m_on_return,`m5_on_return`]]`m5_((on_return))(..., D, MacroName, ...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Parameter(s):
+|. `...`
+
+. `D`: Call a macro upon returning from a function. Arguments are those for m5_call.
+
+. `MacroName`: the name of the macro to call
+
+. `...`: its arguments
+
+|===
+
+
+
+=== Checking and Debugging
+
+
+
+
+
+
+
+
+
+
+
+
+[[m_debug_level,`m5_debug_level`]]`m5_((debug_level))(level)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Get or set the debug level.
+
+|Output:
+|with zero arguments, the current debug level
+
+|Side Effect(s):
+|sets `debug_level`
+
+|Parameter(s):
+|. `level`(opt) : [`min`, `default`, `max`] the debug level to set
+
+|Example(s):
+|....
+debug_level(max)
+use(m5-1.0)
+....
+
+|===
+
+
+
+==== Checking and Reporting to STDERR
+
+These macros output text to the standard error output stream (STDERR) (with `[{empty}'` / `'{empty}]` quotes represented by single characters).
+(Note that STDOUT is the destination for the evaluated output.)
+
+[[m_errprint,`m5_errprint`]]`m5_((errprint))(text)` +
+[[m_errprint_nl,`m5_errprint_nl`]]`m5_((errprint_nl))(text)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Write to STDERR stream (with a trailing new-line for `errprint_nl`).
+
+|Parameter(s):
+|. `text`: the text to output
+
+|Example(s):
+|....
+m5_errprint_nl(['Hello World.'])
+....
+
+|===
+
+
+[[m_warning,`m5_warning`]]`m5_((warning))(message)` +
+[[m_error,`m5_error`]]`m5_((error))(message)` +
+[[m_fatal_error,`m5_fatal_error`]]`m5_((fatal_error))(message)` +
+[[m_DEBUG,`m5_DEBUG`]]`m5_((DEBUG))(message)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Report an error/warning/debug message and stack trace (except for `DEBUG_if`).
+Exit for fatal_error, with non-zero exit code.
+
+|Parameter(s):
+|. `message`: the message to report; (`Error:` pre-text (for example) provided by the macro)
+
+|Example(s):
+|....
+m5_error(['Parsing failed.'])
+....
+
+|===
+
+
+[[m_warning_if,`m5_warning_if`]]`m5_((warning_if))(condition, message)` +
+[[m_error_if,`m5_error_if`]]`m5_((error_if))(condition, message)` +
+[[m_fatal_error_if,`m5_fatal_error_if`]]`m5_((fatal_error_if))(condition, message)` +
+[[m_DEBUG_if,`m5_DEBUG_if`]]`m5_((DEBUG_if))(condition, message)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Report an error/warning/debug message and stack trace (except for `DEBUG_if`) if the given condition is true.
+Exit for fatal_error, with non-zero exit code.
+
+|Parameter(s):
+|. `condition`: the condition, as in `m5_if`.
+
+. `message`: the message to report; (`Error:` pre-text (for example) provided by the macro)
+
+|Example(s):
+|....
+m5_error_if(m5_Cnt < 0, ['Negative count.'])
+....
+
+|===
+
+
+[[m_assert,`m5_assert`]]`m5_((assert))(message)` +
+[[m_fatal_assert,`m5_fatal_assert`]]`m5_((fatal_assert))(message)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Assert that a condition is true, reporting an error if it is not, e.g. `Error: Failed assertion: -1 < 0`. Exit for fatal_error, with non-zero exit code.
+
+|Parameter(s):
+|. `message`: the message to report; (`Error:` pre-text (for example) provided by the macro)
+
+|Example(s):
+|....
+m5_assert(m5_Cnt < 0)
+....
+
+|===
+
+
+
+
+[[m_verify_min_args,`m5_verify_min_args`]]`m5_((verify_min_args))(Name, Min, Actual)` +
+[[m_verify_num_args,`m5_verify_num_args`]]`m5_((verify_num_args))(Name, Min, Actual)` +
+[[m_verify_min_max_args,`m5_verify_min_max_args`]]`m5_((verify_min_max_args))(Name, Min, Max, Actual)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|Verify that a traditional macro has a minimum number, a range, or an exact number of arguments.
+
+|Parameter(s):
+|. `Name`: the name of this macro (for error message)
+
+. `Min`: the required minimum or exact number of arguments
+
+. `Max`: the maximum number of arguments
+
+. `Actual`: the actual number of arguments
+
+|Example(s):
+|....
+m5_verify_min_args(my_fn, 2, $#)
+....
+
+|===
+
+
+==== Uncategorized Debug Macros
+
+[[v_recursion_limit,`m5_recursion_limit`]]`m5_((recursion_limit))` (Universal variable)
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|If the function call stack exceeds this value, a fatal error is reported.
+
+|===
+
+
+
+[[m_abbreviate_args,`m5_abbreviate_args`]]`m5_((abbreviate_args))(max_args, max_arg_length, ...)`
+[frame=none,grid=none,cols=">1, 5a"]
+|===
+|Description:
+|For reporting messages containing argument lists, abbreviate long arguments and/or a long argument list by replacing
+   long input args and remaining arguments beyond a limit with ['...'].
+
+|Output:
+|a quoted string of quoted args with a comma preceding every arg.
+
+|Parameter(s):
+|. `max_args`: if more than this number of args are given, additional args are represented as ['...']
+
+. `max_arg_length`: maximum length in characters to display of each argument
+
+. `...`: arguments to represent in output
+
+|Example(s):
+|....
+m5_abbreviate_args(5, 15, $@)
+....
+
+|===
+
 
 == Reference Card
 
