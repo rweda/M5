@@ -854,7 +854,7 @@ m4_define(['m5_fn_args'], ['m4_indir(~fn_args)'])
 m4_define(['m5_fn_arg'], ['m4_argn($1, m4_indir(~fn_args))'])
 /// Number of arguments in fn_args.
 m4_define(['m5_fn_arg_cnt'],
-   ['m4_ifelse(m4_len(m4_defn(['~fn_args'])), 0, ['0'], ['m5_nargs(m5_indir(~fn_args))'])'])
+   ['m4_ifelse(m4_len(m4_defn(['~fn_args'])), 0, ['0'], ['m5_nargs(m5_fn_args())'])'])
 m4_define(['m5_comma_fn_args'],
    ['m4_ifelse(m4_defn(~fn_args), [''], [''], [', m5_fn_args()'])'])
 

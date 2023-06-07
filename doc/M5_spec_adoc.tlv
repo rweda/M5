@@ -490,7 +490,7 @@ M5 processing involves the following (ordered) steps:
 
 === Defining Sugar-free
 
-M5 can be used "sugar-free". It's just a bit clunky for humans. Syntactic sugar is recognized in the
+M5 can be used "sugar-free". It's just a bit clunky for humans. <<Syntactic Sugar>> is recognized in the
 source file. Text that is constructed on the fly and evaluated (e.g. by <<m_eval>>) is evaluated sugar-free.
 
 
@@ -689,6 +689,8 @@ newline and spaces in the second argument.
 
 
 == Syntactic Sugar
+
+Syntactic sugar is syntax that is processed directly in the source file prior to macro processing. (See <<Processing Steps>>.)
 
 === Comments
 
@@ -923,6 +925,7 @@ negative arguments:
 
 
 [[block_labels]]
+[reftext="Block Labels"]
 ==== Block Labels: Escaping Blocks and Labeled Numbered Parameters
 
 Proper use of quotes can get a bit tedious, especially when it is necessary to escape out of several
@@ -1533,7 +1536,7 @@ var(mac_spec, *['
   `m5_\if` / `m5_\unless` and other macros producing <<v_status>>, and this may be easier to read.
   O: the output of the evaluated body
   S: status is set, empty iff a block was evaluated; side-effects of the evaluated body
-  E: ~if(m5_\eq(m4_Ten, 10) && m5_\Val > 3, [
+  E: ~if(m5_\eq(m5_\Ten, 10) && m5_\Val > 3, [
      ~do_something(...)
   ], m5_\Val > m5_\Ten, [
      ~do_something_else(...)
@@ -1555,7 +1558,7 @@ var(mac_spec, *['
   and this may be easier to read.
   O: the output of the evaluated body
   S: status is set, empty iff a body was evaluated; side-effects of the evaluated body
-  E: ~if_eq(m4_Zero, 0, [
+  E: ~if_eq(m4_\Zero, 0, [
      ~zero_is_zero(...)
   ], m5_\calc(m5_\Zero < 0), 1, [
      ~zero_is_negative(...)
@@ -1762,8 +1765,8 @@ var(mac_spec, *['
 
  m5_DocFn(join, ['
   O: the arguments, delimited by the given delimiter string
-  E: m5_\join([', '], ['new-line'], ['m5_\nl'], ['macro'])
-  P: new-line, m5_\nl, macro
+  E: m5_\join([', '], ['one'], ['two'], ['three'])
+  P: one, two, three
  '], Delimiter: text to delimit arguments, ...: arguments to concatenate (with delimitation))
 
  m5_DocFns(['translit, translit_eval'], ['
@@ -2178,8 +2181,9 @@ var(mac_spec, *['
  ==== Within Functions or Code Blocks
  
  m5_DocFns(['fn_args, comma_fn_args'], ['
-  D: `m5_\fn_args()` results in the numbered argument list of the current function. This is like `${empty}@`, but it can be used in a nested
-  function without escaping (e.g. `${empty}<label>@`). `m5_\comma_fn_args()` is the same, but has a preceeding comma if the list is
+  D: `m5_\fn_args()` results in an unquoted list containing the numbered argument (each individually quoted) of the current function.
+  This is like `${empty}@`, but it can be more convenient in nested functions where the use of
+  <<block_labels>> (e.g. `${empty}<label>@`) would be needed. `m5_\comma_fn_args()` is the same, but has a preceeding comma if the list is
   non-empty. Note that these can be used as variables (`m5_\fn_args` and `m5_\comman_fn_args`) to provide quoted versions of these.
   O: 
   S: none
@@ -2190,7 +2194,8 @@ var(mac_spec, *['
  
  m5_DocFn(fn_arg, ['
   D: Access a function argument by position from `m5_\fn_args`.
-  This is like, e.g. `${empty}3`, but is can be used in a nested function without escaping (e.g. `${empty}<label>3`), and
+  This is like, e.g. `${empty}3`, but it can be more convenient in nested functions where the use of
+  <<block_labels>> (e.g. `${empty}<label>3`) would be needed, and
   can be parameterized (e.g. `m5_\fn_arg(m5_\ArgNum)`).
   O: the argument value.
   A: (m_fn_args, m_fn_arg_cnt)
@@ -2198,7 +2203,8 @@ var(mac_spec, *['
 
  m5_DocFn(fn_arg_cnt, ['
   D: The number of arguments in `m5_\fn_args` or `${empty}#`.
-  This is like, e.g. `${empty}#`, but is can be used in a nested function without escaping (e.g. `${empty}<label>#`).
+  This is like, e.g. `${empty}#`, but it can be more convenient in nested functions where the use of
+  <<block_labels>> (e.g. `${empty}<label>#`) would be needed.
   O: the argument value.
   A: (m_fn_args, m_fn_arg)
  '])
