@@ -40,7 +40,7 @@ endif::[]
 _To enrich any text format_
 
 [.text-center]
-M5 version 1.0, document subversion 1, 2023 +
+M5 version 2.0, document subversion 1, 2024 +
 by Steve Hoover, Redwood EDA, LLC +
 (mailto:steve.hoover@redwoodeda.com[steve.hoover@redwoodeda.com])
 
@@ -74,6 +74,10 @@ https://www.gnu.org/software/m4/[M4 documentation]. The M4 documentation
 can, in fact, be confusing as M5 has philosophical differences.
 Differences versus M4 are described in <<vs_m4>>.
 
+This document covers the M5 language as well as its standard <<Macro Library>>. This document's major
+version reflects the language version, and the minor version reflects the library version. There is
+also a document subversion distinguishing versions of this document with no corresponding language or
+library changes.
 
 
 === M5's Place in the World
@@ -129,6 +133,13 @@ M5 contributes:
 M4 has certain limitations that M5 is unable to address. M5 uses M4 as is without
 modifications to the M4 implementation (though these limitations may motivate
 changes to M4 in the future).
+
+===== Security
+M4 has full access to its host environment (similar to most programming and scripting
+languages, but unlike many macro preprocessors). Malware can easily do harm. Third-
+party M5 code should be carefully vetted before use, or M5 should be run within a contained
+environment. M5 provides a simple mechanism for library inclusion by URL (or it will).
+This enables easy execution of public third-party code, so use it with extreme caution.
 
 ===== Modularity
 M4 does not provide any library, namespace, and version management facilities.
@@ -269,8 +280,7 @@ script.
 
 === Running M5
 
-Currently, M5 is bundled to run with TL-Verilog tool flows. The script that builds this documentation
-can be consulted for example usage by way of TL-Verilog tool flows.
+M5 is being rebundled... Stay tuned.
 
 /**
 The Linux command:
@@ -282,6 +292,8 @@ m5 < in-file > out-file
 (TODO: Provide m5 script that does `--prefix_builtins`.)
 
 runs M5 in its default configuration.
+
+Describe use of a magic number.
 **/
 
 === Ensure No Impact
@@ -291,7 +303,7 @@ M5 should output the input text, unaltered, as long as your file contains no:
 
 - quotes, e.g. `['`, `']`)
 - `m5_` or `m4_`
-- M5 comments, e.g. `/{empty}//`, `/*{empty}*`, `*{empty}*/`
+- M5 comments, e.g. `/{empty}//`, `+/']['**+`, `+']['**/+`
 - (and specific to TL-Verilog: `\TLV`)
 - (mismatched parentheses may result in warnings)
 
@@ -300,30 +312,28 @@ In other configurations, the following may also result in processing:
 - code blocks, e.g. `[` or `{` followed by a newline or `]` or `}` beginning a line after optional whitespace
 
 
-
 == An Overview of M5 Concepts
 
 === Macro Preprocessing in General
 
-Macro preprocessors extend a target programming language, text format, or any arbitrary text with the ability to define
+Macro preprocessors extend a target programming language, text format, or general text file with the ability to define
 and call (aka instantiate, invoke, expand, evaluate, or elaborate) parameterized macros that provide
 text substitutions. Macros are generally used to provide convenient shorthand for commonly-used constructs.
-Macro preprocessors processes a text file sequentially with a default behavior of passing
+A macro preprocessor processes a text file sequentially with a default behavior of passing
 the input text through as output text. When a macro name is encountered, it and its argument list are substituted
 for new text according to its definition.
 
 M5 provides convenient syntax for macro preprocessing as well as programatic text processing, sharing the same
-macros for each. This provides advanced text manipulation to supercharge any language or text format, or it can be used to
-fully process any text format.
+macros for each. This provides advanced text manipulation to supercharge any programming language or text file.
 
 
 === Macros Overview
 
-In source context, a macro that simply outputs a static text string can be defined like this:
+A macro that simply outputs a static text string can be defined within the source file like this:
 
  m5_macro(hello, Hello World!)
 
-And called like this:
+The above text will substitute with an empty string but will define a macro that can be called like this:
 
  m5_hello()
 
@@ -410,23 +420,27 @@ Additionally, it is difficult to format code readably because carriage returns a
 taken literally. This results in single-line syntax with many levels of nesting that quickly become difficult
 to follow.
 
-Code regions can be defined (using target-language-specific syntax) within which code syntax is supported.
+To enable code structure that looks more like a programming language, "code context" can be established
+within which code syntax is supported.
 
 Take for example this one-line definition in source context of an `assert` macro:
 
  m5_macro(assert, ['m5_if(['$1'], ['m5_error(['Failed assertion: $1.'])'])'])
 
-In code context, this can be written equivalently (though with a slight performance impact) as:
+This can be written equivalently (though with a slight performance impact) as:
 
- macro(assert, {
+ m5_macro(assert, {
     if(['$1'], [
        error(['Failed assertion: $1.'])
     ])
  })
 
-The `m5_` prefix is implied at the beginning of each code "statement".
+`m5_macro(` enters "M5 context", where parentheses and brackets have special meaning.
+`{` at the end of its line enters code context, where, most notably, text does not implicitly
+pass through to the output and `m5_` is implied at the beginning of each code statement
+(beginning its line). On the final line, `}` and `)` exit these contexts
 
-For more details, see <<code_blocks>>.
+For more details, see <<code_blocks>> and <<contexts>>.
 
 
 === Functions and Scope Overview
@@ -488,7 +502,7 @@ M5 processing involves the following (ordered) steps:
 
 == Sugar-Free M5 Details
 
-=== Defining Sugar-free
+=== Defining "Sugar-Free"
 
 M5 can be used "sugar-free". It's just a bit clunky for humans. <<Syntactic Sugar>> is recognized in the
 source file. Text that is constructed on the fly and evaluated (e.g. by <<m_eval>>) is evaluated sugar-free.
@@ -741,8 +755,10 @@ These are specific to <<code_blocks>>, introduced later.
 `m5_foo(` should not appear in literal text that is never to be evaluated as it would
 get undesirably sugared. (See <<quotes>> and <<prefix_escapes>> for syntax to avoid undesired sugaring.)
 
-NOTE: The M5 processor may avoid applying this sugar for common macros from the M5 core library that are
-known to exist.
+NOTE: M5 may avoid applying this sugar for common macros from the M5 core library that are
+assumed to be defined.
+
+This `m5_foo` syntax also enters "M5 context" (see <<contexts>>).
 
 
 [[variable_sugar]]
@@ -754,12 +770,14 @@ get undesirably sugared. (For syntax to avoid undesired sugaring, see <<quotes>>
 
 
 [[prefix_escapes]]
+[reftext="Backslash Word Boundary"]
 === Backslash Word Boundary (`m5_\` and `\m5_`)
 
 As more convenient alternatives to quotes:
 
-  - `m5_\foo` results in `m5_foo` without interpretation as syntactic sugar. It should be used in literal contexts that are not evaluated.
-  - `\m5_foo` is shorthand for `['']m5_` to provide a word boundary, enabling M5 processing of `m5_foo`.
+- `m5_\foo` is shorthand for `m5_']['foo` and can be used to prevent interpretation as a macro or variable. (Note that this is
+permitted outside of quoted context as well.)
+- `\m5_foo` is shorthand for `['']m5_foo` to provide a word boundary, enabling M5 processing of `m5_foo` when preceded by a word.
 
 
 [[bodies]]
@@ -885,22 +903,26 @@ By convention, scoped variables and macros use Pascal case, e.g. `MyVar`. (See <
 ==== Text Blocks
 
 "Text blocks" provide a syntax for multi-line quoted text that is indented with its surroundings.
-They are formatted similarly to code blocks, but use standard (`['` / `']` ) quotes. The openning quote
+They are delimited similarly to code blocks, but use standard (`['` / `']` ) quotes. The openning quote
 must be followed by a newline and the closing quote must begin a new line that is indented consistently
 with the line beginning the block. Their indentation is defined by the first non-blank line in the block.
 All lines must contain at least this indentation (except the last). This fixed level of indentation
-and the beginning and ending newline are removed. Aside from the removal of this whitespace, the
-text block is simply quoted text containing newlines. For example:
+and the beginning and ending newline are removed. For example:
 
-   macro(copyright, ['['
-      Copyright (c) 20xx
-      All rights reserved.
-   ']'])
+ macro(copyright, ['['
+    Copyright (c) 20xx
+    All rights reserved.
+ ']'])
 
-There is no parsing for code and text blocks
-as well as label syntaxes within text blocks. There is parsing of M5 comments, quotes, and parentheses
-(counting) and quotes are recognized (and, of course, number parameter substitutions will occur for a text block that is elaborated as
-part of a macro body).
+This is equivalent to:
+
+ macro(copyright, ['['Copyright (c) 20xx']m5_nl['All rights reserved.']'])
+
+The text of the block is in source context, thus syntactic sugar is interpretted under the assumption
+that the text is to be evaluated. Text blocks that contain literal (quoted) text that is not evaluated
+should avoid entering M5 context with `m5_`, using quotes or `$` (if within a macro body), and it
+should be understood that vanishing comments would be removed.
+
 
 ==== Evaluate Blocks
 
@@ -1011,15 +1033,82 @@ Pragmas processing happens after M5 comments are stripped. The following strings
 
   * `where_am_i`: Prints the current quote context to STDERR.
   * `[enable/disable]_debug`: Improves the readability of the file resulting from sugar processing, and continues processing after normally-fatal errors.
-  * `[enable/disable]_paren_checks`: Enables or disables parenthesis tracking and reporting. Enabling and disabling should be done at matching levels.
-  * `[enable/disable]_quote_checks`: Enables or disables reporting of quote mismatches.
   * `[enable/disable]_verbose_checks`: Enables or disables verbose checking.
 
 Since the pragmas would pass through to the target file, pragmas are generally expressed using the following macro calls
 which elaborate to nothing:
 
   * `m5_pragma_{empty}where_am_i()`
-  * `m5_pragma_[enable/disable]_{check}()`, where `{check}` is `debug`, `paren_checks`, `quote_checks`, or `verbose_checks`.
+  * `m5_pragma_[enable/disable]_{check}()`, where `{check}` is `debug`, or `verbose_checks`.
+
+
+[[contexts]]
+=== Contexts
+
+The various features of M5 apply in different contexts. This section summarizes the syntaxes
+that transition among contexts and the syntactic features available in each context. The
+context in which various features are supported is also summarized in <<Reference Card>>.
+
+The following file illustrates different contexts:
+
+ Copyright (c) Joe Cool        /']['// source context
+ m5_do([                       /']['// enter M5 context then code context
+    var(Ver, 1.0)              /']['//     code context
+    var(Banner, <b>['          ///     code context, enters source context
+       Author: Joe Cool        ///       source context
+       Version: ']<b>m5_Ver['  ///       source context (no exit)
+    '])                        /']['//     exits source context
+ ])                            /']['// exit code context then M5 context
+ File version: m5_Ver          /']['// source context
+
+==== Source Context
+
+Source context generally passes text through to the output. It is the default context and is
+also the context of text blocks.
+
+Features supported in source context are supported in all contexts. For text that is intended
+to be literal, caution must be taken to avoid inadvertent use of these syntaxes.
+(See <<Ensure No Impact>>.)
+
+The following are recognized in source context:
+
+- Vanishing comments
+- Macro calls
+- Variable instantiation
+- Pragmas
+
+==== M5 Context
+
+M5 context is entered from source context by, for example, `m5_foo(`. Within this context,
+parentheses and quotes are matched. This context is exited by the corresponding `)`. In determining
+the matching `)`, any intervening code and text blocks are ignored. Quoted parentheses are also
+ignored, so, in this example:
+
+ stuff m5_foo(1 ok (2 but m5_bar(3['m5_baz(X['(X']']3)['(X']2)1)
+
+the numbered parentheses are matched, and the ones followed by an `X` are ignored.
+
+In addition to source context features, the following are recognized in M5 context:
+
+- code and text blocks
+- parentheses and quotes have meaning and are matched
+
+==== Code Context
+
+Code context is for <<Code Blocks>> and supports all the features of M5 context (including all features of
+source context). Unquoted parentheses are matched. Additionally, syntactic sugar is supported for formatting
+macro code more like programs.
+
+Code context is entered by `[`/`{` that end a line (after
+stripping vanishing comments) and is exited by the corresponding `]`/`}`
+beginning a line at matching indentation (also after
+stripping vanishing comments).
+
+In addition to M5 context features, the following are recognized in code context:
+
+- implicit `m5_` beginning lines
+- `~` allowing output (including, e.g. `~(hi)`, `~MyVar`, `~nl()`)
+- `/` comments
 
 
 == Coding Practices
@@ -1367,6 +1456,12 @@ macro(DocVar, m5_defn(doc_macro__doc_var))
 
 var(mac_spec, *['
  == Macro Library
+
+ ['
+ This section documents the macros defined by the M5 1.0 library. Some macros documented here are
+ necessary to enable inclusion of this library and are, by necessity, built-into the language. This
+ distinction may not be documented.
+ ']
  
  === Specification Conventions
  ['
@@ -1543,10 +1638,10 @@ var(mac_spec, *['
   ], [
      ~default_case(...)
   ])
-  A: (m_else, m_case)
- '], Cond: ['the condition for evaluation'],
-     TrueBody: ['the body to evaluate if the condition is true (1)'],
-     ...: ['['either a `FalseBody` or (for `m5_\if` only) recursive `Cond`, `TrueBody`, `...` arguments to evaluate if the condition is false (not 1)']'])
+  A: (m_else, m_case, m_calc)
+ '], Cond: ['the condition expression, evaluated as for `m5_\calc`'],
+     TrueBody: ['the body to evaluate if the condition evaluates to true (1)'],
+     ...: ['['either a `FalseBody` or (for `m5_\if` only) recursive `Cond`, `TrueBody`, `...` arguments to evaluate if the condition evaluates to false (not 1)']'])
 
  m5_DocFns(['if_eq, if_neq'], ['
   D: An if/else construct where each condition is a comparison of an independent pair of strings.
@@ -1572,10 +1667,10 @@ var(mac_spec, *['
      ...: ['either a `FalseBody` or recursive `String1`, `String2`, `TrueBody`, `...` arguments to evaluate if the strings do not match'])
 
  m5_doc_as_fn(if_null, [''], Var, Body, ?ElseBody)
- m5_doc_as_fn(if_def, [''], Var, Body, ?ElseBody)
- m5_doc_as_fn(if_ndef, [''], Var, Body, ?ElseBody)
- m5_DocFns(['if_null, if_def, if_ndef, if_defined_as'], ['
-  D: Evaluate `Body` if the named variable is empty (`if_null`), defined (`if_def`), not defined (`if_ndef`), or not defined and equal to the given value (`if_defined_as`).,
+ m5_doc_as_fn(if_var_def, [''], Var, Body, ?ElseBody)
+ m5_doc_as_fn(if_var_ndef, [''], Var, Body, ?ElseBody)
+ m5_DocFns(['if_null, if_var_def, if_var_ndef, if_defined_as'], ['
+  D: Evaluate `Body` if the named variable is empty (`if_null`), defined (`if_var_def`), not defined (`if_var_ndef`), or not defined and equal to the given value (`if_defined_as`).,
   or `ElseBody` otherwise.
   O: the output of the evaluated body
   S: status is set, empty iff a body was evaluated; side-effects of the evaluated body
@@ -1605,7 +1700,7 @@ var(mac_spec, *['
   D: Evaluate `Body` iff the `Name`d variable is defined.
   O: the output of the evaluated body
   S: status is set, empty iff a body was evaluated; side-effects of the evaluated body
-  E: m5_\set(Either, if_def(First, m5_\First)m5_\else_if_def(Second, m5_\Second))
+  E: m5_\set(Either, if_var_def(First, m5_\First)m5_\else_if_def(Second, m5_\Second))
   A: (m_else_if, m_if_def)
  '], Name: the name of the case variable whose value to compare against all cases,
      Body: ['the body to evaluate based on <<v_status>>'])
@@ -1614,7 +1709,7 @@ var(mac_spec, *['
   D: Similar to <<m_if>>, but each condition is a string comparison against a value in the `Name` variable.
   O: the output of the evaluated body
   S: status is set, empty iff a block was evaluated; side-effects of the evaluated body
-  E: ~case(m5_\Response, ok, [
+  E: ~case(Response, ok, [
      ~ok_response(...)
   ], bad, [
      ~bad_response(...)
@@ -1947,7 +2042,7 @@ var(mac_spec, *['
      Regex: the Gnu Emacs regular expression,
      VarList: a list in parentheses of variables to declare for subexpressions,
      Body: the body to evaluate if the pattern matches,
-     ...: ['additional repeated Regex, VarList, Body, ... to process if pattern doesn't match'])
+     ...: ['else body or additional repeated Regex, VarList, Body, ... to process if pattern doesn't match'])
 
  m5_DocFn(for_each_regex, ['
   D: Evaluate body for every pattern matching regex in the string. <<v_status>> is unassigned.
@@ -1990,9 +2085,9 @@ var(mac_spec, *['
   O: the arguments within the given number of quotes, the innermost applying individually to
   each argument, separated by commas. A `num` of `0` results in the inlining of `${empty}@`.
   E: 1: m5_\nquote(3, A, ['m5_\nl'])
-  2: m5_\nquote(3, m5_\nquote(0, A, ['m5_\nl'])xx)
-  P: 1: ['['['A'],['m5_\nl']']']
-  2: ['['['A'],['m5_\nlxx']']']
+  2: m5_\nquote(3, m5_\nquote(0, A, ['m5_\\nl'])xx)
+  P: 1: ['['['A'],['m5_\\nl']']']
+  2: ['['['A'],['m5_\\nlxx']']']
   A: (m_quote)
  '], ...: )
  
@@ -2055,10 +2150,8 @@ var(mac_spec, *['
 
  m5_DocFn(argn, ['
   O: the nth of the given `arguments` or `['']` for non-existent arguments
-  E: m5_\set(ExampleList, ['hi, there'])
-  m5_\argn(2, ExampleList)
-  P: 
-  there
+  E: m5_\argn(2, a, b, c)
+  P: b
  '], ArgNum: the argument number (n) (must be positive), ...: arguments)
 
  m5_DocFn(comma_args, ['
@@ -2331,30 +2424,35 @@ macro(tail_doc, ['
 
  M5 processes the following syntaxes:
 
- [cols="2,3,5a"]
+ [cols="3,2,4,3a"]
  .Core Syntax
  |===
- |Use |Reference |Syntax
+ |Feature |Reference |Syntax |Contexts
 
  |M5 comments
  |<<Comments>>
  |`/{empty}//`, `/']['{empty}*{empty}*`, `{empty}*{empty}*']['/`
+ |All
 
  |Quotes
  |<<Quotes>>
  |`['`, `']`
+ |All
 
  |Macro calls
  |<<Calling Macros>>
  |e.g. `m5_\my_fn(arg1, arg2)`
+ |All (except as code statement)
 
  |Numbered/special parameters
  |<<Declaring Macros>>
  |`$` (e.g. `${empty}3`, `${empty}@`, `${empty}#`, `${empty}*`)
+ |Within outermost macro/function (not var) definition body
 
  |Escapes
  |<<prefix_escapes>>
- |`\\m5_foo`, `m5_\foo`
+ |`\m5_\foo`, `m5_\\foo`
+ |All
  |===
 
  Additionally, text and code block syntax is recognized when special quotes are opened at the end of a line or closed
@@ -2367,64 +2465,94 @@ macro(tail_doc, ['
 
  Block syntax incudes:
 
- [cols="2,3,5a"]
+ [cols="3,2,4,3a"]
  .Block Syntax
  |===
- |Use |Reference |Syntax
+ |Feature |Reference |Syntax |Contexts
 
  |Code block quotes
  |<<Code Blocks>>
  |`[`, `]`, `{`, `}` (ending/beginning a line)
+ |M5, code
 
  |Text block quotes
  |<<Text Blocks>>
  |`['`, `']` (ending/beginning a line)
+ |M5, code
 
  |Evaluate Blocks
  |<<Evaluate Blocks>>
  |`{empty}*[`, `[`, `{empty}*{`, `}`, `*['`, `']`
+ |M5, code
 
  |Statement comment
  |<<statement_comments>>
  |`/Blah blah blah...`
+ |Code
 
  |Statement with no output
  |<<Code Blocks>>
  |`foo`, `bar(...)` (`m5_\` prefix implied)
+ |Code
 
  |Code block statement with output
  |<<bCode Blocks>>
  |`~foo`, `~bar(...)` (`m5_\` prefix implied)
+ |Code
 
  |Code block output
  |<<Code Blocks>>
  |`~(...)`
+ |Code
  |===
 
  Though not essential, block labels can be used to improve maintainability and performance in extreme cases.
 
- [cols="2,3,5a"]
+ [cols="3,2,4,3a"]
  .Block Label Syntax
  |===
- |Use |Reference |Syntax
+ |Feature |Reference |Syntax |Contexts
 
  |Named blocks
  |<<block_labels>>
- |`<foo>` (preceding the open quote, after optional `{empty}*`) e.g. `{empty}*<bar>{` or `<baz>[{empty}'`
+ |`<foo>` (preceding the open block quote, after optional `{empty}*`) e.g. `{empty}*<bar>{` or `<baz>[{empty}'`
+ |M5, Code
 
  |Quote escape
  |<<block_labels>>
  |`'{empty}]<foo>m5_\Bar[{empty}'`
+ |All (within any type of M5 quotes)
 
  |Labeled number/special parameter reference
  |<<block_labels>>
  |`${empty}<foo>`, e.g. `${empty}<foo>2` or `${empty}<bar>#`
+ |All (within corresponding block)
  |===
 
  Many macros accept arguments with syntaxes of their own, defined in the macro definition. Functions, for example are fundamental. See <<Functions>>.
 
+ /**
+ == Thoughts for M6
+ 
+ === Special Characters
+ 
+ If only we could reserve a few characters specifically for M5 (for "m5_", quotes, and commas especially,
+ and parentheses would be nice too). Alas, there is no standard, global way to type non-ascii characters.
+
+ === Literal vs. Source Quotes
+ 
+ It might be nice to have different flavors of quotes for literal text vs. text that is to be evaluated (source).
+ Literal text would not parse for macros and quotes other than the corresponding end quote.
+ We could add checking that the final output does not contain any source strings and that literals are
+ not evaluated. This would be problematic, though in that it requires adding characters to the strings
+ while would throw off things like string length. It is difficult, also, to add runtime checks against
+ things like contatenating literals with source strings. So this requires a new (non-M4-based) implementation.
+ 
+ **/
+
  [index]
  == Index
+
 
 '])
 \SV
