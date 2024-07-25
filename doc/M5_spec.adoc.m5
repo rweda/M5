@@ -2175,7 +2175,7 @@ m5_do([
 
       ==== Manipulating Macro Stacks
 
-      See <<stacks>>.
+      See <<Macro Stacks>>.
 
       m5_DocFns(['get_ago'], ['
          O: ['a value from a variable's stack, or empty if not defined']
