@@ -8,7 +8,7 @@ Docs can be viewed as:
 
 - [GitHub AsciiDoc](doc/M5_spec.adoc)
 - [HTML](https://rweda.github.io/M5/doc/M5_spec.html)
-- [PDF download](https://rweda.github.io/M5/doc/M5_spec.pdf)
+- [PDF](https://rweda.github.io/M5/doc/M5_spec.pdf)
 
 # To Run M5
 

@@ -86,7 +86,7 @@ m5_var(main_doc, ['
    had led to some worthwhile insights and that there was a place in the
    world for a better text processing language/tool, so I carved out some time to polish my mountain of hacks.
 
-   Though M5 would benefit from a fresh non-M4-based implementation, I had to draw the line somewhere.
+   Though M5 would benefit from a fresh non-M4/Perl-based implementation, I had to draw the line somewhere.
    At this point, that legacy is mostly behind the scenes, and while it's not everything I'd like it to be,
    it's close, and it's way better than any other text preprocessor I'm aware of.
 
@@ -296,6 +296,26 @@ m5_var(main_doc, ['
    - M5 comments, e.g. `/{empty}//`, `+/']['**+`, `+']['**/+`
    - code blocks, e.g. `[` or `{` followed by a newline or `]` or `}` beginning a line after optional whitespace
      _(This requirement is being removed with no processing in source context.)_
+
+
+   === Tool Flow
+
+   Since M5 is simply substituting text, you can do bizarre things, which can be difficult to debug.
+   Understanding the tool flow can help you look one step under the hood to debug issues or understand
+   how syntax is interpreted.
+
+   M5 basically processes files in two steps:
+
+   - Interpret syntactic sugar.
+   - Run M4.
+
+   (There is a third step as well that is very minor to undo some of the sugaring.)
+
+   Object files are generated (run `m5 -h` for options) that expose the interpretation of M5 sugar.
+   Note that quotes and commas are substituted with control characters in these files, so you will
+   need an appropriate tool to view them. Your shell may recognize them as binary files and prompt you
+   about viewing them, which is fine to do.
+
 
 
    == An Overview of M5 Concepts
