@@ -4,7 +4,11 @@ The M5 Text Processing Language
 
 # M5 Docs
 
-The docs can be viewed [here](doc/M5_spec.adoc), but the index does not render in GitHub, so for anything more than window shopping, [download the PDF](doc/M5_spec.pdf).
+Docs can be viewed as:
+
+- [GitHub AsciiDoc](doc/M5_spec.adoc)
+- [HTML](doc/M5_spec.html)
+- [PDF download](doc/M5_spec.pdf)
 
 # Build
 

@@ -1,16 +1,18 @@
 #/usr/bash
-
 set -e
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+cd "$SCRIPT_DIR"
+
+#echo "Generating M5_spec.adoc"
 
 # Use SandPiper-SaaS to build the docs.
 #sandpiper-saas -i M5_spec_adoc.tlv -o M5_spec_adoc.sv --noline
-/home/steve/repos/mono/sandpiper/bin/sandpiper -i M5_spec_adoc.tlv -o M5_spec_adoc.sv --noline --debug
-mv M5_spec_adoc.sv M5_spec.adoc
-rm M5_spec_adoc_gen.sv
+#/home/steve/repos/mono/sandpiper/bin/sandpiper -i M5_spec_adoc.tlv -o M5_spec_adoc.sv --noline --debug
+../bin/m5 --obj_dir obj M5_spec.adoc.m5 > M5_spec.adoc
 
-# Remove SV lines.
-sed -i 's/^`undef BOGUS_USE$//' M5_spec.adoc   # Remove SV line from end of file.
-
-asciidoctor -w M5_spec.adoc 
+#echo "Building M5_spec.html"
+asciidoctor -w M5_spec.adoc
+#echo "Building M5_spec.pdf"
 asciidoctor-pdf M5_spec.adoc
 #asciidoctor -b docbook5 M5_spec.adoc

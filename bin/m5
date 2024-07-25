@@ -1,0 +1,68 @@
+#!/bin/bash
+set -e
+set -o pipefail
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+# Process command line arguments.
+# --obj_dir <directory> specifies the directory for intermediate files.
+# -h/--help prints help.
+# ($2 is currently an undocumented argument that is passed to post_m4, providing the
+#  name of the output file for error messages.)
+while [[ $# -gt 0 ]]
+do
+    key="$1"
+    case $key in
+        --obj_dir)
+            OBJ_DIR="$2"
+            shift
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: m5 [--obj_dir <directory>] <file.m5>"
+            echo "  --obj_dir <directory> specifies the directory for intermediate files."
+            echo "  -h/--help prints help."
+            echo "  <file.m5> is the input file."
+            exit 0
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+
+# Arguments for post_m4.
+POST_M4_ARGS=("${@:2}")
+
+# Rebuild m4 libraries if necessary (substitute control characters).
+(
+    cd "$SCRIPT_DIR/../lib"
+
+    for FILE in "m5_lib"   # Lists any files that need to be rebuilt in any M4 version.
+        do
+        # Compare file age. Note, this does the right thing if either file does not exist (returns
+        #   false if .m4 file does not exists and otherwise true if _coded.m4 file does not exist.
+        if [[ "$FILE.m4" -nt "${FILE}_coded.m4" ]];
+        then
+            >&2 echo "M5: Info: Rebuilding ${FILE}_coded.m4"
+            "$SCRIPT_DIR/requote_stream" < "$FILE.m4" > "${FILE}_coded.m4"
+        fi
+    done
+)
+
+
+# If object directory is not specified, make a temporary object directory.
+if [ -z "$OBJ_DIR" ];
+then
+    OBJ_DIR="$(mktemp -d -t m5_obj_XXXXXXXXXX)"
+fi
+# Store the M4 file in the object directory.
+# Use extension .m4 either appended to the file name or replacing the .m5 extension if it exists.
+if [[ "$1" == *.m5 ]];
+then
+    M4_FILE="$OBJ_DIR/$(basename "$1" .m5).m4"
+else
+    M4_FILE="$OBJ_DIR/$(basename "$1").m4"
+fi
+"$SCRIPT_DIR/pre_m4" -f "$1" -uri "$(realpath "$1")" < "$1" | tee "$M4_FILE" | m4 --prefix-builtins -I "$SCRIPT_DIR/../lib" -D m4_obj_dir="$OBJ_DIR" | "$SCRIPT_DIR/post_m4" "${POST_M4_ARGS[@]}" || (echo "M5 preprocessing failed" && exit 1)

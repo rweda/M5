@@ -1,0 +1,1022 @@
+#!/usr/bin/perl
+# -*- mode: perl; indent-tabs-mode: nil; perl-indent-level: 2; cperl-indent-level: 2; -*-
+
+# Copyright (c) Redwood EDA, LLC
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+# 
+#     * Redistributions of source code must retain the above copyright notice,
+#       this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of Intel Corporation nor the names of its contributors
+#       may be used to endorse or promote products derived from this software
+#       without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+#
+#
+# A stream preprocessor for M5 that provides syntactic sugar.
+#
+# Run with no args. Transforms stdin to stdout.
+#
+# Also substitutes: M5__FILE/LINE/URI__ to reflect the source code.
+
+my $prog = $0;
+
+use strict;
+use warnings;
+use feature 'unicode_strings';
+use FindBin ();
+use lib "$FindBin::RealBin";
+
+
+# A dictionary of known core M5 library macros that may be used frequently.
+# For these, we avoid the use of m5_call().
+# TODO: This makes sense only if the m5 library is included in the source file.
+#       Should we parse the file to determine if the library is included?
+#       Should we add a magic number notation for it?
+#       Or, just leave it as is. This only affects error detection and reporting.
+my %known_macros = (
+    calc => 1,
+    call => 1,
+    eq => 1,
+    eval => 1,
+    fn => 1,
+    lazy_fn => 1,
+    macro => 1,
+    quote => 1,
+    set => 1,
+    shift => 1,
+    var => 1,
+);
+
+
+# TODO: Use precompiled regex for better performance.
+
+
+# This script replaces [' with \N{U+30} (Record Separator) and '] with \N{U+31} (Unit Separator).
+# This provides single-character quotes that do not conflict with other characters in the file.
+my $OPEN_QUOTE = "\N{U+02}";
+my $CLOSE_QUOTE = "\N{U+03}";
+my $LITERAL_COMMA = "\N{U+05}";
+
+my $sourcefile_arg = '';  # The source file name as given by the library include.
+my $uri = '';               # URI of the file being processed as a library.
+
+# TODO: Add configurability for "m5_" prefix.
+
+# Send lines to STDOUT, substituting M5__FILE/URI__. (M5__TLV_LINE__ is substituted separately (per-line).)
+sub out {
+  my $lines = shift;
+  
+  # Convert quotes to control quotes.
+  # TODO: Check line existing control quotes before substituting.
+  # TODO: Do not substitute quotes in source context.
+  $lines =~ s/\[\'/$OPEN_QUOTE/g;
+  $lines =~ s/\'\]/$CLOSE_QUOTE/g;
+  
+  # Substitute M5__FILE__, M5__URI__
+  # Unlike M5__LINE__, this is done after other processing to avoid any processing of the expansions.
+  $lines =~ s/\bM5__FILE__\b/$sourcefile_arg/g;
+  $lines =~ s/\bM5__URI__\b/$uri/g;
+  print $lines;
+}
+
+
+my $lib_flag = 0;
+my $hide_contents = 0;  # Set this to avoid producing output.
+                        # We hide contents for library files. Alternatively, I believe we could m4_hide the inclusion.
+while (my $arg = shift(@ARGV)) {
+  if ($arg eq "-l") {
+    # library file.
+    $lib_flag = 1;
+    $hide_contents = 1;
+  }
+  if ($arg eq "-f") {
+    # source filename
+    $sourcefile_arg = shift(@ARGV);
+  }
+  if ($arg eq "-uri") {
+    # URI of this source file (or something close to a URI).
+    # Can be a:
+    #   - URL path
+    #   - local relative file path, starting with "./" or "../".
+    $uri = shift(@ARGV);
+  }
+}
+if ($sourcefile_arg eq '') {
+  print STDERR "$prog: Error: -f argument is required.\n";
+  $sourcefile_arg = 'UNKNOWN-SOURCE-FILE';
+}
+if ($uri eq '') {
+  print STDERR "$prog: Error: -uri argument is required.\n";
+  $sourcefile_arg = 'UNKNOWN-SOURCE-URI';
+}
+
+
+my $done = 0;        # Set to 1 when EOF is read.
+my $line = '';       # The line being processed.
+my $strip_indentation_len = 0;  # Indentation to strip from $line.
+my $line_num = 0;    # The number of the line being processed.
+my $m5_comment_stripped = 0;  # Set to 1 iff an m5 comment was stripped from the line.
+
+# For M4 quote checking. This does similar processing as m4_plus_*, but it is implemented independently.
+# There's an array entry for every level of open-quoting at the current position.
+my $m4_quote_depth = 0; # Levels of M4 quoting.
+my @m4_indentation_depth = (-1);   # Lengths of indentation strings of lines of every current-nested quote.
+my @m4_indentation_line_num = (-1); # Line numbers introducing the corresponding @m4_indentation_depth entry.
+my @m4_body_indentation_depth = (-1);  # Indentation of the bodies of every currently-nested quote.
+                                       # -1 until the first indented line is processed.
+my @m4_quote_type = ("['");  # The type of quote:
+                             #   "['" for M4 block quotes (block starts w/ new line);
+                             #   '[' or '{' for code block quotes; ([0] is '[' because this used in \m5 regions only, which are code blocks.)
+                             #   'non-block' for non-block (intra-line) quotes.
+my @m4_block_name = ('top');   # The name of the code/text block, or '' if none or not a block.
+my @m4_block_eval = (0);    # [1/0] 1 for a code/text block prefixed with '*' (to be evaluated).
+my @m4_parens = ('');    # The parenthesis context. There are three types of parentheses:
+                         #   1. Ignored: Parentheses in non-block quote context and source context are ignored and not counted/matched.
+                         #   2. Macro: Open parentheses that are preceded in the source code by 'm5_foo' are macro parentheses.
+                         #             Except within the context of a macro parenthesis, commas are literal unless preceded by '\'.
+                         #   3. Floating: These are in the same context as Macro quotes, but are not preceded by 'm5_foo'.
+                         # The array contains strings that indicate the quote context, where '(' represents a macro quote
+                         # and '-' represents a floating quote (and ignored quotes are not represented).
+                         # So, after processing "If (truly) m5_hi(['(']and (truly", the string is "(-".
+my @m4_balanced_parens_line_num = (-1); # The last line number on which parentheses were balanced for this block.
+my $inside_text_block = 0;  # A flag that we're inside a non-evaluating (no "*") text block, in which case, block syntax is disabled.
+# To prevent excessive error reporting.
+my $reported_quote_error1 = 0;
+my $reported_quote_error2 = 0;
+my $reported_quote_error3 = 0;
+my $reported_paren_error = 0;
+# Pragmas.
+my $debug_mode_enabled = 0;
+my $quote_checks_enabled = 1;
+my $paren_checks_enabled = 1;
+my $verbose_checks_enabled = 0;
+my $existence_checks_enabled = 1;
+my $literal_comma_enabled = 1;
+my $sugar_enabled = 1;  # Enable sugar (but vanishing comments are always processed).
+
+my $in_block_comment = 0;   # (boolean) Is parsing within a /** **/ block comment.
+
+
+# For debugging, this prints the current quoting context.
+sub print_quote_context {
+  print STDERR "   Current quote context:";
+  my $line_num = -1;
+  my $ind_depth = -1;
+  for (my $i = 1; $i <= $m4_quote_depth; $i++) {
+    if ($line_num != $m4_indentation_line_num[$i]) {
+      # New line.
+      my $line_num = $m4_indentation_line_num[$i];
+      my $ind = "";
+      for (my $c = 0; $c < $m4_indentation_depth[$i]; $c++) {
+        $ind .= " ";
+      }
+      printf STDERR "\n%8i|$ind", $line_num;
+    } else {
+      # Same line.
+      # Indentation shouldn't change.
+      if ($m4_indentation_depth[$m4_quote_depth] != $ind_depth) {
+        &parse_error("Inconsist indentation in quote tracking data structures.", "BUG");
+      }
+    }
+    print STDERR "..." . ($m4_block_eval[$i] ? '*' : '') . (($m4_block_name[$i] eq '') ? '' : "<$m4_block_name[$i]>") . $m4_quote_type[$i];
+  }
+  print STDERR "\n";
+}
+
+
+# Check parenthesis count for current quote level.
+sub paren_check() {
+  my $depth = shift;
+  if (length($m4_parens[$depth]) > 0) {
+    my $type = ($m4_quote_type[$depth] eq '{' || $m4_quote_type[$depth] eq '[') ? "Code block" :
+               ($m4_quote_type[$depth] eq "['") ? "Text block" :
+                      "Quoted Text";
+    my $it = ($depth == 0)
+                 ? "File"
+                 : "$type starting " . ($type eq "Quoted Text" ? "in" : "at") . " line $m4_indentation_line_num[$depth]";
+    if ($paren_checks_enabled && !$reported_paren_error) {
+      &verbose_parse_error("$it contains " . length($m4_parens[$depth]) . " more open parentheses than close parentheses.\n\tParentheses were last balanced leading into line $m4_balanced_parens_line_num[$m4_quote_depth].", "Warning");
+      $reported_paren_error = 1;
+    }
+  }
+}
+
+sub pop_quote {
+  &paren_check($#m4_indentation_depth);
+  pop(@m4_indentation_depth);
+  pop(@m4_indentation_line_num);
+  pop(@m4_body_indentation_depth);
+  pop(@m4_quote_type);
+  pop(@m4_block_name);
+  pop(@m4_block_eval);
+  pop(@m4_balanced_parens_line_num);
+}
+
+# Process the next line of the file.
+# Return 0/1 indicating that a line wasn't/was processed.
+sub read_line {
+  $line = <STDIN>;
+  
+  $line_num++;
+  # For each line of the file, plus one final iteration with $line == "", which terminates the macro
+  #   if the -l flag is given;
+  if (!$line) {
+    $done = 1;
+    $line = '';
+  } else {
+    chomp $line;
+  }
+  
+  $m5_comment_stripped = 0;
+
+  my $line_block_name = '';          # The name associated with the code/text block open quote on the current line.
+  my $line_block_eval = 0;           # [1/0] 1 iff the code/text block (and its name) is preceded by "*" indicating to evaluate the block.
+  my $line_block_start_type = '';    # The type (m4_quote_type) of the open  block quote ending    the current line or ''.
+  my $line_block_end_type = '';      # The type (m4_quote_type) of the close block quote beginning the current line or ''.
+
+  if (!$m4_parens[$m4_quote_depth]) {
+    $m4_balanced_parens_line_num[$m4_quote_depth] = $line_num;
+  }
+
+  # Vanishing comments.
+  # TODO: Update these to require whitespace (or BOL EOL), e.g. \s///\s and /**\s.
+
+  if (1) {
+    # Strip /// and /** **/...  comments.
+    if ($in_block_comment) {
+      $line = '/**' . $line;
+    }
+    my $done_loop;
+    my $line_len;
+    do {
+      $line_len = length($line);  # A safeguard against infinite recursion.
+      # If there's a remaining /** comment, process it; if not strip /// comment.
+      my $line_comment_pos = index($line, '///');
+      my $no_line_comment = $line_comment_pos < 0;
+      if ($no_line_comment) {
+        $line_comment_pos = length($line)
+      } else {
+        $m5_comment_stripped = 1;
+      };
+      my $block_comment_pos = index($line.'/**', '/**');
+      $done_loop = $block_comment_pos >= $line_comment_pos;
+      if ($done_loop) {
+        # Strip ///...
+        $line = substr($line, 0, $line_comment_pos);
+        # Strip preceding whitespace (at the end of $line).
+        $line =~ s/\s*$//;
+      } else {
+        $m5_comment_stripped = 1;
+        # Block comment before line comment or end-of-line.
+        my $end_block_comment_pos = index($line, '**/', $block_comment_pos + length('/**'));
+        $in_block_comment = $end_block_comment_pos < 0;
+        $line = substr($line, 0, $block_comment_pos) . ($in_block_comment ? '' : substr($line, $end_block_comment_pos + length('**/')));
+      }
+    } while (!$done_loop && length($line) < $line_len);
+  }
+  
+  
+  # Substitute "m5_".
+  # Specifically,
+  #   o Replace "m5_word(" with "m5__l(88)m5_call(word," (except "m5_call(")
+  #   o Replace "m5_word" with "m5_get(word)"
+  # Also remove "\" from:
+  #   o "\m5_word" (including "\m5_word(")
+  #   o "m5_\"
+  if ($sugar_enabled) {
+    my $remainder = $line;
+    $line = '';
+    while($remainder =~ /^(.*?)(\\?)\bm5_(\w+)(\(?)(.*)$/) {
+      $line .= $1 . ($2 ? "['']" : '');  # Substitute "\m5_" with "['']m5_".
+      my $word = $3;
+      my $paren = $4;
+      $remainder = $5;
+      if ($word =~ /^m5_/) {
+        &parse_error('"m5_$word" is not legal in source file.', "Error");
+      }
+      if ($paren eq '') {
+        # Get
+        $line .= "m5_get($word)";
+      } else {
+        # Call
+        # Set line number for debugging.
+        $line .= "m5__l($line_num)";
+        # Output call.
+        if (exists $known_macros{$word} || !$existence_checks_enabled) {
+          # This known, common macro can be called directly without confirming its existence.
+          $line .= "m5_$word(";
+        } else {
+          $line .= "m5_call($word,";
+        }
+      }
+    }
+    $line .= $remainder;
+
+    # Substitute "m5_\" with "m5_".
+    $line =~ s/\bm5_\\/m5_/g;
+  }
+
+  if ($line !~ /^\s*$/) {
+    # Not a blank line.
+    
+    if ($sugar_enabled) {   # TODO: Optimize source context to avoid processing unless and until line contains "m5_".
+                            #       No quotes in source context.
+      # TODO: Changequotes could be supported properly since all quote processing is done here.
+      #       Resulting files can consistently use control-quotes everywhere, avoiding M4's
+      #       need for consistently-quoted libraries.
+      
+      # Parse the line for indentation and block quotes. Detect inconsistent quoting.
+      # Rules:
+      #   o Quotes should not be closed at a lower-level of indentation than they were opened.
+      #   o All quoted text should be indented. (Indented by 0 is accepted outside of \m4 regions.)
+      #   o Every close quote must match an open quote of the same type.
+      #
+      # Note that when ']...[' appears within a line the corresponding open-quote is not changed
+      #   as this might be done to escape the quotes while continuing the block.
+      #
+      # TODO: Is this relevant to M5?:
+      # Commented quotes are parsed in order to match the parsing that will
+      #   be done by M4 while interpretting this file in quoted context.
+      #
+      # Also, support code blocks.
+      # A code block is quoted text that evaluates statements that produce the resulting text, rather than
+      # passing all text through to the result by default.
+      #
+      # Code blocks can be scoped or unscoped. In scoped blocks, declarations are local to their scope.
+      # The code block:
+      #    // unscoped:
+      #    ...[
+      #       foo(...)
+      #       nl
+      #       // scoped:
+      #       eval({
+      #          (['...'])
+      #          foo(...)
+      #       })
+      #       ...
+      #    ]...
+      # becomes:
+      #    // unscoped:
+      #    ...m5__block(['
+      #       m5__stmt(foo,...)
+      #       // scoped:
+      #       m5__stmt(eval,m5__scope(['
+      #          m5__stmt(,['...'])
+      #          m5__stmt(foo,...)
+      #       ']))
+      #       ...
+      #    '])...
+      #
+      # m5__stmt calls the given macro indirectly and m5_out's the result. If the macro name is empty,
+      # the effect of m5__stmt is m5_out of the remaining args.
+      #
+      # An open scope is recognized where the open character is followed by a carriage return (preceded
+      # by optional whitespace). A close scope is recognized where the close character begins a new line
+      # after optional whitespace.
+      
+      # Parse indentation.
+      $line =~ /^(\s*)(.*)$/;
+      my $ind = $1;
+      my $orig_text = $2;
+      
+      my $text = $orig_text;
+      
+      # Inside text block, there should be no block quotes.
+      if ($inside_text_block && (length($m4_quote_type[$m4_quote_depth]) == 1)) {
+        &parse_error("Inside a code block while inside a text block, this shouldn't be possible.", "BUG")
+      }
+      
+      # Parse block end at start of line, and substitute for ']).
+      my $end_block_type = (($m4_quote_type[$m4_quote_depth] ne 'non-block') &&
+                           (!$inside_text_block || (length($ind) == $m4_indentation_depth[$m4_quote_depth])) &&
+                           ($text =~ s/^(\]|\}|'\])/'])/)) ? $1 : '';
+      
+      # Record or check indentation.
+      if (($text ne '') && ($m4_quote_type[$m4_quote_depth] ne 'non-block')) {
+        # Non-empty body line.
+        if ($m4_body_indentation_depth[$m4_quote_depth] == -1) {
+          # This is the first non-empty body line; it defines the body indentation.
+          if ($end_block_type eq '') {
+            # This is not an empty body.
+            $m4_body_indentation_depth[$m4_quote_depth] = length($ind);
+          }
+        } else {
+          # This is not the first non-empty body line; make sure it's indented enough.
+          if ((length($ind) < $m4_body_indentation_depth[$m4_quote_depth - ($end_block_type ne '')]) && ($ind ne '')) {
+             &parse_error("Indentation isn't as deep as that established by the first line of the body/block.", "Warning");
+          }
+        }
+      }
+      
+      # End text block?
+      if (($end_block_type eq "']") && ($m4_quote_type[$m4_quote_depth] eq "['")) {
+        $inside_text_block = 0;
+      }
+      
+      if ($inside_text_block) {
+        undef($end_block_type);
+      } else {
+        # TODO: indent
+      
+      # Add ')' if evaluated with '*' syntax.
+      if (($end_block_type ne '') && $m4_block_eval[$m4_quote_depth]) {
+        $text .= ')';
+      }
+      # Record block end type encoded as the corresponding open quote.
+      if ($end_block_type ne '') {   # } or ]
+        $line_block_end_type = ($end_block_type eq ']') ? '[' :
+                               ($end_block_type eq '}') ? '{' :
+                                                          "['";
+        # Strict, but not ideal if block quote is on a line with other open quotes.
+        #if (length($ind) != $m4_indentation_depth[$m4_quote_depth]) {
+        #  &parse_error("Block termination indentation depth is recommended to match the indentation of line $m4_indentation_line_num[$m4_quote_depth].", "Warning");
+        #}
+      }
+
+      # Statement substitutions in code context.
+      if ((($m4_quote_type[$m4_quote_depth] eq '[') ||
+           ($m4_quote_type[$m4_quote_depth] eq '{')
+          ) &&
+          (length($ind) == $m4_body_indentation_depth[$m4_quote_depth])
+         ) {
+        if (1) {
+          my $out = $text =~ s/^~//;
+          my $stmt_type = $out ? "m5__out_stmt" : "m5__stmt";
+          # Indentation matches block indentations, so statement substitutions can be made.
+          if ($text =~ s#^/.*##) {
+            # M5 code block line comment (single slash).
+          } else {
+          if ($text =~ /^m5_/) {
+            # No substitution on a line beginning with m5_. Report error.
+            &parse_error("In M5 code context, lines should not start with \"m5_\".", "Warning");
+          } else {
+            # word( => m5__l(63)m5__stmt(['m5_word'],
+            if ($text !~ s/^(\w+)\(/m5__l($line_num)$stmt_type(['m5_$1'],/) {
+              # word => m5__stmt_var(word).
+              if ($text =~ s/^(\w+)(.*)/m5__l($line_num)${stmt_type}_var(['$1'])$2/) {
+                # Replaced word. Must have been ~word.
+                if (!$out) {
+                  &parse_error("Code block variable statements require \"~\":\n\t\t$orig_text", "Warning");
+                }
+              } else {
+                # No replacement yet.
+                # ~( => m5_out(
+                if ($text !~ s/^\(/m5__l($line_num)m5_out(/ || !$out) {
+                  # No replacement or "~" missing.
+                  if ($text !~ m#//# || $out) {
+                    # Not a comment. Bad statement, except for a few special cases:
+                    #   - region lines
+                    #   - block begin lines
+                    if (!($ind eq '' && $text =~ /^\\/) && $text !~ /^\*?(<\w+>)?[\[\{]\s*$/) {
+                      &parse_error("Unable to parse code block statement:\n\t\t$orig_text", "Warning");
+                    }
+                  }
+                }
+              }
+            }
+          }
+          }
+        }
+      }
+      
+      # Block quote substitutions.
+      # TODO: Do not do this in source/text context.
+      # TODO: Support labels on all quotes (not just block quotes). They are useful for scoped macros.
+      # E.g. [ => m5__block(['  -or-  *<label>{ => m5_eval(m5__scope(['  -or-  [' => m5__text_block(['
+      if ($text =~ s/(\[|\{|\[')\s*$//) {
+        $line_block_start_type = $1;
+        $text = '-'.$text;  # Add a char for the pattern match.
+        if ($text =~ /^(.*?(.))(\*)?(<(\w+)>)?$/) {
+          my $pre = substr($1, 1);
+          my $need_separator = $2 =~ /\w/;
+          $line_block_eval = defined($3);
+          $line_block_name = defined($5) ? $5 : '';
+          my $macro = ($line_block_start_type eq '[')  ? "m5__block(" :
+                      ($line_block_start_type eq '{')  ? "m5__scope(['$sourcefile_arg']," :
+                                                         "m5__text_block("; 
+          $text = $pre . ($need_separator ? "['']" : '') . ($line_block_eval ? 'm5_eval(' : '') . $macro . "['";
+          
+          # Keep track of whether we're inside a text block.
+          if ($line_block_start_type eq "['" && !$line_block_eval) {
+            $inside_text_block = 1;
+          }
+        } else {
+          &parse_error("BUG: Failed to match regex for block start line.");
+        }
+      }
+      
+      }
+      
+      
+      # Determine what indentation to strip.
+      # TODO: Strip from blank lines as well.
+      if ($debug_mode_enabled) {
+        # Strip indentation only for text blocks.
+        $strip_indentation_len =
+            ($line_block_end_type eq "['") ? length($ind) :
+            (!$inside_text_block) ? 0 :
+            (length($ind) < $m4_body_indentation_depth[$m4_quote_depth]) ? length($ind) :
+                 $m4_body_indentation_depth[$m4_quote_depth];
+      } else {
+        # Always strip block indentation.
+        $strip_indentation_len =
+            ($line_block_end_type ne '') ? length($ind) :
+            ($m4_body_indentation_depth[$m4_quote_depth] < 0) ? 0 :
+            (length($ind) < $m4_body_indentation_depth[$m4_quote_depth]) ? length($ind) :
+                   $m4_body_indentation_depth[$m4_quote_depth];
+        #print STDERR "Line: $line |> $strip_indentation_len, $line_block_end_type, $m4_body_indentation_depth[$m4_quote_depth] [$m4_quote_depth] '$ind'\n";
+      }
+      $line = $ind . $text;
+    }
+    
+    
+    
+    # Parse quoting. (Code block quotes have been substituted for M4 quotes; <label> escape syntax has not been substituted yet.)
+    #
+    my $init_quote_checks_enabled = $quote_checks_enabled;
+    $line =~ m#^(\s*)#;
+    my $ind = $1;
+    my $ind_depth = length($ind);
+    my $orig_quote_depth = $m4_quote_depth;
+    my $min_ind_depth = $m4_indentation_depth[$m4_quote_depth];
+    if ($m4_quote_depth != $#m4_indentation_depth ||
+        $m4_quote_depth != $#m4_indentation_line_num) {
+      &verbose_parse_error("BUG: Inconsistency for quote checking.");
+    }
+    my $eos = 0;
+    my $line_starts_with_end_quote = 0;
+    
+    # Loop maintains:
+    my $substr = '';   # The substring of $line being processed (between "'").
+    my $from_pos = 0;  # Start position of $substr within $line.
+    my $pos = 0;       # End position of $substr within $line, pointing to "'" or EOL.
+    
+    # A helper function to replace the substring of $line.
+    # The replacement may contain "'", which would end the updated substring.
+    #   $1: The new substring.
+    my $replace_substr = sub {
+      my $repl = shift;
+
+      # Fix $line and $pos to reflect the substitution.
+      $line = substr($line, 0, $from_pos) . $repl . substr($line, $pos);
+      $pos = index($line, "'", $from_pos);
+      $substr = substr($line, $from_pos, $pos - $from_pos);
+
+    };
+
+    do {
+      $pos = index($line, "'", $from_pos);
+      if ($pos == -1) {
+        $pos = length($line);
+      }
+      
+      $substr = substr($line, $from_pos, $pos - $from_pos);  # Substring between ' and/or \n/EOF.
+
+
+      #####
+      # Handle Pragmas
+      
+      # For paren counting, we must split the substring at these pragmas.  # TODO: Still true? Paren counting is changing.
+      my $possible_pragma_pos = index($substr, "pragma_");
+      if ($possible_pragma_pos >= 0) {
+        if ($substr =~ /.*pragma_where_am_i/) {
+          &print_quote_context();
+        }
+        # Check for pragmas and split $substr if found.
+        if ($substr =~ /(^.*?)pragma_(en|dis)able_(quote_checks|paren_checks|verbose_checks|existence_checks|debug|sugar|literal_comma)/) {
+          my $enable = $2 eq 'en';
+          my $pragma_type = $3;
+          my $s = "$1$2";
+          # Correct $pos and $substr.
+          $pos = $from_pos + length($s); # Set $pos somewhere in the middle of the pragma.
+          $substr = substr($line, $from_pos, $pos - $from_pos);
+          
+          #print STDERR "DEBUG: m5_pragma_$2able_$3_checks at $pos of line $line_num: $line\n    Substr: $substr\n";
+          
+          # Process pragma.
+          if ($pragma_type eq 'quote_checks') {
+            $quote_checks_enabled = $enable;
+          } elsif ($pragma_type eq 'paren_checks') {
+            $paren_checks_enabled = $enable;
+          } elsif ($pragma_type eq 'verbose_checks') {
+            $verbose_checks_enabled = $enable;
+          } elsif ($pragma_type eq 'existence_checks') {
+            $existence_checks_enabled = $enable;
+          } elsif ($pragma_type eq 'debug') {
+            $debug_mode_enabled = $enable;
+          } elsif ($pragma_type eq 'sugar') {
+            $sugar_enabled = $enable;
+          } elsif ($pragma_type eq 'literal_comma') {
+            $literal_comma_enabled = $enable;
+          } else {
+            &parse_error("BUG: Unrecognized pragma type.");
+          }
+        }
+      }
+      
+      
+
+      # Process $<name>2 and ']<name>xxx[' syntaxes, then adjust $line, $substr, and $pos accordingly.
+      # E.g.
+      # ...<label>[
+      #    ...['...['...$<label>1...']...']...       /// $1 for body <label>.
+      #    ...['...['...']<label>xxx['...']...']...  /// for xxx outside body/block <label>.
+      # ]
+      # becomes:
+      # ...m5__block(['
+      #    ...['...['...']']']m5_nquote_dollar(1,3)['['['...']...']...       /// $1 for body <label>.
+      #    ...['...['...']']']m5_nquote(3,xxx)['['['...']...']...            /// for xxx outside body/block <label>.
+      # '])
+      if ($sugar_enabled &&
+          (index($substr, '<') >= 0) && (index($substr, '>') >= 0)   # A rough filter of label syntax.
+         ) {
+        # TODO: Unindent.
+          # Substitute <name> syntax.
+          # (Substitution will include "'", which will determine next iteration point, so we only need to process one occurence here.)
+          my $pre_str;
+          my $name = '';
+          my $post_str;
+          my $dollar_char = '';
+          if ($substr =~ /^(.*?)\$<(\w+)>(.)(.*)$/) {
+            # $<name>2.
+            $pre_str = $1;
+            $name = $2;
+            $dollar_char = $3;
+            $post_str = $4;
+          } elsif ($substr =~ /^\]<(\w+)>(.*)\[$/) {
+            # ']<name>xxx[' (found <name> after ']).
+            # Note that this does not match after a code block, as desired, because of inserted ')'.
+            $pre_str = '';
+            $name = $1;
+            $post_str = $2;
+          }
+          
+          if ($name ne '') {
+            # Find <name>.
+            my $depth = 0;
+            while(($depth <= $#m4_indentation_depth) && ($m4_block_name[$depth] ne $name)) {
+              $depth++;
+            }
+            my $dollar = $dollar_char ne '';
+            my $nquote_cnt = $m4_quote_depth + ($dollar ? 0 : 1) - $depth;
+            if (($depth > $#m4_indentation_depth) || ($nquote_cnt < 0)) {
+              &parse_error("Reference to code/text block <$name> is not inside/alongside a block by that name.");
+              $depth = 1;  # Escape to top-level.
+            }
+            my $closes = '';
+            my $opens = '';
+            # Escape from current level through named level.
+            for (my $l = $m4_quote_depth; $l >= $depth; $l--) {
+              $closes .= "']";
+              $opens .= "['";
+            }
+            # Update $substr with substitution.
+            if ($dollar) {
+              # $<name>2 => ']']']m5_nquote_dollar(1,3)['['['
+              $substr = $pre_str . $closes . "m5_nquote_dollar($dollar_char,$nquote_cnt)" . $opens . $post_str;
+            } else {
+              # ']<name>xxx[' => ']']']m5_nquote(3,xxx)['['['   ($substr is between tickmarks.)
+              $substr = ']' . $closes . "m5_nquote($nquote_cnt,$post_str)" . $opens . '[';
+            }
+            # Fix $line and $pos to reflect the substitution.
+            $replace_substr->($substr);
+          }
+      }
+          
+      ######
+      # Context-based processing (distinguished inside vs. outside of 'm5_foo(...)'):
+      #  - counting parentheses
+      #  - substituting literal commas, including processing of "\," and ",\".
+      #
+
+      # Process and consume pieces of $substr, where each piece goes up to the next argument list paren, removing pieces from
+      # substring as they are. processed.
+
+      do {
+        # Each iteration processes possibly one piece in source or text context, a macro call open
+        # paren exiting source/text context, then a possible piece in arg list or code context
+        # (which are the same now that we've processed sugar).
+
+        # Process initial substring piece in soure or text context and possible macro call open paren.
+        # Substitute commas in souce and text context ("['" or "non-block" context and not entered a macro call)
+        # (and do not count parens).
+        if (($m4_quote_type[$m4_quote_depth] eq "['" || $m4_quote_type[$m4_quote_depth] eq "non-block") &&
+            !$m4_parens[$m4_quote_depth]) {
+          # Substring begins in source or text context
+
+          # Find beginning of argument list context (if any), and process its open paren.
+          my $source_text = $substr;  # Beginning piece of substring in source or text context (with default assignment).
+          my $next_from_pos = $from_pos;  # The next $from_pos, determined before updating (with default assignment).
+          if ($substr =~ /\bm[45]_\w+\(/p) {
+            $source_text = ${^PREMATCH};
+            $substr = ${^POSTMATCH};
+            $next_from_pos += length(${^PREMATCH}) + length(${^MATCH});
+            $m4_parens[$m4_quote_depth] .= '(';
+          } else {
+            # $substr does not enter argument list context.
+            # Done with the substring after processing commas below.
+            $substr = '';
+          }
+
+          # Substitute commas in source/text.
+          if ($literal_comma_enabled && $source_text =~ s/,/$LITERAL_COMMA/g) {
+            # Update $line.
+            $line = substr($line, 0, $from_pos) . $source_text . substr($line, $from_pos + length($source_text));
+          }
+
+          $from_pos = $next_from_pos;
+        }
+
+        # Process next paren in arg list or code context.
+        if ($substr =~ /[\(\)]/p) {
+          my $paren = ${^MATCH};
+
+          # Done processing up to the paren.
+          # Update substring.
+          $substr = ${^POSTMATCH};
+          $from_pos += length(${^PREMATCH}) + 1;
+
+          # Process the paren.
+          if ($paren eq '(') {
+            $m4_parens[$m4_quote_depth] .= (${^PREMATCH} =~ /m[45]_\w+$/) ? '(' : '-';
+          } else {
+            if (!$m4_parens[$m4_quote_depth]) {
+              &parse_error("More unquoted close parentheses than opens for block started on line $m4_indentation_line_num[$m4_quote_depth].\n\tNote that parentheses were last balanced leading into line $m4_balanced_parens_line_num[$m4_quote_depth].\n\tProcessing substring: $substr", "Warning");
+              $m4_parens[$m4_quote_depth] = ''
+            } else {
+              chop($m4_parens[$m4_quote_depth]);
+            }
+          }
+        } else {
+          # No parens in $substr. We're done with the substring.
+          $substr = "";
+        }
+      } while ($substr);
+      
+
+      ######
+      # Process Quotes
+      #
+      $eos = $pos == length($line);
+      
+      my $found_open_quote  = !$eos && $pos != 0         && (substr($line, $pos-1, 1) eq '[');
+      my $found_close_quote = ($pos < length($line) - 1) && (substr($line, $pos+1, 1) eq ']');
+      my $ending_start_quote = $found_open_quote  && ($pos == (length($line) - 1));
+      my $block_open  = ($line_block_start_type ne '') && $ending_start_quote;
+      my $starting_end_quote = $found_close_quote && ($pos == $ind_depth);
+      my $block_close = ($line_block_end_type ne '')   && $starting_end_quote;
+      if ($starting_end_quote) {
+        $line_starts_with_end_quote = 1;
+      }
+      
+      if ($found_open_quote) {
+        # Open quote found.
+        
+        $m4_quote_depth++;
+        # Push this open quote, though non-block quoting that is closed and re-opened within this line must be
+        # ignored and considered a continuation of the previous line scope to support escaping.
+        my $open_quote_type = $block_open ? $line_block_start_type : 'non-block';
+        # It's okay to update the open indentation to reflect this line if this is deeper indentation
+        # than the start of the line or this quote level was or is a special block quote.
+        if (($#m4_indentation_depth < $m4_quote_depth) ||
+            $block_open
+           ) {
+          # This open quote starts a new quote level.
+          if ($#m4_indentation_depth >= $m4_quote_depth) {
+            # The level matching the block open quote existed at the start of the line (after any block close quote).
+            # We should perform the parentheses check to the old before overwriting the new.
+            &paren_check($m4_quote_depth);
+          }
+          $m4_parens[$m4_quote_depth] = '';
+          $m4_indentation_depth[$m4_quote_depth] = $ind_depth;
+          $m4_indentation_line_num[$m4_quote_depth] = $line_num;
+          $m4_quote_type[$m4_quote_depth] = $open_quote_type;
+          $m4_block_name[$m4_quote_depth] = $line_block_name;
+          $m4_block_eval[$m4_quote_depth] = $line_block_eval;
+          $m4_balanced_parens_line_num[$m4_quote_depth] = $line_num;
+          $m4_body_indentation_depth[$m4_quote_depth] = $block_open ? -1 : $m4_body_indentation_depth[$m4_quote_depth - 1];  # This open quote may or may not reset the body indentation. Allow different indentation for continuation.
+        }
+      } elsif ($found_close_quote) {
+        # Close quote found.
+        
+        # If this is a block end, match its type.
+        my $end_type = $block_close ? $line_block_end_type : "non-block";
+        if ($block_close) {
+          # Block end quote (that was of type $line_block_end_type before it was substituted).
+          if ($quote_checks_enabled &&
+              ($line_block_end_type ne $m4_quote_type[$m4_quote_depth])
+             ) {
+            &verbose_parse_error("Block terminated by \"$line_block_end_type\" quote; matched with \"$m4_quote_type[$m4_quote_depth]\".", "Error");
+          }
+        }
+        
+        # => Quotes should not be closed at a lower-level of indentation than they were opened.
+        if ($ind_depth < $m4_indentation_depth[$m4_quote_depth]) {
+          if ($quote_checks_enabled && !$reported_quote_error2) {
+            &verbose_parse_error("Open quote on line $m4_indentation_line_num[$m4_quote_depth] matches close quote on line $line_num with less indentation. (Reporting only first occurrence.)", "Warning");
+            $reported_quote_error2 = 1;
+          }
+        }
+        
+        # => Every close quote must match an open quote of the same type.
+        # TODO: "of the same type" not checked here. Checked elsewhere, but only for block quote types???
+        if ($m4_quote_depth <= 0) {
+          if ($quote_checks_enabled && !$reported_quote_error3) {
+            &verbose_parse_error("Close quote has no matching open quote. (Reporting only first occurrence.)", "Warning");
+            $reported_quote_error3 = 1;
+          }
+        } else {
+          # Pop corresponding open quote.
+          $m4_quote_depth--;
+          # Pop block quotes (at the start of the line). For others, defer actual popping (do nothing here)
+          # because ']...[' within the line might be an escape and continue usage.
+          if ($block_close) {
+            # Block quote, so pop.
+            &pop_quote();
+          }
+        }
+      }
+      
+      
+      # Next
+      $from_pos = $pos + 1;
+    } while (!$eos);
+
+    
+    # Pop intra-line quotes and match open quotes.
+    while ($#m4_indentation_depth > $m4_quote_depth) {
+      if ($quote_checks_enabled && ($m4_quote_type[$#m4_indentation_depth] ne 'non-block')) {
+        &verbose_parse_error("Non-block quote matches block quote ending line $m4_indentation_line_num[$#m4_indentation_depth].", "Error");
+      }
+      &pop_quote();
+    }
+    
+    
+    # => All quoted text should be indented.
+    # Specifically, we check that the indentation depth is greater than the indentation depth of the innermost
+    # line quoting all this line's text (based on the minimum quoting level in this line).
+    # Any depth is accepted for text blocks.
+    if ($init_quote_checks_enabled && !$inside_text_block) {
+      my $equal_ok = $line_starts_with_end_quote;
+      if (# Less indentation is always an error.
+          $ind_depth < $min_ind_depth ||
+          # Equal indentation is accepted outside of \m5 regions. (It's used for conditioned TLV code, such as with m4_ifelse_block and in \m4 for m4_null_*.)
+          # Equal indentation is also accepted if this line closes a block.
+          (($ind_depth == $min_ind_depth) && !$equal_ok)
+      ) {
+        if (!$reported_quote_error1) {
+          &verbose_parse_error("Expected deeper indentation based on prior [''] quotes ($ind_depth " . ($equal_ok ? '<' : '<=') . " $min_ind_depth). (Reporting only first occurrence.)", "Warning");
+          $reported_quote_error1 = 1;
+        }
+      }
+    }
+  }
+  
+  
+  
+  if ($done) {
+    # End of file checks.
+    # TODO: Move these to the top, where $done is computed, then return.
+    
+    # Check that all scopes were closed.
+    while ($m4_quote_depth > 0) {
+      &verbose_parse_error("Quote beginning on line $m4_indentation_line_num[$m4_quote_depth] never closed.", "Error");
+      $m4_quote_depth--;
+    }
+    # Checking must be reenabled to avoid accidental failure to reenable.
+    # No, we can't require this because it should be possible to disable these end-of-file checks.
+    #if (!$quote_checks_enabled) {
+    #  &verbose_parse_error("Reporting was disabled using \"disable_quote_checks\" pragma, but was never re-enabled.", "Warning");
+    #}
+    &paren_check(0);
+    
+    if ($in_block_comment) {
+      &parse_error("\"/**\" comment not closed with \"**/\".");
+    }
+  }
+
+  return !$done;
+}
+
+
+# Report a parsing error.
+#  $1: message
+#  $2: severity ("Fatal error" (default), "Error", "Warning", "BUG", etc.); "Fatal error" and "BUG" are fatal unless $debug_mode_enabled.
+#  $3: a hidden argument used by &verbose_parse_error to enable detailed reporting.
+sub parse_error {
+  my $str = shift;
+  my $sev = shift;
+  if (!$sev) {$sev = "Fatal error";}
+  my $verbose = shift;
+  print STDERR "\n$prog: $sev parsing \"$sourcefile_arg\" line $line_num:\n\t$str\n";
+  if ($verbose) {
+    &print_quote_context();
+  }
+  if (!$debug_mode_enabled && (($sev eq "Fatal error") || ($sev eq "BUG"))) {
+    exit(100);
+  }
+}
+# A variant of parse_error that will report details if $verbose_checks_enabled.
+sub verbose_parse_error {
+  &parse_error(shift, shift, $verbose_checks_enabled);
+}
+
+
+
+
+#
+# BEGIN MAIN PROGRAM
+#
+
+
+# Read the first line (the magic number line) as a special case.
+# TODO: Add support for magic number processing.
+# TODO: Add flag to control whether magic number line is stripped with or without its carriage return.
+#&read_line();
+
+
+# Configure m4.
+&out("m4_changecom()");  # No special M4 comment processing.
+if (! $lib_flag) {
+  &out("m4_changecom(`//')" .   # For *_coded.m4 only (legacy).
+       "m4_changequote(`$OPEN_QUOTE', `$CLOSE_QUOTE')" .
+       "m4_include(['m5_lib_coded.m4'])" .
+       "m4_changecom()");
+  # Expose the path of m5 (this script) to m4 processing, which calls it for library inclusion.
+  &out("m4_define(['m4_pre_m4_path'], ['['$FindBin::RealBin']'])");   # Legacy name.
+} else {
+  &out("m4_pushdef(['m4_in_library'], ['true'])");
+}
+# Provide this filename as a URI, and the name of this file as passed on the command-line or the actual filename as known to M4.
+&out("m4_m5_file_begin(['['$uri']'], ['['$sourcefile_arg']'])");
+if ($hide_contents) {
+  &out("m4_hide(['");  # Hide contents.
+}
+
+
+
+
+# Loop, line by line.
+
+while (!$done) {
+  if (&read_line()) {
+    # TODO: Indent.
+  
+  # TODO: Move what's left here into read_line()?
+  
+  # Substitute M5__LINE__. Unlike M5__FILE__ and M5__URI__, this changes with each line
+  # and will not contain any text that could be processed. So it is processed with each line, here,
+  # and the others are processed last.
+  $line =~ s/\bM5__LINE__\b/$line_num/g;
+
+  # TODO: Unindent.
+
+
+    
+      # $strip_indentation_len has already been determined in &read_line(), but the indentation has not actually been stripped.
+      if ($strip_indentation_len > 0) {
+        $line =~ /^(\s*)/p;
+        if ($strip_indentation_len > length($1)) {
+          # Not enough to strip.
+          $line = '';
+          if (${^POSTMATCH} eq '') {
+             # Blank line. No problem.
+          } else {
+             &parse_error("Attempting to strip indentation that doesn't exist.", "BUG");
+          }
+        } else {
+           $line = substr($line, $strip_indentation_len);
+        }
+      }
+    
+
+    # Output line.
+    &out("$line\n");
+  }
+}
+
+if ($lib_flag) {
+  &out("m4_popdef(['m4_in_library'])");
+}
+if ($hide_contents) {
+  &out("'])");  # for corresponding "m4_hide(['"
+}
+&out("['']m4_m5_file_end()");
+

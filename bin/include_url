@@ -1,0 +1,151 @@
+#!/usr/bin/perl
+# -*- mode: perl; indent-tabs-mode: nil; perl-indent-level: 2; cperl-indent-level: 2; -*-
+#
+# For including a M5 library file via curl.
+# pipes curl and pre_m4 and combines exit status from two commands.
+# This script calls pre_m4 with a new file URIish determined by combining the URIish and caller-URIish parameters.
+# URIish can be
+#   o a URI
+#   o a relative path starting with "./" or "../", or
+#   o an absolute path starting with "/".
+# Relative/absolute inclusion is only permitted from/below the point of the last "./" or "../" in the caller URIish
+# (if any). Absolute inclusion is only permitted if the caller is also absolute.
+# For relative inclusion, a new URIish is created by applying "../" from the URIish to the caller's path (as
+# long as this is legal).
+# The following caller URIish'es prevent inclusion from the parent of base/.
+#   o "./base"
+#   o "./path/./base"
+#   o "../../base"
+#   o "/path/./base"
+#
+# Error is reported if URIish is malformed, relative inclusion is out of scope, or absolute inclusion is attempted
+# without an absolute caller.
+#
+# Returns:
+#  1: curl failed.
+#  2: pre_m4 failed.
+
+
+# Usage: include_url http://domain.com/file.tlv 2 filename http://domain.com/caller.tlv out /tmp/webcache 
+#                    URI-or-relative-path <include-file-unique-number> <filename-formatted-string-representing-the-URL> <caller-URI> <obj-sandpiper-arg> <webcache-sandpiper-arg>
+# TODO: Remove webcache in favor of using a forward proxy to cache?
+
+
+use strict;
+use warnings;
+
+use FindBin ();
+use lib "$FindBin::RealBin";
+use IPC::Open3 qw( open3 );
+
+my $uri_param      = $ARGV[0];
+my $unique_num     = $ARGV[1];
+my $file_id_string = $ARGV[2];
+my $caller_uri     = $ARGV[3];
+my $obj            = $ARGV[4];  # Directory in which to store intermediate files for current build.
+my $webcache       = $ARGV[5];  # Directory in which to cache included internet files (possibly shared across runs). (Currently unused.)
+
+###
+# Determine new URI from URI and caller URI.
+
+# Parse $uri.
+sub parse_uri {
+  my %uri;
+  $uri{uri} = shift;
+  $uri{uri} =~ /^((\w+):\/\/([^\/]*))?(.*)$/;
+  $uri{pre_path} = $1;
+  $uri{protocol} = $2;
+  $uri{domain} = $3;
+  $uri{path} = $4;
+  $uri{is_url} = defined($uri{pre_path});
+  $uri{relative} = !$uri{is_url} && $uri{path} =~ /^(\.\/|\.\.\/)/;
+  $uri{absolute} = !$uri{is_url} && $uri{path} =~ /^\//;
+  (defined($uri{pre_path}) || $uri{relative} || $uri{absolute}) or die "Malformed include path/URL: \"$uri{uri}\". (Use URL or start with \"./\", \"../\", or \"/\".)";
+  return %uri;
+}
+
+my %uri = &parse_uri($uri_param);
+my %caller_uri;
+my $uri_arg;
+if (!$uri{is_url}) {
+  # Apply path to caller URI.
+  
+  %caller_uri = &parse_uri($caller_uri);
+  
+  if ($uri{absolute} && !$caller_uri{absolute}) {die "Cannot include from absolute path, since caller was not from an absolute path."}
+
+  # Strip leading ./ or / from $uri{path}.
+  $uri{path} =~ s/^\.?\///;
+  # Strip filename and apply ../'s from $uri{path} to $caller_uri{path}, or if both paths are absolute,
+  # strip all, dying if "." or ".." is found in $caller_uri{path},
+  #   until "." or "..".
+  do {
+    # Go up to parent dir of $caller_uri{path}.
+    $caller_uri{path} !~ /\/\.\.?$/ &&
+    $caller_uri{path} =~ s/\/[^\/]+$// or die "Inclusion of \"$uri_param\" is outside of caller's scope: \"$caller_uri\"."
+  } while (($uri{relative} && $uri{path} =~ s/^\.\.\///) ||
+           ($uri{absolute} && $caller_uri{path} ne ''));
+  
+  $uri_arg = $caller_uri{path} . '/' . $uri{path};
+} else {
+  # URL.
+  $uri_arg = $uri_param;
+}
+
+my @file_cmd;
+if (!$uri{absolute} && ($uri{is_url} || $caller_uri{is_url})) {
+  @file_cmd = ('curl', '-s', '--insecure', '--proto', '=http,https,ftp,ftps', $uri_arg);
+} else {
+  @file_cmd = ('cat', $uri_arg);
+}
+
+# TODO: I don't think -obj is actually used or needed by pre_m4. Output directory must be in agreement between curl command and M4 processing.
+# TODO: It doesn't look like webcache was implemented.
+# TODO: "m5" shouldn't be hardcoded here. Use whatever preprocessor was used to call this script (thus supporting M5 extensions, such as TL-Verilog)?
+#       Or execute the file, thus using its magic number? Hmmm... I think look for a magic number and execute, or if it doesn't exist, use
+#       the calling preprocessor. What about security? We shouldn't run a script specified by the library (though the libarary can currently
+#       execute anything anyway).
+my @pre_m4_cmd = ("$FindBin::RealBin/pre_m4", '-l', '-f', $file_id_string, '-uri', $uri_arg, '-obj', $obj, '-webcache', $webcache);
+system("mkdir -p '$obj'") == 0 or die "failed to mkdirp '$obj'.";
+my $obj_file = "$obj/m4_include_url_file.$unique_num";
+
+
+# Pipe $file_cmd to $pre_m4_cmd into a file.
+local *FILE_CMD_OUT;
+local *INPUT;
+local *OUTPUT;
+open(*INPUT,  '<', '/dev/null') or die $!;
+open(*OUTPUT, '>', $obj_file) or die $!;
+my $file_cmd_pid = open3('<&INPUT', \*FILE_CMD_OUT, '>&STDERR', @file_cmd);
+my $pre_m4_cmd_pid = eval {
+  open3('<&FILE_CMD_OUT', '>&OUTPUT', '>&STDERR', @pre_m4_cmd);
+};
+
+# Kill first command if second fails.
+if (!$pre_m4_cmd_pid) {
+  my $e = $@;
+  kill(KILL => $file_cmd_pid);
+  waitpid($file_cmd_pid, 0);
+  #die($e);
+  print STDERR "ERROR: pre_m4-include_url: Unable to process: $uri_arg ($e).\n";
+  exit(2); # Die silently. Caller will report generic include failure.
+}
+
+# Wait for completion and combine exit status.
+my $status = 0;
+waitpid($file_cmd_pid, 0);
+if ($?) {
+  $status = 1;
+  print STDERR "ERROR: M5 library file download failed for: $uri_arg.\n";
+}
+waitpid($pre_m4_cmd_pid, 0);
+if (!$status && $?) {
+  $status = 2;
+  print STDERR "ERROR: Processing of M5 library file failed for: $uri_arg.\n";
+}
+
+# Ensure file is flushed/synced (and it's parent directory index), since I've been having trouble.
+system("sync \$(dirname $obj_file)");
+
+if ($status) {print STDERR "ERROR: M5 library inclusion exiting with status: $status.\n";}
+exit($status);
