@@ -155,7 +155,7 @@ m5_var(main_doc, ['
    Additionally the regex configuration used by M4 is quite dated. For example, it does
    not support lookahead, lazy matches, and character codes.
 
-   ==== Instrospection
+   ==== Introspection
    Introspection is essentially impossible. The only way to see what is defined is to
    dump definitions to a file and parse this file.
 
@@ -196,7 +196,99 @@ m5_var(main_doc, ['
    See issues file in the https://github.com/rweda/M5[M5 repository] for more details.
 
    /**
-   ==== M6
+   ==== Futures
+   Being more explicit about text that should evaluate and text that shouldn't might be better.
+   How about:
+   - Two different non-block quote types (single character), one for text that should
+   be evaluated and one for text that shouldn't?
+   - All literal text must be quoted.
+   - Unquoted whitespace can be ignored!
+   - There's no need for `m5_` prefix! Any unquoted text is a macro or variable instantiation.
+   - Suddenly, there's no need for code context. There's just quoted context and unquoted context.
+   - There's room for other unquoted syntax, like comments.
+   - We add "heavy quotes" (--<...>--) to reduce the likelihood of inadvertent end quotes.
+   Source context is heavily quoted.
+   - There's no escaping (`m5_\`, `\m5_`).
+   - Still need a multiline string syntax, say <-\n...\n->.
+   - Keep "~" or drop it? Required only when beginning a line?
+   - Probably still check for balanced and properly indented quotes and parens, allowing
+   for escapes within the line.
+   - Anything to enforce consistent formatting (like in code blocks)? Probably worth it.
+   - Allow unquoted numbers. Text that starts with a digit is automatically quoted till the end
+   of the word. C-style numbers.
+   - Support operators and () in unquoted context for arithmetic? Operators work on text (like
+   everything, and that text must represent numbers). Could do full order of operations, only left-
+   to-right, or only two operands with nesting, e.g. "((1 + Val) * 3)".
+   - No `$1` syntax in the language itself, but this can be supported by a `macro` macro. `arg(2)`
+   would call a builtin to access arg 2. Provide other builtins for special M4 `$` syntax.
+   - eval("foo(1, 2)") is fine.
+   - foo() has zero args; foo("") has one?
+   - But... >--MyVar--< is clunky. Maybe for heavy text we keep `m5_`/`\m5_` as an/the escape and
+   `///`/`/**` for comments??? Maybe just a special case for variables. Needs regex configurability.
+   (Post-string substitutions can be performed by wrapping the heavy string in a macro call.)
+
+   Example:
+
+    Source... blah, blah, blah.>--#{comment}#--<
+    Blah, blah, blah.>--    # comment
+
+    set(Me, "Steve")
+    
+    fn(foo, f{   # f is a label
+      "text"
+      if(1 || Cnt, {
+        hi()" more text"
+      })
+      "Hey, "Player"!"
+      if_eq(Val, 2, {hi()"."})
+      chomp("
+         Here's a line of text as a block.
+      ")
+      
+      fn(Hi, {
+        "Hi,"f:Me"."   # Me in f: context.
+      })
+    })
+    --<...and on we go.
+   
+   
+   ==== Implementation Plan
+
+   Extending Perl `pre_m4` to get most of the benefit (though less simplification to docs):
+   - Keep code block `{` and `[` as they are.
+   - Keep text blocks as they are.
+   - Keep `<label>` as it is.
+   - Keep `~` as it is.
+   - Add support for `"` and `'`.
+   - Add a prefix char equivalent to `m5_`. Say "\`"?
+   - Add pragma that enables new behavior for unquoted text:
+     - Auto-apply `m5_` prefixes.
+     - Report an error for unquoted text.
+     - Auto-quote numbers.
+   - Also enable new behavior once a `"` is encountered.
+
+   Incremental step toward non-M4 solution:
+   - Keep M4 as the back-end, but write a new pre_m4 (by a new name) in Python(?) that produces compatible M4 output.
+   - Enter quoted context by default.
+   - Auto-apply `m5_`.
+   - Let `m5_eval` retain its old behavior.
+   - Write a new pre_m4 in Python (or stick w/ Perl, but... nah).
+   - Need to convert current .m5 files.
+   
+   Clean rewrite:
+   - Start from Python parser above.
+   - Implement macro calls
+     - Assign builtins for accessing args.
+   - Implement builtin macros:
+     - macro behind `var`/`macro`
+     - math
+     - regex
+     - string manipulation
+     - etc. (similar to M4 builtins)
+   - Add position tracking and call stacks.
+
+
+   ==== M6 (Work this in above)
 
    M6 would be rebuilt from scratch without the use of M4.
    - m6() has 0 args; m6(['']) has 1 arg; m6(m6_shift(1)) has 0 args.
@@ -210,7 +302,18 @@ m5_var(main_doc, ['
    - Many of the M4 macros that return unquoted text would return quoted text, and other <<Limitations_of_M5>>
    would be fixed as well.
    - All m6_... are interpreted as a call; error reported if macro doesn't exist.
-
+   - Source tracking:
+     - The macro (not just function) call stack can be maintained. The text produced by each macro can
+     be associated with the macro call that produced it (in a nested fashion). (And each called macro can
+     have an associate source location.)
+     - M6 can maintain source tracking on all strings, identifying its position in the source file. This is
+     the leaf level of the previous bullet.
+     - This can lead to very useful interactive debug IDE features that associate output with source.
+   - A debugger would be awesome. Within the debugger, all strings would have associated source/stack
+   information.
+   - To assist with (language-dependent) source tracking, provide a hook responsible for echoing each
+   outputted piece of atomic text that is given its source line number, the number of lines (carriage
+   returns) in the text (or end line number), and the call stack, as well as those of the previous text.
    **/
 
 

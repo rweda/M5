@@ -258,40 +258,38 @@ sub read_line {
   # Vanishing comments.
   # TODO: Update these to require whitespace (or BOL EOL), e.g. \s///\s and /**\s.
 
-  if (1) {
-    # Strip /// and /** **/...  comments.
-    if ($in_block_comment) {
-      $line = '/**' . $line;
-    }
-    my $done_loop;
-    my $line_len;
-    do {
-      $line_len = length($line);  # A safeguard against infinite recursion.
-      # If there's a remaining /** comment, process it; if not strip /// comment.
-      my $line_comment_pos = index($line, '///');
-      my $no_line_comment = $line_comment_pos < 0;
-      if ($no_line_comment) {
-        $line_comment_pos = length($line)
-      } else {
-        $m5_comment_stripped = 1;
-      };
-      my $block_comment_pos = index($line.'/**', '/**');
-      $done_loop = $block_comment_pos >= $line_comment_pos;
-      if ($done_loop) {
-        # Strip ///...
-        $line = substr($line, 0, $line_comment_pos);
-        # Strip preceding whitespace (at the end of $line).
-        $line =~ s/\s*$//;
-      } else {
-        $m5_comment_stripped = 1;
-        # Block comment before line comment or end-of-line.
-        my $end_block_comment_pos = index($line, '**/', $block_comment_pos + length('/**'));
-        $in_block_comment = $end_block_comment_pos < 0;
-        $line = substr($line, 0, $block_comment_pos) . ($in_block_comment ? '' : substr($line, $end_block_comment_pos + length('**/')));
-      }
-    } while (!$done_loop && length($line) < $line_len);
+  # Strip /// and /** **/...  comments.
+  if ($in_block_comment) {
+    $line = '/**' . $line;
   }
-  
+  my $done_loop;
+  my $line_len;
+  do {
+    $line_len = length($line);  # A safeguard against infinite recursion.
+    # If there's a remaining /** comment, process it; if not strip /// comment.
+    my $line_comment_pos = index($line, '///');
+    my $no_line_comment = $line_comment_pos < 0;
+    if ($no_line_comment) {
+      $line_comment_pos = length($line)
+    } else {
+      $m5_comment_stripped = 1;
+    };
+    my $block_comment_pos = index($line.'/**', '/**');
+    $done_loop = $block_comment_pos >= $line_comment_pos;
+    if ($done_loop) {
+      # Strip ///...
+      $line = substr($line, 0, $line_comment_pos);
+      # Strip preceding whitespace (at the end of $line).
+      $line =~ s/\s*$//;
+    } else {
+      $m5_comment_stripped = 1;
+      # Block comment before line comment or end-of-line.
+      my $end_block_comment_pos = index($line, '**/', $block_comment_pos + length('/**'));
+      $in_block_comment = $end_block_comment_pos < 0;
+      $line = substr($line, 0, $block_comment_pos) . ($in_block_comment ? '' : substr($line, $end_block_comment_pos + length('**/')));
+    }
+  } while (!$done_loop && length($line) < $line_len);
+
   
   # Substitute "m5_".
   # Specifically,
@@ -456,13 +454,12 @@ sub read_line {
           ) &&
           (length($ind) == $m4_body_indentation_depth[$m4_quote_depth])
          ) {
-        if (1) {
-          my $out = $text =~ s/^~//;
-          my $stmt_type = $out ? "m5__out_stmt" : "m5__stmt";
-          # Indentation matches block indentations, so statement substitutions can be made.
-          if ($text =~ s#^/.*##) {
-            # M5 code block line comment (single slash).
-          } else {
+        my $out = $text =~ s/^~//;
+        my $stmt_type = $out ? "m5__out_stmt" : "m5__stmt";
+        # Indentation matches block indentations, so statement substitutions can be made.
+        if ($text =~ s#^/.*##) {
+          # M5 code block line comment (single slash).
+        } else {
           if ($text =~ /^m5_/) {
             # No substitution on a line beginning with m5_. Report error.
             &parse_error("In M5 code context, lines should not start with \"m5_\".", "Warning");
@@ -491,7 +488,6 @@ sub read_line {
                 }
               }
             }
-          }
           }
         }
       }
@@ -977,35 +973,31 @@ if ($hide_contents) {
 
 while (!$done) {
   if (&read_line()) {
-    # TODO: Indent.
-  
-  # TODO: Move what's left here into read_line()?
-  
-  # Substitute M5__LINE__. Unlike M5__FILE__ and M5__URI__, this changes with each line
-  # and will not contain any text that could be processed. So it is processed with each line, here,
-  # and the others are processed last.
-  $line =~ s/\bM5__LINE__\b/$line_num/g;
-
-  # TODO: Unindent.
-
+    
+    # TODO: Move what's left here into read_line()?
+    
+    # Substitute M5__LINE__. Unlike M5__FILE__ and M5__URI__, this changes with each line
+    # and will not contain any text that could be processed. So it is processed with each line, here,
+    # and the others are processed last.
+    $line =~ s/\bM5__LINE__\b/$line_num/g;
 
     
-      # $strip_indentation_len has already been determined in &read_line(), but the indentation has not actually been stripped.
-      if ($strip_indentation_len > 0) {
-        $line =~ /^(\s*)/p;
-        if ($strip_indentation_len > length($1)) {
-          # Not enough to strip.
-          $line = '';
-          if (${^POSTMATCH} eq '') {
-             # Blank line. No problem.
-          } else {
-             &parse_error("Attempting to strip indentation that doesn't exist.", "BUG");
-          }
+    # $strip_indentation_len has already been determined in &read_line(), but the indentation has not actually been stripped.
+    if ($strip_indentation_len > 0) {
+      $line =~ /^(\s*)/p;
+      if ($strip_indentation_len > length($1)) {
+        # Not enough to strip.
+        $line = '';
+        if (${^POSTMATCH} eq '') {
+            # Blank line. No problem.
         } else {
-           $line = substr($line, $strip_indentation_len);
+            &parse_error("Attempting to strip indentation that doesn't exist.", "BUG");
         }
+      } else {
+          $line = substr($line, $strip_indentation_len);
       }
-    
+    }
+  
 
     # Output line.
     &out("$line\n");
