@@ -83,12 +83,6 @@ my $uri = '';               # URI of the file being processed as a library.
 sub out {
   my $lines = shift;
   
-  # Convert quotes to control quotes.
-  # TODO: Check line existing control quotes before substituting.
-  # TODO: Do not substitute quotes in source context.
-  $lines =~ s/\[\'/$OPEN_QUOTE/g;
-  $lines =~ s/\'\]/$CLOSE_QUOTE/g;
-  
   # Substitute M5__FILE__, M5__URI__
   # Unlike M5__LINE__, this is done after other processing to avoid any processing of the expansions.
   $lines =~ s/\bM5__FILE__\b/$sourcefile_arg/g;
@@ -243,6 +237,14 @@ sub read_line {
   } else {
     chomp $line;
   }
+
+  
+  # Convert quotes to control quotes.
+  # TODO: Check line existing control quotes before substituting.
+  # TODO: Do not substitute quotes in source context.
+  $line =~ s/\[\'/$OPEN_QUOTE/g;
+  $line =~ s/\'\]/$CLOSE_QUOTE/g;
+  
   
   $m5_comment_stripped = 0;
 
@@ -302,7 +304,7 @@ sub read_line {
     my $remainder = $line;
     $line = '';
     while($remainder =~ /^(.*?)(\\?)\bm5_(\w+)(\(?)(.*)$/) {
-      $line .= $1 . ($2 ? "['']" : '');  # Substitute "\m5_" with "['']m5_".
+      $line .= $1 . ($2 ? ($OPEN_QUOTE . $CLOSE_QUOTE) : '');  # Substitute "\m5_" with "['']m5_".
       my $word = $3;
       my $paren = $4;
       $remainder = $5;
@@ -404,7 +406,7 @@ sub read_line {
       # Parse block end at start of line, and substitute for ']).
       my $end_block_type = (($m4_quote_type[$m4_quote_depth] ne 'non-block') &&
                            (!$inside_text_block || (length($ind) == $m4_indentation_depth[$m4_quote_depth])) &&
-                           ($text =~ s/^(\]|\}|'\])/'])/)) ? $1 : '';
+                           ($text =~ s/^(\]|\}|$CLOSE_QUOTE)/$CLOSE_QUOTE)/)) ? $1 : '';
       
       # Record or check indentation.
       if (($text ne '') && ($m4_quote_type[$m4_quote_depth] ne 'non-block')) {
@@ -424,7 +426,7 @@ sub read_line {
       }
       
       # End text block?
-      if (($end_block_type eq "']") && ($m4_quote_type[$m4_quote_depth] eq "['")) {
+      if (($end_block_type eq $CLOSE_QUOTE) && ($m4_quote_type[$m4_quote_depth] eq "['")) {
         $inside_text_block = 0;
       }
       
@@ -465,9 +467,9 @@ sub read_line {
             &parse_error("In M5 code context, lines should not start with \"m5_\".", "Warning");
           } else {
             # word( => m5__l(63)m5__stmt(['m5_word'],
-            if ($text !~ s/^(\w+)\(/m5__l($line_num)$stmt_type(['m5_$1'],/) {
+            if ($text !~ s/^(\w+)\(/m5__l($line_num)$stmt_type(${OPEN_QUOTE}m5_$1$CLOSE_QUOTE,/) {
               # word => m5__stmt_var(word).
-              if ($text =~ s/^(\w+)(.*)/m5__l($line_num)${stmt_type}_var(['$1'])$2/) {
+              if ($text =~ s/^(\w+)(.*)/m5__l($line_num)${stmt_type}_var($OPEN_QUOTE$1$CLOSE_QUOTE)$2/) {
                 # Replaced word. Must have been ~word.
                 if (!$out) {
                   &parse_error("Code block variable statements require \"~\":\n\t\t$orig_text", "Warning");
@@ -496,8 +498,11 @@ sub read_line {
       # TODO: Do not do this in source/text context.
       # TODO: Support labels on all quotes (not just block quotes). They are useful for scoped macros.
       # E.g. [ => m5__block(['  -or-  *<label>{ => m5_eval(m5__scope(['  -or-  [' => m5__text_block(['
-      if ($text =~ s/(\[|\{|\[')\s*$//) {
+      if ($text =~ s/(\[|\{|$OPEN_QUOTE)\s*$//) {
         $line_block_start_type = $1;
+        if ($line_block_start_type eq $OPEN_QUOTE) {
+          $line_block_start_type = "['";
+        }
         $text = '-'.$text;  # Add a char for the pattern match.
         if ($text =~ /^(.*?(.))(\*)?(<(\w+)>)?$/) {
           my $pre = substr($1, 1);
@@ -505,9 +510,9 @@ sub read_line {
           $line_block_eval = defined($3);
           $line_block_name = defined($5) ? $5 : '';
           my $macro = ($line_block_start_type eq '[')  ? "m5__block(" :
-                      ($line_block_start_type eq '{')  ? "m5__scope(['$sourcefile_arg']," :
+                      ($line_block_start_type eq '{')  ? "m5__scope($OPEN_QUOTE$sourcefile_arg$CLOSE_QUOTE," :
                                                          "m5__text_block("; 
-          $text = $pre . ($need_separator ? "['']" : '') . ($line_block_eval ? 'm5_eval(' : '') . $macro . "['";
+          $text = $pre . ($need_separator ? ($OPEN_QUOTE . $CLOSE_QUOTE) : '') . ($line_block_eval ? 'm5_eval(' : '') . $macro . $OPEN_QUOTE;
           
           # Keep track of whether we're inside a text block.
           if ($line_block_start_type eq "['" && !$line_block_eval) {
@@ -560,36 +565,45 @@ sub read_line {
     my $line_starts_with_end_quote = 0;
     
     # Loop maintains:
-    my $substr = '';   # The substring of $line being processed (between "'").
+    my $substr = '';   # The substring of $line being processed (between quotes).
     my $from_pos = 0;  # Start position of $substr within $line.
-    my $pos = 0;       # End position of $substr within $line, pointing to "'" or EOL.
+    my $pos = 0;       # End position of $substr within $line, pointing to quote or EOL.
     
-    # A helper function to replace the substring of $line.
-    # The replacement may contain "'", which would end the updated substring.
+
+    # Helper functions to replace the substring of $line.
+    # Next substring.
+    my $set_substr = sub {
+      my $pos1 = index($line, $OPEN_QUOTE, $from_pos);
+      my $pos2 = index($line, $CLOSE_QUOTE, $from_pos);
+      $pos = ($pos1 < 0) ? $pos2 :
+             ($pos2 < 0) ? $pos1 :
+             ($pos1 < $pos2) ? $pos1 :
+                               $pos2;
+      if ($pos < 0) {
+        $pos = length($line);
+      }
+      $substr = substr($line, $from_pos, $pos - $from_pos);
+    };
+    # The replacement may contain quote, which would end the updated substring.
     #   $1: The new substring.
     my $replace_substr = sub {
       my $repl = shift;
 
       # Fix $line and $pos to reflect the substitution.
       $line = substr($line, 0, $from_pos) . $repl . substr($line, $pos);
-      $pos = index($line, "'", $from_pos);
-      $substr = substr($line, $from_pos, $pos - $from_pos);
-
+      $set_substr->();
     };
 
+
     do {
-      $pos = index($line, "'", $from_pos);
-      if ($pos == -1) {
-        $pos = length($line);
-      }
-      
-      $substr = substr($line, $from_pos, $pos - $from_pos);  # Substring between ' and/or \n/EOF.
+      $set_substr->();
 
 
       #####
       # Handle Pragmas
       
       # For paren counting, we must split the substring at these pragmas.  # TODO: Still true? Paren counting is changing.
+      # TODO: Move within paren loop and don't split.
       my $possible_pragma_pos = index($substr, "pragma_");
       if ($possible_pragma_pos >= 0) {
         if ($substr =~ /.*pragma_where_am_i/) {
@@ -656,7 +670,7 @@ sub read_line {
             $name = $2;
             $dollar_char = $3;
             $post_str = $4;
-          } elsif ($substr =~ /^\]<(\w+)>(.*)\[$/) {
+          } elsif ($substr =~ /^<(\w+)>(.*)$/ && $from_pos > 0 && substr($line, $from_pos - 1, 1) eq $CLOSE_QUOTE) {
             # ']<name>xxx[' (found <name> after ']).
             # Note that this does not match after a code block, as desired, because of inserted ')'.
             $pre_str = '';
@@ -680,16 +694,18 @@ sub read_line {
             my $opens = '';
             # Escape from current level through named level.
             for (my $l = $m4_quote_depth; $l >= $depth; $l--) {
-              $closes .= "']";
-              $opens .= "['";
+              $closes .= $CLOSE_QUOTE;
+              $opens .= $OPEN_QUOTE;
             }
             # Update $substr with substitution.
             if ($dollar) {
               # $<name>2 => ']']']m5_nquote_dollar(1,3)['['['
               $substr = $pre_str . $closes . "m5_nquote_dollar($dollar_char,$nquote_cnt)" . $opens . $post_str;
+            } elsif (($pos < length($line)) && (substr($line, $pos, 1) eq $OPEN_QUOTE)) {
+              # ']<name>xxx[' => ']']']m5_nquote(3,xxx)['['['  (where the bookend escape quotes are not part of this $substr)
+              $substr = $closes . "m5_nquote($nquote_cnt,$post_str)" . $opens;
             } else {
-              # ']<name>xxx[' => ']']']m5_nquote(3,xxx)['['['   ($substr is between tickmarks.)
-              $substr = ']' . $closes . "m5_nquote($nquote_cnt,$post_str)" . $opens . '[';
+              &parse_error("\"<name>\" quote escapes must return to escaped context on the same line with no intervening quotes.", "error");
             }
             # Fix $line and $pos to reflect the substitution.
             $replace_substr->($substr);
@@ -772,17 +788,16 @@ sub read_line {
       #
       $eos = $pos == length($line);
       
-      my $found_open_quote  = !$eos && $pos != 0         && (substr($line, $pos-1, 1) eq '[');
-      my $found_close_quote = ($pos < length($line) - 1) && (substr($line, $pos+1, 1) eq ']');
-      my $ending_start_quote = $found_open_quote  && ($pos == (length($line) - 1));
-      my $block_open  = ($line_block_start_type ne '') && $ending_start_quote;
-      my $starting_end_quote = $found_close_quote && ($pos == $ind_depth);
-      my $block_close = ($line_block_end_type ne '')   && $starting_end_quote;
-      if ($starting_end_quote) {
+      my $pos_char = $eos ? '' : substr($line, $pos, 1);
+      my $start_block_quote = ($pos_char eq $OPEN_QUOTE)  && ($pos == (length($line) - 1));
+      my $block_open  = ($line_block_start_type ne '') && $start_block_quote;
+      my $end_block_quote = ($pos_char eq $CLOSE_QUOTE) && ($pos == $ind_depth);
+      my $block_close = ($line_block_end_type ne '')   && $end_block_quote;
+      if ($end_block_quote) {
         $line_starts_with_end_quote = 1;
       }
       
-      if ($found_open_quote) {
+      if ($pos_char eq $OPEN_QUOTE) {
         # Open quote found.
         
         $m4_quote_depth++;
@@ -809,7 +824,7 @@ sub read_line {
           $m4_balanced_parens_line_num[$m4_quote_depth] = $line_num;
           $m4_body_indentation_depth[$m4_quote_depth] = $block_open ? -1 : $m4_body_indentation_depth[$m4_quote_depth - 1];  # This open quote may or may not reset the body indentation. Allow different indentation for continuation.
         }
-      } elsif ($found_close_quote) {
+      } elsif ($pos_char eq $CLOSE_QUOTE) {
         # Close quote found.
         
         # If this is a block end, match its type.
@@ -819,6 +834,7 @@ sub read_line {
           if ($quote_checks_enabled &&
               ($line_block_end_type ne $m4_quote_type[$m4_quote_depth])
              ) {
+            # TODO: Fix this error message for new quote syntax.
             &verbose_parse_error("Block terminated by \"$line_block_end_type\" quote; matched with \"$m4_quote_type[$m4_quote_depth]\".", "Error");
           }
         }
@@ -878,7 +894,7 @@ sub read_line {
           (($ind_depth == $min_ind_depth) && !$equal_ok)
       ) {
         if (!$reported_quote_error1) {
-          &verbose_parse_error("Expected deeper indentation based on prior [''] quotes ($ind_depth " . ($equal_ok ? '<' : '<=') . " $min_ind_depth). (Reporting only first occurrence.)", "Warning");
+          &verbose_parse_error("Expected deeper indentation based on prior quotes ($ind_depth " . ($equal_ok ? '<' : '<=') . " $min_ind_depth). (Reporting only first occurrence.)", "Warning");
           $reported_quote_error1 = 1;
         }
       }
@@ -953,17 +969,17 @@ sub verbose_parse_error {
 if (! $lib_flag) {
   &out("m4_changecom(`//')" .   # For *_coded.m4 only (legacy).
        "m4_changequote(`$OPEN_QUOTE', `$CLOSE_QUOTE')" .
-       "m4_include(['m5_lib_coded.m4'])" .
+       "m4_include(${OPEN_QUOTE}m5_lib_coded.m4${CLOSE_QUOTE})" .
        "m4_changecom()");
   # Expose the path of m5 (this script) to m4 processing, which calls it for library inclusion.
-  &out("m4_define(['m4_pre_m4_path'], ['['$FindBin::RealBin']'])");   # Legacy name.
+  &out("m4_define(${OPEN_QUOTE}m4_pre_m4_path${CLOSE_QUOTE}, ${OPEN_QUOTE}${OPEN_QUOTE}$FindBin::RealBin${CLOSE_QUOTE}${CLOSE_QUOTE})");   # Legacy name.
 } else {
-  &out("m4_pushdef(['m4_in_library'], ['true'])");
+  &out("m4_pushdef(${OPEN_QUOTE}m4_in_library${CLOSE_QUOTE}, ${OPEN_QUOTE}true${CLOSE_QUOTE})");
 }
 # Provide this filename as a URI, and the name of this file as passed on the command-line or the actual filename as known to M4.
-&out("m4_m5_file_begin(['['$uri']'], ['['$sourcefile_arg']'])");
+&out("m4_m5_file_begin(${OPEN_QUOTE}${OPEN_QUOTE}$uri${CLOSE_QUOTE}${CLOSE_QUOTE}, ${OPEN_QUOTE}${OPEN_QUOTE}$sourcefile_arg${CLOSE_QUOTE}${CLOSE_QUOTE})");
 if ($hide_contents) {
-  &out("m4_hide(['");  # Hide contents.
+  &out("m4_hide(${OPEN_QUOTE}");  # Hide contents.
 }
 
 
@@ -1005,10 +1021,10 @@ while (!$done) {
 }
 
 if ($lib_flag) {
-  &out("m4_popdef(['m4_in_library'])");
+  &out("m4_popdef(${OPEN_QUOTE}m4_in_library${CLOSE_QUOTE})");
 }
 if ($hide_contents) {
-  &out("'])");  # for corresponding "m4_hide(['"
+  &out($CLOSE_QUOTE . ")");  # for corresponding "m4_hide(['"
 }
-&out("['']m4_m5_file_end()");
+&out($OPEN_QUOTE . $CLOSE_QUOTE . "m4_m5_file_end()");
 
