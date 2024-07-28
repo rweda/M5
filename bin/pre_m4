@@ -433,58 +433,57 @@ sub read_line {
       if ($inside_text_block) {
         undef($end_block_type);
       } else {
-        # TODO: indent
-      
-      # Add ')' if evaluated with '*' syntax.
-      if (($end_block_type ne '') && $m4_block_eval[$m4_quote_depth]) {
-        $text .= ')';
-      }
-      # Record block end type encoded as the corresponding open quote.
-      if ($end_block_type ne '') {   # } or ]
-        $line_block_end_type = ($end_block_type eq ']') ? '[' :
-                               ($end_block_type eq '}') ? '{' :
-                                                          "['";
-        # Strict, but not ideal if block quote is on a line with other open quotes.
-        #if (length($ind) != $m4_indentation_depth[$m4_quote_depth]) {
-        #  &parse_error("Block termination indentation depth is recommended to match the indentation of line $m4_indentation_line_num[$m4_quote_depth].", "Warning");
-        #}
-      }
+        # Add ')' if evaluated with '*' syntax.
+        if (($end_block_type ne '') && $m4_block_eval[$m4_quote_depth]) {
+          $text .= ')';
+        }
+        # Record block end type encoded as the corresponding open quote.
+        if ($end_block_type ne '') {   # } or ]
+          $line_block_end_type = ($end_block_type eq ']') ? '[' :
+                                ($end_block_type eq '}') ? '{' :
+                                                            "['";
+          # Strict, but not ideal if block quote is on a line with other open quotes.
+          #if (length($ind) != $m4_indentation_depth[$m4_quote_depth]) {
+          #  &parse_error("Block termination indentation depth is recommended to match the indentation of line $m4_indentation_line_num[$m4_quote_depth].", "Warning");
+          #}
+        }
 
-      # Statement substitutions in code context.
-      if ((($m4_quote_type[$m4_quote_depth] eq '[') ||
-           ($m4_quote_type[$m4_quote_depth] eq '{')
-          ) &&
-          (length($ind) == $m4_body_indentation_depth[$m4_quote_depth])
-         ) {
-        my $out = $text =~ s/^~//;
-        my $stmt_type = $out ? "m5__out_stmt" : "m5__stmt";
-        # Indentation matches block indentations, so statement substitutions can be made.
-        if ($text =~ s#^/.*##) {
-          # M5 code block line comment (single slash).
-        } else {
-          if ($text =~ /^m5_/) {
-            # No substitution on a line beginning with m5_. Report error.
-            &parse_error("In M5 code context, lines should not start with \"m5_\".", "Warning");
+        # Statement substitutions in code context.
+        if ((($m4_quote_type[$m4_quote_depth] eq '[') ||
+            ($m4_quote_type[$m4_quote_depth] eq '{')
+            ) &&
+            (length($ind) == $m4_body_indentation_depth[$m4_quote_depth])
+          ) {
+          my $out = $text =~ s/^~//;
+          my $stmt_type = $out ? "m5__out_stmt" : "m5__stmt";
+          # Indentation matches block indentations, so statement substitutions can be made.
+          if ($text =~ s#^/.*##) {
+            # M5 code block line comment (single slash).
           } else {
-            # word( => m5__l(63)m5__stmt(['m5_word'],
-            if ($text !~ s/^(\w+)\(/m5__l($line_num)$stmt_type(${OPEN_QUOTE}m5_$1$CLOSE_QUOTE,/) {
-              # word => m5__stmt_var(word).
-              if ($text =~ s/^(\w+)(.*)/m5__l($line_num)${stmt_type}_var($OPEN_QUOTE$1$CLOSE_QUOTE)$2/) {
-                # Replaced word. Must have been ~word.
-                if (!$out) {
-                  &parse_error("Code block variable statements require \"~\":\n\t\t$orig_text", "Warning");
-                }
-              } else {
-                # No replacement yet.
-                # ~( => m5_out(
-                if ($text !~ s/^\(/m5__l($line_num)m5_out(/ || !$out) {
-                  # No replacement or "~" missing.
-                  if ($text !~ m#//# || $out) {
-                    # Not a comment. Bad statement, except for a few special cases:
-                    #   - region lines
-                    #   - block begin lines
-                    if (!($ind eq '' && $text =~ /^\\/) && $text !~ /^\*?(<\w+>)?[\[\{]\s*$/) {
-                      &parse_error("Unable to parse code block statement:\n\t\t$orig_text", "Warning");
+            if ($text =~ /^m5_/) {
+              # No substitution on a line beginning with m5_. Report error.
+              &parse_error("In M5 code context, lines should not start with \"m5_\".", "Warning");
+            } else {
+              # word( => m5__l(63)m5__stmt(['m5_word'],
+              if ($text !~ s/^(\w+)\(/m5__l($line_num)$stmt_type(${OPEN_QUOTE}m5_$1$CLOSE_QUOTE,/) {
+                # word => m5__stmt_var(word).
+                if ($text =~ s/^(\w+)(.*)/m5__l($line_num)${stmt_type}_var($OPEN_QUOTE$1$CLOSE_QUOTE)$2/) {
+                  # Replaced word. Must have been ~word.
+                  if (!$out) {
+                    &parse_error("Code block variable statements require \"~\":\n\t\t$orig_text", "Warning");
+                  }
+                } else {
+                  # No replacement yet.
+                  # ~( => m5_out(
+                  if ($text !~ s/^\(/m5__l($line_num)m5_out(/ || !$out) {
+                    # No replacement or "~" missing.
+                    if ($text !~ m#//# || $out) {
+                      # Not a comment. Bad statement, except for a few special cases:
+                      #   - region lines
+                      #   - block begin lines
+                      if (!($ind eq '' && $text =~ /^\\/) && $text !~ /^\*?(<\w+>)?[\[\{]\s*$/) {
+                        &parse_error("Unable to parse code block statement:\n\t\t$orig_text", "Warning");
+                      }
                     }
                   }
                 }
@@ -492,37 +491,35 @@ sub read_line {
             }
           }
         }
-      }
-      
-      # Block quote substitutions.
-      # TODO: Do not do this in source/text context.
-      # TODO: Support labels on all quotes (not just block quotes). They are useful for scoped macros.
-      # E.g. [ => m5__block(['  -or-  *<label>{ => m5_eval(m5__scope(['  -or-  [' => m5__text_block(['
-      if ($text =~ s/(\[|\{|$OPEN_QUOTE)\s*$//) {
-        $line_block_start_type = $1;
-        if ($line_block_start_type eq $OPEN_QUOTE) {
-          $line_block_start_type = "['";
-        }
-        $text = '-'.$text;  # Add a char for the pattern match.
-        if ($text =~ /^(.*?(.))(\*)?(<(\w+)>)?$/) {
-          my $pre = substr($1, 1);
-          my $need_separator = $2 =~ /\w/;
-          $line_block_eval = defined($3);
-          $line_block_name = defined($5) ? $5 : '';
-          my $macro = ($line_block_start_type eq '[')  ? "m5__block(" :
-                      ($line_block_start_type eq '{')  ? "m5__scope($OPEN_QUOTE$sourcefile_arg$CLOSE_QUOTE," :
-                                                         "m5__text_block("; 
-          $text = $pre . ($need_separator ? ($OPEN_QUOTE . $CLOSE_QUOTE) : '') . ($line_block_eval ? 'm5_eval(' : '') . $macro . $OPEN_QUOTE;
-          
-          # Keep track of whether we're inside a text block.
-          if ($line_block_start_type eq "['" && !$line_block_eval) {
-            $inside_text_block = 1;
+        
+        # Block quote substitutions.
+        # TODO: Do not do this in source/text context.
+        # TODO: Support labels on all quotes (not just block quotes). They are useful for scoped macros.
+        # E.g. [ => m5__block(['  -or-  *<label>{ => m5_eval(m5__scope(['  -or-  [' => m5__text_block(['
+        if ($text =~ s/(\[|\{|$OPEN_QUOTE)\s*$//) {
+          $line_block_start_type = $1;
+          if ($line_block_start_type eq $OPEN_QUOTE) {
+            $line_block_start_type = "['";
           }
-        } else {
-          &parse_error("BUG: Failed to match regex for block start line.");
+          $text = '-'.$text;  # Add a char for the pattern match.
+          if ($text =~ /^(.*?(.))(\*)?(<(\w+)>)?$/) {
+            my $pre = substr($1, 1);
+            my $need_separator = $2 =~ /\w/;
+            $line_block_eval = defined($3);
+            $line_block_name = defined($5) ? $5 : '';
+            my $macro = ($line_block_start_type eq '[')  ? "m5__block(" :
+                        ($line_block_start_type eq '{')  ? "m5__scope($OPEN_QUOTE$sourcefile_arg$CLOSE_QUOTE," :
+                                                          "m5__text_block("; 
+            $text = $pre . ($need_separator ? ($OPEN_QUOTE . $CLOSE_QUOTE) : '') . ($line_block_eval ? 'm5_eval(' : '') . $macro . $OPEN_QUOTE;
+            
+            # Keep track of whether we're inside a text block.
+            if ($line_block_start_type eq "['" && !$line_block_eval) {
+              $inside_text_block = 1;
+            }
+          } else {
+            &parse_error("BUG: Failed to match regex for block start line.");
+          }
         }
-      }
-      
       }
       
       
