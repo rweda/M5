@@ -475,7 +475,7 @@ adding features typical of programming languages.</p>
 <li><a href="#m5_security">1.5.1. Security</a></li>
 <li><a href="#m5_modularity">1.5.2. Modularity</a></li>
 <li><a href="#m5_string_processing">1.5.3. String processing</a></li>
-<li><a href="#m5_instrospection">1.5.4. Instrospection</a></li>
+<li><a href="#m5_introspection">1.5.4. Introspection</a></li>
 <li><a href="#m5_recursion">1.5.5. Recursion</a></li>
 <li><a href="#m5_unicode">1.5.6. Unicode</a></li>
 <li><a href="#m5_debugging_features">1.5.7. Debugging features</a></li>
@@ -491,6 +491,7 @@ adding features typical of programming languages.</p>
 <li><a href="#config">2.1. Configuring M5</a></li>
 <li><a href="#m5_running_m5">2.2. Running M5</a></li>
 <li><a href="#m5_ensure_no_impact">2.3. Ensure No Impact</a></li>
+<li><a href="#m5_tool_flow">2.4. Tool Flow</a></li>
 </ul>
 </li>
 <li><a href="#m5_an_overview_of_m5_concepts">3. An Overview of M5 Concepts</a>
@@ -674,7 +675,7 @@ had led to some worthwhile insights and that there was a place in the
 world for a better text processing language/tool, so I carved out some time to polish my mountain of hacks.</p>
 </div>
 <div class="paragraph">
-<p>Though M5 would benefit from a fresh non-M4-based implementation, I had to draw the line somewhere.
+<p>Though M5 would benefit from a fresh non-M4/Perl-based implementation, I had to draw the line somewhere.
 At this point, that legacy is mostly behind the scenes, and while it&#8217;s not everything I&#8217;d like it to be,
 it&#8217;s close, and it&#8217;s way better than any other text preprocessor I&#8217;m aware of.</p>
 </div>
@@ -783,7 +784,7 @@ not support lookahead, lazy matches, and character codes.</p>
 </div>
 </div>
 <div class="sect3">
-<h4 id="m5_instrospection">1.5.4. Instrospection</h4>
+<h4 id="m5_introspection">1.5.4. Introspection</h4>
 <div class="paragraph">
 <p>Introspection is essentially impossible. The only way to see what is defined is to
 dump definitions to a file and parse this file.</p>
@@ -904,6 +905,36 @@ M5 should output the input text, unaltered, as long as your file contains no:</p
 <em>(This requirement is being removed with no processing in source context.)</em></p>
 </li>
 </ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="m5_tool_flow">2.4. Tool Flow</h3>
+<div class="paragraph">
+<p>Since M5 is simply substituting text, you can do bizarre things, which can be difficult to debug.
+Understanding the tool flow can help you look one step under the hood to debug issues or understand
+how syntax is interpreted.</p>
+</div>
+<div class="paragraph">
+<p>M5 basically processes files in two steps:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Interpret syntactic sugar.</p>
+</li>
+<li>
+<p>Run M4.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>(There is a third step as well that is very minor to undo some of the sugaring.)</p>
+</div>
+<div class="paragraph">
+<p>Object files are generated (run <code>m5 -h</code> for options) that expose the interpretation of M5 sugar.
+Note that quotes and commas are substituted with control characters in these files, so you will
+need an appropriate tool to view them. Your shell may recognize them as binary files and prompt you
+about viewing them, which is fine to do.</p>
 </div>
 </div>
 </div>
@@ -5472,7 +5503,7 @@ each argument, separated by commas. A <code>num</code> of <code>0</code> results
 <div class="sect3">
 <h4 id="m5_manipulating_macro_stacks">7.5.2. Manipulating Macro Stacks</h4>
 <div class="paragraph">
-<p>See <a href="#stacks">[stacks]</a>.</p>
+<p>See <a href="#m5_macro_stacks">Macro Stacks</a>.</p>
 </div>
 <div class="paragraph">
 <p><a id="m_get_ago"></a><code>m5_get_ago(Name, Ago)</code></p>
@@ -6941,7 +6972,7 @@ error(*&lt;blk&gt;{
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2024-07-25 14:30:38 -0400
+Last updated 2024-07-31 21:09:58 -0400
 </div>
 </div>
 </body>

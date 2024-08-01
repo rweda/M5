@@ -9,6 +9,7 @@
 
 
 
+
 = M5 Text Processing Language User's Guide
 :toc: macro
 :toclevels: 3
@@ -87,7 +88,7 @@ decided I needed to either find a different approach or clean up the one I had. 
 had led to some worthwhile insights and that there was a place in the
 world for a better text processing language/tool, so I carved out some time to polish my mountain of hacks.
 
-Though M5 would benefit from a fresh non-M4-based implementation, I had to draw the line somewhere.
+Though M5 would benefit from a fresh non-M4/Perl-based implementation, I had to draw the line somewhere.
 At this point, that legacy is mostly behind the scenes, and while it's not everything I'd like it to be,
 it's close, and it's way better than any other text preprocessor I'm aware of.
 
@@ -156,7 +157,7 @@ that can be safely manipulated using <<m_regex>>, and <<m_substr>>.
 Additionally the regex configuration used by M4 is quite dated. For example, it does
 not support lookahead, lazy matches, and character codes.
 
-==== Instrospection
+==== Introspection
 Introspection is essentially impossible. The only way to see what is defined is to
 dump definitions to a file and parse this file.
 
@@ -260,6 +261,128 @@ See issues file in the https://github.com/rweda/M5[M5 repository] for more detai
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 [[usage]]
 == Getting Started with the M5 Tool
 
@@ -297,6 +420,26 @@ M5 should output the input text, unaltered, as long as your file contains no:
 - M5 comments, e.g. `/{empty}//`, `+/**+`, `+**/+`
 - code blocks, e.g. `[` or `{` followed by a newline or `]` or `}` beginning a line after optional whitespace
   _(This requirement is being removed with no processing in source context.)_
+
+
+=== Tool Flow
+
+Since M5 is simply substituting text, you can do bizarre things, which can be difficult to debug.
+Understanding the tool flow can help you look one step under the hood to debug issues or understand
+how syntax is interpreted.
+
+M5 basically processes files in two steps:
+
+- Interpret syntactic sugar.
+- Run M4.
+
+(There is a third step as well that is very minor to undo some of the sugaring.)
+
+Object files are generated (run `m5 -h` for options) that expose the interpretation of M5 sugar.
+Note that quotes and commas are substituted with control characters in these files, so you will
+need an appropriate tool to view them. Your shell may recognize them as binary files and prompt you
+about viewing them, which is fine to do.
+
 
 
 == An Overview of M5 Concepts
@@ -3011,7 +3154,7 @@ each argument, separated by commas. A `num` of `0` results in the inlining of `$
 
 ==== Manipulating Macro Stacks
 
-See <<stacks>>.
+See <<Macro Stacks>>.
 
 [[m_get_ago,`m5_get_ago`]]`m5_((get_ago))(Name, Ago)`
 [frame=none,grid=none,cols=">1, 5a"]

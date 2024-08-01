@@ -53,9 +53,12 @@ POST_M4_ARGS=("${@:2}")
 
 
 # If object directory is not specified, make a temporary object directory.
+# If specified, make sure it exists.
 if [ -z "$OBJ_DIR" ];
 then
     OBJ_DIR="$(mktemp -d -t m5_obj_XXXXXXXXXX)"
+else
+    mkdir -p "$OBJ_DIR"
 fi
 # Store the M4 file in the object directory.
 # Use extension .m4 either appended to the file name or replacing the .m5 extension if it exists.

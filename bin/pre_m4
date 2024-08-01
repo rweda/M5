@@ -51,6 +51,8 @@ use lib "$FindBin::RealBin";
 #       Should we add a magic number notation for it?
 #       Or, just leave it as is. This only affects error detection and reporting.
 my %known_macros = (
+    _text_block => 1,
+    _l => 1,
     calc => 1,
     call => 1,
     eq => 1,
@@ -64,15 +66,28 @@ my %known_macros = (
     var => 1,
 );
 
-
 # TODO: Use precompiled regex for better performance.
 
 
-# This script replaces [' with \N{U+30} (Record Separator) and '] with \N{U+31} (Unit Separator).
+my $heavy_open_quote = '<"<';
+my $heavy_close_quote = '>">';
 # This provides single-character quotes that do not conflict with other characters in the file.
-my $OPEN_QUOTE = "\N{U+02}";
-my $CLOSE_QUOTE = "\N{U+03}";
-my $LITERAL_COMMA = "\N{U+05}";
+my $OPEN_QUOTE = "\N{U+02}";    # Currently, `['` or `"` map to this; they are quotes for M4 processing; then post_m4 verifies that they are not present.
+my $CLOSE_QUOTE = "\N{U+03}";   #  "
+my $HEAVY_OPEN_QUOTE = "\N{U+0E}";   # Replaced in $line, then processed to $OPEN_QUOTE.
+my $HEAVY_CLOSE_QUOTE = "\N{U+0F}";  #  "
+my $LITERAL_COMMA = "\N{U+5}";  # TODO: U+17
+my $HARDENED_M5_CHAR         = "\N{U+18}";
+my $HARDENED_M5_CHAR_PATTERN = "\x{18}";
+
+# The range of control characters that replace quotes.
+my $quote_hex_low = sprintf("%x", ord($OPEN_QUOTE));
+my $quote_hex_high = sprintf("%x", ord($HEAVY_CLOSE_QUOTE));
+
+# Pattern to match any control quote.
+my $quote_pattern = qr/[\x{$quote_hex_low}-\x{$quote_hex_high}]/;
+
+my $m5_prefix = "m5$HARDENED_M5_CHAR";  # The prefix for M5 macros.
 
 my $sourcefile_arg = '';  # The source file name as given by the library include.
 my $uri = '';               # URI of the file being processed as a library.
@@ -127,6 +142,9 @@ my $line = '';       # The line being processed.
 my $strip_indentation_len = 0;  # Indentation to strip from $line.
 my $line_num = 0;    # The number of the line being processed.
 my $m5_comment_stripped = 0;  # Set to 1 iff an m5 comment was stripped from the line.
+
+# For processing leaf quotes.
+# ...
 
 # For M4 quote checking. This does similar processing as m4_plus_*, but it is implemented independently.
 # There's an array entry for every level of open-quoting at the current position.
@@ -242,6 +260,9 @@ sub read_line {
   # Convert quotes to control quotes.
   # TODO: Check line existing control quotes before substituting.
   # TODO: Do not substitute quotes in source context.
+  $line =~ s/\Q$heavy_open_quote\E/$HEAVY_OPEN_QUOTE/g;
+  $line =~ s/\Q$heavy_close_quote\E/$HEAVY_CLOSE_QUOTE/g;
+  # Replace `"` quotes.
   $line =~ s/\[\'/$OPEN_QUOTE/g;
   $line =~ s/\'\]/$CLOSE_QUOTE/g;
   
@@ -292,46 +313,6 @@ sub read_line {
     }
   } while (!$done_loop && length($line) < $line_len);
 
-  
-  # Substitute "m5_".
-  # Specifically,
-  #   o Replace "m5_word(" with "m5__l(88)m5_call(word," (except "m5_call(")
-  #   o Replace "m5_word" with "m5_get(word)"
-  # Also remove "\" from:
-  #   o "\m5_word" (including "\m5_word(")
-  #   o "m5_\"
-  if ($sugar_enabled) {
-    my $remainder = $line;
-    $line = '';
-    while($remainder =~ /^(.*?)(\\?)\bm5_(\w+)(\(?)(.*)$/) {
-      $line .= $1 . ($2 ? ($OPEN_QUOTE . $CLOSE_QUOTE) : '');  # Substitute "\m5_" with "['']m5_".
-      my $word = $3;
-      my $paren = $4;
-      $remainder = $5;
-      if ($word =~ /^m5_/) {
-        &parse_error('"m5_$word" is not legal in source file.', "Error");
-      }
-      if ($paren eq '') {
-        # Get
-        $line .= "m5_get($word)";
-      } else {
-        # Call
-        # Set line number for debugging.
-        $line .= "m5__l($line_num)";
-        # Output call.
-        if (exists $known_macros{$word} || !$existence_checks_enabled) {
-          # This known, common macro can be called directly without confirming its existence.
-          $line .= "m5_$word(";
-        } else {
-          $line .= "m5_call($word,";
-        }
-      }
-    }
-    $line .= $remainder;
-
-    # Substitute "m5_\" with "m5_".
-    $line =~ s/\bm5_\\/m5_/g;
-  }
 
   if ($line !~ /^\s*$/) {
     # Not a blank line.
@@ -455,7 +436,7 @@ sub read_line {
             (length($ind) == $m4_body_indentation_depth[$m4_quote_depth])
           ) {
           my $out = $text =~ s/^~//;
-          my $stmt_type = $out ? "m5__out_stmt" : "m5__stmt";
+          my $stmt_type = $m5_prefix . ($out ? "_out_stmt" : "_stmt");
           # Indentation matches block indentations, so statement substitutions can be made.
           if ($text =~ s#^/.*##) {
             # M5 code block line comment (single slash).
@@ -465,9 +446,9 @@ sub read_line {
               &parse_error("In M5 code context, lines should not start with \"m5_\".", "Warning");
             } else {
               # word( => m5__l(63)m5__stmt(['m5_word'],
-              if ($text !~ s/^(\w+)\(/m5__l($line_num)$stmt_type(${OPEN_QUOTE}m5_$1$CLOSE_QUOTE,/) {
+              if ($text !~ s/^(\w+)\(/${m5_prefix}_l($line_num)$stmt_type(${OPEN_QUOTE}$m5_prefix$1$CLOSE_QUOTE,/) {
                 # word => m5__stmt_var(word).
-                if ($text =~ s/^(\w+)(.*)/m5__l($line_num)${stmt_type}_var($OPEN_QUOTE$1$CLOSE_QUOTE)$2/) {
+                if ($text =~ s/^(\w+)(.*)/${m5_prefix}_l($line_num)${stmt_type}_var($OPEN_QUOTE$1$CLOSE_QUOTE)$2/) {
                   # Replaced word. Must have been ~word.
                   if (!$out) {
                     &parse_error("Code block variable statements require \"~\":\n\t\t$orig_text", "Warning");
@@ -475,7 +456,7 @@ sub read_line {
                 } else {
                   # No replacement yet.
                   # ~( => m5_out(
-                  if ($text !~ s/^\(/m5__l($line_num)m5_out(/ || !$out) {
+                  if ($text !~ s/^\(/${m5_prefix}_l($line_num)${m5_prefix}out(/ || !$out) {
                     # No replacement or "~" missing.
                     if ($text !~ m#//# || $out) {
                       # Not a comment. Bad statement, except for a few special cases:
@@ -501,15 +482,16 @@ sub read_line {
           if ($line_block_start_type eq $OPEN_QUOTE) {
             $line_block_start_type = "['";
           }
+          # TODO: Use (.?) and avoid '-'.
           $text = '-'.$text;  # Add a char for the pattern match.
           if ($text =~ /^(.*?(.))(\*)?(<(\w+)>)?$/) {
             my $pre = substr($1, 1);
             my $need_separator = $2 =~ /\w/;
             $line_block_eval = defined($3);
             $line_block_name = defined($5) ? $5 : '';
-            my $macro = ($line_block_start_type eq '[')  ? "m5__block(" :
-                        ($line_block_start_type eq '{')  ? "m5__scope($OPEN_QUOTE$sourcefile_arg$CLOSE_QUOTE," :
-                                                          "m5__text_block("; 
+            my $macro = ($line_block_start_type eq '[')  ? "${m5_prefix}_block(" :
+                        ($line_block_start_type eq '{')  ? "${m5_prefix}_scope($OPEN_QUOTE$sourcefile_arg$CLOSE_QUOTE," :
+                                                          "${m5_prefix}_text_block("; 
             $text = $pre . ($need_separator ? ($OPEN_QUOTE . $CLOSE_QUOTE) : '') . ($line_block_eval ? 'm5_eval(' : '') . $macro . $OPEN_QUOTE;
             
             # Keep track of whether we're inside a text block.
@@ -593,8 +575,54 @@ sub read_line {
 
 
     do {
+      # Get the next substring up to the next quote.
       $set_substr->();
 
+
+      # Substitute "m5_" in $substr.
+      # Specifically,
+      #   o Replace "m5_word(" with "m5__l(88)m5_call(word," (except "m5_call(")
+      #   o Replace "m5_word" with "m5_get(word)"
+      # Also remove "\" from:
+      #   o "\m5_word" (including "\m5_word(")
+      #   o "m5_\"
+      if ($sugar_enabled) {
+        my $remainder = $substr;
+        my $upd_substr = '';
+        while($remainder =~ /^(.*?)(\\?)\bm5_(\w+)(\(?)(.*)$/) {
+          $upd_substr .= $1 . ($2 ? ($OPEN_QUOTE . $CLOSE_QUOTE) : '');  # Substitute "\m5_" with "['']m5_".
+          my $word = $3;
+          my $paren = $4;
+          $remainder = $5;
+          if ($word =~ /^m5_/) {
+            &parse_error('"m5_$word" is not legal in source file.', "Error");
+          }
+          if ($paren eq '') {
+            # Get
+            $upd_substr .= "${m5_prefix}get($word)";
+          } else {
+            # Call
+            # Set line number for debugging.
+            $upd_substr .= "${m5_prefix}_l($line_num)";
+            # Output call.
+            if (exists $known_macros{$word} || !$existence_checks_enabled) {
+              # This known, common macro can be called directly without confirming its existence.
+              $upd_substr .= "$m5_prefix$word(";
+            } else {
+              $upd_substr .= "${m5_prefix}call($word,";
+            }
+          }
+        }
+        $upd_substr .= $remainder;
+
+        # Substitute "m5_\" with "m5_".
+        $upd_substr =~ s/\bm5_\\/m5_/g;
+        
+        # Reset the current substring.
+        if ($upd_substr ne $substr) {
+          $replace_substr->($upd_substr);
+        }
+      }
 
       #####
       # Handle Pragmas
@@ -733,7 +761,7 @@ sub read_line {
           # Find beginning of argument list context (if any), and process its open paren.
           my $source_text = $substr;  # Beginning piece of substring in source or text context (with default assignment).
           my $next_from_pos = $from_pos;  # The next $from_pos, determined before updating (with default assignment).
-          if ($substr =~ /\bm[45]_\w+\(/p) {
+          if ($substr =~ /\bm[45][_$HARDENED_M5_CHAR_PATTERN]\w+\(/p) {
             $source_text = ${^PREMATCH};
             $substr = ${^POSTMATCH};
             $next_from_pos += length(${^PREMATCH}) + length(${^MATCH});
@@ -1010,6 +1038,9 @@ while (!$done) {
           $line = substr($line, $strip_indentation_len);
       }
     }
+
+    # Substitute $HARDENED_M5_CHAR.
+    $line =~ s/$HARDENED_M5_CHAR_PATTERN/_/g;
   
 
     # Output line.

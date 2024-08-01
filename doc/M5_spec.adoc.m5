@@ -197,22 +197,34 @@ m5_var(main_doc, ['
 
    /**
    ==== Futures
-   Being more explicit about text that should evaluate and text that shouldn't might be better.
-   How about:
-   - Two different non-block quote types (single character), one for text that should
-   be evaluated and one for text that shouldn't?
    - All literal text must be quoted.
+   - Being more explicit about text that should evaluate and text that shouldn't might be better.
+   Quote type:
+     - `"` for single-line literal text (Note, there is no distinction between begin and end.)
+     - `{`/`}` for single-line code (for current implementation, use `[`/`]`)
+     - `<">`/`<">` for heavily quoted text that may have `\n` and `"` in it. (same begin/end)
+     - All of the above followed by a newline for block versions, excluding continuation cases.
+     Continuation cases return to quote and argument list context that existed at the start of
+     the line, not including block termination.
    - Unquoted whitespace can be ignored!
    - There's no need for `m5_` prefix! Any unquoted text is a macro or variable instantiation.
    - Suddenly, there's no need for code context. There's just quoted context and unquoted context.
-   - There's room for other unquoted syntax, like comments.
-   - We add "heavy quotes" (--<...>--) to reduce the likelihood of inadvertent end quotes.
-   Source context is heavily quoted.
+   - There's room for other unquoted syntax, like comments, though, maybe `<">  |` for line comment
+   in heavy block quote context, where the ending `<">` is implied by by "\n"?? Probably not.
+   - `"-` for literal quote character. There is nothing else to escape.
+   - Require a prefix for "value of"? Yes, "$MyVar". Thus we can:
+   - Allow unquoted text as a complete macro argument. Not all characters are permitted.
+   This way, variable names and function parameters need not be quoted.
+   
+   All other cases are handled by ending the string and starting a new one. And, it's better for
+   the escape char to follow the quote since the quote gets you into code context with controlled
+   syntax. Otherwise the literal escape char would need an escape char. `-` can also be thought of
+   as code syntax for continue text with added `"`. Note that heavy quotes can also be used.
+   - We add "heavy block quotes" (`<">`...`<">`) to reduce the likelihood of inadvertent end quotes.
+   Source context is heavily block quoted.
    - There's no escaping (`m5_\`, `\m5_`).
-   - Still need a multiline string syntax, say <-\n...\n->.
    - Keep "~" or drop it? Required only when beginning a line?
-   - Probably still check for balanced and properly indented quotes and parens, allowing
-   for escapes within the line.
+   - Probably still check for balanced quotes and parens. (Not for constructed code.)
    - Anything to enforce consistent formatting (like in code blocks)? Probably worth it.
    - Allow unquoted numbers. Text that starts with a digit is automatically quoted till the end
    of the word. C-style numbers.
@@ -223,33 +235,40 @@ m5_var(main_doc, ['
    would call a builtin to access arg 2. Provide other builtins for special M4 `$` syntax.
    - eval("foo(1, 2)") is fine.
    - foo() has zero args; foo("") has one?
-   - But... >--MyVar--< is clunky. Maybe for heavy text we keep `m5_`/`\m5_` as an/the escape and
+   - But... <">MyVar<"> is clunky. Maybe for heavy text we keep `m5_`/`\m5_` as an/the escape and
    `///`/`/**` for comments??? Maybe just a special case for variables. Needs regex configurability.
    (Post-string substitutions can be performed by wrapping the heavy string in a macro call.)
+   - We need to use `~` for something so we can call the language Tilda and give files a `~` extension,
+   like `model.tlv~`. Two-line make code to preprocess and run.
 
    Example:
 
-    Source... blah, blah, blah.>--#{comment}#--<
-    Blah, blah, blah.>--    # comment
+    Source... blah, blah, blah.<"> # comment <"> Then,
+    blah, blah, blah.<">     | line comment?
+    etc.
+    <">
 
     set(Me, "Steve")
     
-    fn(foo, f{   # f is a label
+    fn(foo, f:{   # f is a label
       "text"
-      if(1 || Cnt, {
+      if(1 || $Cnt, {
         hi()" more text"
       })
-      "Hey, "Player"!"
-      if_eq(Val, 2, {hi()"."})
-      chomp("
+      "Hey, "$Player"!"
+      if_eq($Val, 2, {hi()"."})
+      # A text block with explicit indentation.
+      chomp(
+         "
          Here's a line of text as a block.
-      ")
+      ".)   # "." includes a newline at the end of the block without an extra line.
       
       fn(Hi, {
         "Hi,"f:Me"."   # Me in f: context.
+        on_return(<{>set(greeting, {pad("Hi"<}>$ArgList<{>"!")})<}>)
       })
-    })
-    --<...and on we go.
+    })<">
+    ...and on we go.
    
    
    ==== Implementation Plan
@@ -259,7 +278,7 @@ m5_var(main_doc, ['
    - Keep text blocks as they are.
    - Keep `<label>` as it is.
    - Keep `~` as it is.
-   - Add support for `"` and `'`.
+   - Add support for `"`.
    - Add a prefix char equivalent to `m5_`. Say "\`"?
    - Add pragma that enables new behavior for unquoted text:
      - Auto-apply `m5_` prefixes.
@@ -269,7 +288,7 @@ m5_var(main_doc, ['
 
    Incremental step toward non-M4 solution:
    - Keep M4 as the back-end, but write a new pre_m4 (by a new name) in Python(?) that produces compatible M4 output.
-   - Enter quoted context by default.
+   - Enter quoted context by default. (Not required to re-enter to end file.)
    - Auto-apply `m5_`.
    - Let `m5_eval` retain its old behavior.
    - Write a new pre_m4 in Python (or stick w/ Perl, but... nah).

@@ -46,7 +46,7 @@ while(my $line = <>) {
   $line =~ tr/\N{U+05}/,/;
 
   # Check for quotes.
-  if ($line =~ /[\N{U+02}\N{U+03}]/) {
+  if ($line =~ /[\N{U+02}\N{U+03}\N{U+0E}\N{U+0F}]/) {
     # Quotes found.
     
     # Report warning.
