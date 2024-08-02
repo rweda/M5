@@ -1274,7 +1274,7 @@ m5_do([
       /Document a universal variable.
       fn(doc_macro__adoc__doc_var, Name, Text, {
          ~(['[[v_']m5_Name[',`m5_']m5_Name['`]]'])
-         ~(['`m5_((']m5_Name['))` (Universal variable)']m5_nl)
+         ~(['`m5_']['((']m5_Name['))` (Universal variable)']m5_nl)
          ~(['[frame=none,grid=none,cols=">1, 5a"]']m5_nl)
          ~(['|===']m5_nl)
          doc_macro__adoc__process_macro_desc(m5_Text)
@@ -1414,7 +1414,7 @@ m5_do([
       fn(doc_fn__end__adoc, <adoc>{
          push_var(['doc_macro__adoc__fn__']m5_doc_fn__name, *[
             ~(['[[m_']m5_doc_fn__name[',`m5_']m5_doc_fn__name['`]]'])
-            ~(['`m5_\((']m5_doc_fn__name['))(']m5_doc_fn__params[')`']m5_nl)
+            ~(['`m5_']['((']m5_doc_fn__name['))(']m5_doc_fn__params[')`']m5_nl)
             ~(['[frame=none,grid=none,cols=">1, 5a"]']m5_nl)
             ~(['|===']m5_nl)
             ~if_var_def(doc_fn__desc, [

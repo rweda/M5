@@ -88,6 +88,7 @@ my $quote_hex_high = sprintf("%x", ord($HEAVY_CLOSE_QUOTE));
 my $quote_pattern = qr/[\x{$quote_hex_low}-\x{$quote_hex_high}]/;
 
 my $m5_prefix = "m5$HARDENED_M5_CHAR";  # The prefix for M5 macros.
+my $variable_prefix = '$';  # E.g. $word is a variable instantiation.
 
 my $sourcefile_arg = '';  # The source file name as given by the library include.
 my $uri = '';               # URI of the file being processed as a library.
@@ -143,6 +144,9 @@ my $strip_indentation_len = 0;  # Indentation to strip from $line.
 my $line_num = 0;    # The number of the line being processed.
 my $m5_comment_stripped = 0;  # Set to 1 iff an m5 comment was stripped from the line.
 
+my $debug_cnt = 0;  # Can be used while debugging to limit processing.
+
+
 # For processing leaf quotes.
 # ...
 
@@ -182,6 +186,7 @@ my $verbose_checks_enabled = 0;
 my $existence_checks_enabled = 1;
 my $literal_comma_enabled = 1;
 my $sugar_enabled = 1;  # Enable sugar (but vanishing comments are always processed).
+my $bald_macros_enabled = 1;  # Enable bald macros (macros without the "m5_" prefix).
 
 my $in_block_comment = 0;   # (boolean) Is parsing within a /** **/ block comment.
 
@@ -574,6 +579,7 @@ sub read_line {
     };
 
 
+    # For each $substr between quotes.
     do {
       # Get the next substring up to the next quote.
       $set_substr->();
@@ -581,42 +587,68 @@ sub read_line {
 
       # Substitute "m5_" in $substr.
       # Specifically,
-      #   o Replace "m5_word(" with "m5__l(88)m5_call(word," (except "m5_call(")
-      #   o Replace "m5_word" with "m5_get(word)"
+      #   o Replace "word(" with "m5_word(".
+      #   o Replace "m5_word(" with "m5__l(88)m5_call(word," or "m5__l(88)m5_word(" for known macros.
+      #   o Replace "m5_word" and "${variable_prefix}word" with "m5_get(word)"
       # Also remove "\" from:
       #   o "\m5_word" (including "\m5_word(")
       #   o "m5_\"
       if ($sugar_enabled) {
         my $remainder = $substr;
         my $upd_substr = '';
-        while($remainder =~ /^(.*?)(\\?)\bm5_(\w+)(\(?)(.*)$/) {
-          $upd_substr .= $1 . ($2 ? ($OPEN_QUOTE . $CLOSE_QUOTE) : '');  # Substitute "\m5_" with "['']m5_".
-          my $word = $3;
-          my $paren = $4;
-          $remainder = $5;
-          if ($word =~ /^m5_/) {
-            &parse_error('"m5_$word" is not legal in source file.', "Error");
+        my $done_with_substr = 0;
+        # Process the next word.
+        while(!$done_with_substr && $remainder =~ /(\Q$variable_prefix\E|(\\?)(\bm5_)?)(\\?)([[:alpha:]_][\w$HARDENED_M5_CHAR_PATTERN]*)(\(?)/p) {
+          $upd_substr .= ${^PREMATCH};
+          my $prefix = $1;
+          my $pre_slash = $2;
+          my $m5 = $3;
+          my $post_slash = $4;
+          my $word = $5;
+          my $paren = $6;
+          my $match = ${^MATCH};
+          $remainder = ${^POSTMATCH};
+          if ($word =~ /^m5_/ && $prefix) {
+            &parse_error("\"$prefix$word$paren\" is not legal in source file.", "Error");
           }
-          if ($paren eq '') {
-            # Get
-            $upd_substr .= "${m5_prefix}get($word)";
-          } else {
-            # Call
-            # Set line number for debugging.
-            $upd_substr .= "${m5_prefix}_l($line_num)";
-            # Output call.
-            if (exists $known_macros{$word} || !$existence_checks_enabled) {
-              # This known, common macro can be called directly without confirming its existence.
-              $upd_substr .= "$m5_prefix$word(";
+          # Check for "\m5_" and "m5_\". "\m5_" adds quotes, so we must stop processing this $substr.
+          if (($pre_slash || $post_slash) && $m5) {
+            # "\m5_...".
+            if ($pre_slash) {
+              $upd_substr .= $OPEN_QUOTE . $CLOSE_QUOTE;  # Substitute "\m5_" with "['']m5_".
+              $done_with_substr = 1;
+            }
+            $upd_substr .= $m5 . $word . $paren;  # Substitute "m5_\..." with "m5_...".
+          } elsif ($paren eq '') {
+            if ($m5) {
+              # Get
+              $upd_substr .= "${m5_prefix}get($word)";
             } else {
-              $upd_substr .= "${m5_prefix}call($word,";
+              # Just a word; pass it through.
+              $upd_substr .= $match;
+            }
+          } else {
+            if ($word =~ /$HARDENED_M5_CHAR_PATTERN/ ||
+                (!$bald_macros_enabled && !$m5) ||
+                $word =~ /^m4_/  # Legacy M4 macros.
+              ) {
+              # Marked for no modification or bald macro that's not enabled.
+              $upd_substr .= $match;
+            } else {
+              # Call
+              # Set line number for debugging.
+              $upd_substr .= "${m5_prefix}_l($line_num)";
+              # Output call.
+              if (exists $known_macros{$word} || !$existence_checks_enabled) {
+                # This known, common macro can be called directly without confirming its existence.
+                $upd_substr .= "$m5_prefix$word(";
+              } else {
+                $upd_substr .= "${m5_prefix}call($word,";
+              }
             }
           }
         }
         $upd_substr .= $remainder;
-
-        # Substitute "m5_\" with "m5_".
-        $upd_substr =~ s/\bm5_\\/m5_/g;
         
         # Reset the current substring.
         if ($upd_substr ne $substr) {
@@ -660,6 +692,8 @@ sub read_line {
             $sugar_enabled = $enable;
           } elsif ($pragma_type eq 'literal_comma') {
             $literal_comma_enabled = $enable;
+          } elsif ($pragma_type eq 'bald_macros') {
+            $bald_macros_enabled = $enable;
           } else {
             &parse_error("BUG: Unrecognized pragma type.");
           }

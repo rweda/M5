@@ -137,6 +137,7 @@ m4_define_pragmas(existence_checks)
 m4_define_pragmas(debug)
 m4_define_pragmas(sugar)
 m4_define_pragmas(literal_comma)
+m4_define_pragmas(bald_macros)
 m4_define_pragma(where_am_i)
 
 
