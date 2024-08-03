@@ -6,6 +6,7 @@ m4_define(['m5_\need_docs'], yes)
 m5_use(m5-local)
 
 m5_pragma_disable_paren_checks()
+m5_pragma_disable_bald_macros()
 m5_var(main_doc, ['
    ']m5_pragma_disable_sugar['
    = M5 Text Processing Language User's Guide
@@ -2666,9 +2667,9 @@ m5_do([
 
       |Escapes
       |<<prefix_escapes>>
-      |`\m5_\foo`, `m5_\\foo`
+      |`\']['m5_\foo`, `m5_\\foo`
       |All
-      |`\m5_\foo`-Yes, `m5_\\foo`-Must not
+      |`\']['m5_\foo`-Yes, `m5_\\foo`-Must not
       |===
 
       The contexts listed under the "Contexts" column of <<syntax_table>> are described in <<Contexts>>. "Yes" in the
@@ -2713,12 +2714,12 @@ m5_do([
 
       |Statement with no output
       |<<Code Blocks>>
-      |`Foo`, `bar(...)` (`m5_\` prefix implied)
+      |`Foo`, `bar(...)` (`m5_` prefix implied)
       |Code
 
       |Code block statement with output
       |<<bCode Blocks>>
-      |`~Foo`, `~bar(...)` (`m5_\` prefix implied)
+      |`~Foo`, `~bar(...)` (`m5_` prefix implied)
       |Code
 
       |Code block output

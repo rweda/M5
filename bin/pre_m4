@@ -68,30 +68,40 @@ my %known_macros = (
 
 # TODO: Use precompiled regex for better performance.
 
+sub control_char_to_pattern {
+  my $char = shift;
+  return sprintf("\\x{%x}", ord($char));
+}
 
-my $heavy_open_quote = '<"<';
-my $heavy_close_quote = '>">';
+my $heavy_open_quote = '<">';
+my $heavy_close_quote = '<">';
+my $leaf_open_quote = '"';
+my $leaf_close_quote = '"';
+my $literal_quote_char = '-';  # Quotes are taken literally if _followed_ by this character.
 # This provides single-character quotes that do not conflict with other characters in the file.
 my $OPEN_QUOTE = "\N{U+02}";    # Currently, `['` or `"` map to this; they are quotes for M4 processing; then post_m4 verifies that they are not present.
 my $CLOSE_QUOTE = "\N{U+03}";   #  "
-my $HEAVY_OPEN_QUOTE = "\N{U+0E}";   # Replaced in $line, then processed to $OPEN_QUOTE.
-my $HEAVY_CLOSE_QUOTE = "\N{U+0F}";  #  "
-my $LITERAL_COMMA = "\N{U+5}";  # TODO: U+17
+my $LITERAL_COMMA = "\N{U+5}";  # TODO: U+17 (as a separate commit)
 my $HARDENED_M5_CHAR         = "\N{U+18}";
-my $HARDENED_M5_CHAR_PATTERN = "\x{18}";
+my $OPEN_QUOTE_PATTERN = &control_char_to_pattern($OPEN_QUOTE);
+my $CLOSE_QUOTE_PATTERN = &control_char_to_pattern($CLOSE_QUOTE);
+my $HARDENED_M5_CHAR_PATTERN = &control_char_to_pattern($HARDENED_M5_CHAR);
 
-# The range of control characters that replace quotes.
-my $quote_hex_low = sprintf("%x", ord($OPEN_QUOTE));
-my $quote_hex_high = sprintf("%x", ord($HEAVY_CLOSE_QUOTE));
 
-# Pattern to match any control quote.
-my $quote_pattern = qr/[\x{$quote_hex_low}-\x{$quote_hex_high}]/;
+# Patern for next quote in various contexts.
+# Within heavily quoted context:
+my $next_quote_pattern_heavy = qr/\Q$heavy_close_quote\E/;
+# Within leaf-quoted context:
+my $next_quote_pattern_leaf = qr/\Q$leaf_close_quote\E/;
+# Within M4 quotes:
+my $next_quote_pattern_m4 = qr/[$OPEN_QUOTE_PATTERN$CLOSE_QUOTE_PATTERN]/;
+my $next_quote_pattern_block = qr/($OPEN_QUOTE_PATTERN|$CLOSE_QUOTE_PATTERN|$leaf_open_quote)/;
 
 my $m5_prefix = "m5$HARDENED_M5_CHAR";  # The prefix for M5 macros.
 my $variable_prefix = '$';  # E.g. $word is a variable instantiation.
 
 my $sourcefile_arg = '';  # The source file name as given by the library include.
-my $uri = '';               # URI of the file being processed as a library.
+my $uri = '';             # URI of the file being processed as a library.
 
 # TODO: Add configurability for "m5_" prefix.
 
@@ -157,9 +167,12 @@ my @m4_indentation_depth = (-1);   # Lengths of indentation strings of lines of 
 my @m4_indentation_line_num = (-1); # Line numbers introducing the corresponding @m4_indentation_depth entry.
 my @m4_body_indentation_depth = (-1);  # Indentation of the bodies of every currently-nested quote.
                                        # -1 until the first indented line is processed.
+# TODO: Change default context to heavy quotes.
 my @m4_quote_type = ("['");  # The type of quote:
                              #   "['" for M4 block quotes (block starts w/ new line);
                              #   '[' or '{' for code block quotes; ([0] is '[' because this used in \m5 regions only, which are code blocks.)
+                             #   $leaf_open_quote for leaf quotes;
+                             #   $heavy_open_quote for heavy quotes;
                              #   'non-block' for non-block (intra-line) quotes.
 my @m4_block_name = ('top');   # The name of the code/text block, or '' if none or not a block.
 my @m4_block_eval = (0);    # [1/0] 1 for a code/text block prefixed with '*' (to be evaluated).
@@ -262,12 +275,8 @@ sub read_line {
   }
 
   
-  # Convert quotes to control quotes.
-  # TODO: Check line existing control quotes before substituting.
-  # TODO: Do not substitute quotes in source context.
-  $line =~ s/\Q$heavy_open_quote\E/$HEAVY_OPEN_QUOTE/g;
-  $line =~ s/\Q$heavy_close_quote\E/$HEAVY_CLOSE_QUOTE/g;
   # Replace `"` quotes.
+  # TODO: Do not substitute quotes in source context.
   $line =~ s/\[\'/$OPEN_QUOTE/g;
   $line =~ s/\'\]/$CLOSE_QUOTE/g;
   
@@ -552,22 +561,46 @@ sub read_line {
     my $substr = '';   # The substring of $line being processed (between quotes).
     my $from_pos = 0;  # Start position of $substr within $line.
     my $pos = 0;       # End position of $substr within $line, pointing to quote or EOL.
+    my $quote = '';    # The quote ending the current $substr after block quote substitutions ($OPEN/CLOSE_QUOTE, $heavy_open/close_quote, $leaf_open/close_quote).
     
 
     # Helper functions to replace the substring of $line.
     # Next substring.
     my $set_substr = sub {
-      my $pos1 = index($line, $OPEN_QUOTE, $from_pos);
-      my $pos2 = index($line, $CLOSE_QUOTE, $from_pos);
-      $pos = ($pos1 < 0) ? $pos2 :
-             ($pos2 < 0) ? $pos1 :
-             ($pos1 < $pos2) ? $pos1 :
-                               $pos2;
-      if ($pos < 0) {
-        $pos = length($line);
-      }
+      # The pattern for the next quote, based on the current quote context.
+      my $quote_pattern =
+          ($m4_quote_type[$m4_quote_depth] eq "['") ? $next_quote_pattern_m4 :
+          ($m4_quote_type[$m4_quote_depth] eq '[') ? $next_quote_pattern_block :
+          ($m4_quote_type[$m4_quote_depth] eq '{') ? $next_quote_pattern_block :
+          ($m4_quote_type[$m4_quote_depth] eq 'non-block') ? $next_quote_pattern_m4 :
+          ($m4_quote_type[$m4_quote_depth] eq $leaf_open_quote) ? $next_quote_pattern_leaf :
+          ($m4_quote_type[$m4_quote_depth] eq $heavy_open_quote) ? $next_quote_pattern_heavy :
+                          "error";
+      # Find the next quote, and repeat if it's escaped.
+      my $escaped;
+      do {
+        if ($from_pos > length($line)) {
+          &parse_error("BUG: Unexpected end of line while processing quotes.", "Fatal error");
+        }
+        substr($line, $from_pos) =~ /($quote_pattern|$)/p;
+        my $prequote = ${^PREMATCH};
+        my $quote = ${^MATCH};
+        my $postquote = ${^POSTMATCH};
+        $pos = $from_pos + length($prequote);
+        $escaped = 0;
+        if (($m4_quote_type[$m4_quote_depth] eq $leaf_open_quote ||
+             $m4_quote_type[$m4_quote_depth] eq $heavy_open_quote) &&
+            ($postquote ne '' && substr($postquote, 0, 1) eq $literal_quote_char)
+           ) {
+          # Escaped quote. Remove the escape character and repeat.
+          $escaped = 1;
+          $line = substr($line, 0, $pos) . $quote . substr($postquote, 1);
+        }
+      } while ($escaped);
       $substr = substr($line, $from_pos, $pos - $from_pos);
+      #print STDERR "DEBUG: Substr: $substr ($from_pos, $pos)\n" if $sourcefile_arg eq 'M5_spec.adoc.m5';
     };
+
     # The replacement may contain quote, which would end the updated substring.
     #   $1: The new substring.
     my $replace_substr = sub {
@@ -598,17 +631,18 @@ sub read_line {
         my $upd_substr = '';
         my $done_with_substr = 0;
         # Process the next word.
-        while(!$done_with_substr && $remainder =~ /(\Q$variable_prefix\E|(\\?)(\bm5_)?)(\\?)([[:alpha:]_][\w$HARDENED_M5_CHAR_PATTERN]*)(\(?)/p) {
+        while(!$done_with_substr &&
+              $remainder =~ /(\Q$variable_prefix\E|(\\?)((\bm5_)(\\*))?)([[:alpha:]_][\w$HARDENED_M5_CHAR_PATTERN]*)(\(?)/p) {
           $upd_substr .= ${^PREMATCH};
           my $prefix = $1;
           my $pre_slash = $2;
-          my $m5 = $3;
-          my $post_slash = $4;
-          my $word = $5;
-          my $paren = $6;
+          my $m5 = $4;
+          my $post_slash = $5;   # Slash(es) after m5_. "m5_\\word" becomes "m5_\word".
+          my $word = $6;
+          my $paren = $7;
           my $match = ${^MATCH};
           $remainder = ${^POSTMATCH};
-          if ($word =~ /^m5_/ && $prefix) {
+          if ($word =~ /^m5_/ && ($prefix && !($prefix eq "\\"))) {
             &parse_error("\"$prefix$word$paren\" is not legal in source file.", "Error");
           }
           # Check for "\m5_" and "m5_\". "\m5_" adds quotes, so we must stop processing this $substr.
@@ -618,7 +652,11 @@ sub read_line {
               $upd_substr .= $OPEN_QUOTE . $CLOSE_QUOTE;  # Substitute "\m5_" with "['']m5_".
               $done_with_substr = 1;
             }
-            $upd_substr .= $m5 . $word . $paren;  # Substitute "m5_\..." with "m5_...".
+            $upd_substr .= $m5;
+            if ($post_slash) {
+              $upd_substr .= substr($post_slash, 1); # Remove one slash.
+            }
+            $upd_substr .= $word . $paren;  # Substitute "m5_\..." with "m5_...".
           } elsif ($paren eq '') {
             if ($m5) {
               # Get
@@ -629,9 +667,12 @@ sub read_line {
             }
           } else {
             if ($word =~ /$HARDENED_M5_CHAR_PATTERN/ ||
-                (!$bald_macros_enabled && !$m5) ||
+                (!$m5 && (!$bald_macros_enabled || !($m4_quote_type[$m4_quote_depth] eq '{' || $m4_quote_type[$m4_quote_depth] eq '['))) ||
                 $word =~ /^m4_/  # Legacy M4 macros.
-              ) {
+               ) {
+              if ($word eq 'Example') {
+                print STDERR "DEBUG: Example: Yup: $line\n";
+              }
               # Marked for no modification or bald macro that's not enabled.
               $upd_substr .= $match;
             } else {
@@ -760,7 +801,7 @@ sub read_line {
             if ($dollar) {
               # $<name>2 => ']']']m5_nquote_dollar(1,3)['['['
               $substr = $pre_str . $closes . "m5_nquote_dollar($dollar_char,$nquote_cnt)" . $opens . $post_str;
-            } elsif (($pos < length($line)) && (substr($line, $pos, 1) eq $OPEN_QUOTE)) {
+            } elsif (($pos < length($line))) {   # TODO: Check re-open quote, e.g.: && (substr($line, $pos, 1) eq $OPEN_QUOTE)
               # ']<name>xxx[' => ']']']m5_nquote(3,xxx)['['['  (where the bookend escape quotes are not part of this $substr)
               $substr = $closes . "m5_nquote($nquote_cnt,$post_str)" . $opens;
             } else {
@@ -771,6 +812,22 @@ sub read_line {
           }
       }
           
+      
+      # We're done introducing new quotes.
+      # Replace quote with open/close control quote.
+      if (length($quote) > 1 || ($quote ne $OPEN_QUOTE && $quote ne $CLOSE_QUOTE && $quote ne '')) {
+        # Not alredy $OPEN_QUOTE or $CLOSE_QUOTE.
+        # Open or close?
+        my $control_quote =
+            ($m4_quote_type[$m4_quote_depth] eq $leaf_open_quote ||
+             $m4_quote_type[$m4_quote_depth] eq $heavy_open_quote)
+               ? $CLOSE_QUOTE
+               : $OPEN_QUOTE;
+        # Replace
+        $line = substr($line, 0, $pos) . $control_quote . substr($line, $pos + 1);
+      }
+
+
       ######
       # Context-based processing (distinguished inside vs. outside of 'm5_foo(...)'):
       #  - counting parentheses
@@ -785,17 +842,23 @@ sub read_line {
         # paren exiting source/text context, then a possible piece in arg list or code context
         # (which are the same now that we've processed sugar).
 
-        # Process initial substring piece in soure or text context and possible macro call open paren.
-        # Substitute commas in souce and text context ("['" or "non-block" context and not entered a macro call)
+        # Process initial substring piece in source or text context and possible macro call open paren.
+        # Substitute commas in souce and text context ("['", "non-block", or leaf context and not entered a macro call)
         # (and do not count parens).
-        if (($m4_quote_type[$m4_quote_depth] eq "['" || $m4_quote_type[$m4_quote_depth] eq "non-block") &&
+        my $in_leaf_quote =
+             $m4_quote_type[$m4_quote_depth] eq $leaf_open_quote ||
+             $m4_quote_type[$m4_quote_depth] eq $heavy_open_quote;
+        if (($m4_quote_type[$m4_quote_depth] eq "['" ||
+             $m4_quote_type[$m4_quote_depth] eq "non-block" ||
+             $in_leaf_quote
+            ) &&
             !$m4_parens[$m4_quote_depth]) {
           # Substring begins in source or text context
 
           # Find beginning of argument list context (if any), and process its open paren.
           my $source_text = $substr;  # Beginning piece of substring in source or text context (with default assignment).
           my $next_from_pos = $from_pos;  # The next $from_pos, determined before updating (with default assignment).
-          if ($substr =~ /\bm[45][_$HARDENED_M5_CHAR_PATTERN]\w+\(/p) {
+          if (!$in_leaf_quote && $substr =~ /\bm[45][_$HARDENED_M5_CHAR_PATTERN]\w+\(/p) {
             $source_text = ${^PREMATCH};
             $substr = ${^POSTMATCH};
             $next_from_pos += length(${^PREMATCH}) + length(${^MATCH});
@@ -846,6 +909,9 @@ sub read_line {
       # Process Quotes
       #
       $eos = $pos == length($line);
+      if ($pos > length($line)) {
+        &parse_error("BUG: Quote position exceeds line length.");
+      }
       
       my $pos_char = $eos ? '' : substr($line, $pos, 1);
       my $start_block_quote = ($pos_char eq $OPEN_QUOTE)  && ($pos == (length($line) - 1));
@@ -862,7 +928,11 @@ sub read_line {
         $m4_quote_depth++;
         # Push this open quote, though non-block quoting that is closed and re-opened within this line must be
         # ignored and considered a continuation of the previous line scope to support escaping.
-        my $open_quote_type = $block_open ? $line_block_start_type : 'non-block';
+        my $open_quote_type =
+             $block_open ? $line_block_start_type :
+             ($quote eq $leaf_open_quote ||
+              $quote eq $heavy_open_quote) ? $quote :
+                           'non-block';
         # It's okay to update the open indentation to reflect this line if this is deeper indentation
         # than the start of the line or this quote level was or is a special block quote.
         if (($#m4_indentation_depth < $m4_quote_depth) ||
@@ -894,7 +964,7 @@ sub read_line {
               ($line_block_end_type ne $m4_quote_type[$m4_quote_depth])
              ) {
             # TODO: Fix this error message for new quote syntax.
-            &verbose_parse_error("Block terminated by \"$line_block_end_type\" quote; matched with \"$m4_quote_type[$m4_quote_depth]\".", "Error");
+            &verbose_parse_error("Block terminated by \"$line_block_end_type\" quote matched with \"$m4_quote_type[$m4_quote_depth]\".", "Error");
           }
         }
         
@@ -933,8 +1003,9 @@ sub read_line {
     
     # Pop intra-line quotes and match open quotes.
     while ($#m4_indentation_depth > $m4_quote_depth) {
-      if ($quote_checks_enabled && ($m4_quote_type[$#m4_indentation_depth] ne 'non-block')) {
-        &verbose_parse_error("Non-block quote matches block quote ending line $m4_indentation_line_num[$#m4_indentation_depth].", "Error");
+      if ($quote_checks_enabled && ($m4_quote_type[$#m4_indentation_depth] eq '[' ||
+                                    $m4_quote_type[$#m4_indentation_depth] eq '{')) {
+        &verbose_parse_error("Non-block close quote ('$m4_quote_type[$#m4_indentation_depth]') matches open block quote ending line $m4_indentation_line_num[$#m4_indentation_depth].", "Error");
       }
       &pop_quote();
     }
@@ -1089,4 +1160,3 @@ if ($hide_contents) {
   &out($CLOSE_QUOTE . ")");  # for corresponding "m4_hide(['"
 }
 &out($OPEN_QUOTE . $CLOSE_QUOTE . "m4_m5_file_end()");
-
