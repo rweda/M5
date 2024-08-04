@@ -757,59 +757,58 @@ sub read_line {
       if ($sugar_enabled &&
           (index($substr, '<') >= 0) && (index($substr, '>') >= 0)   # A rough filter of label syntax.
          ) {
-        # TODO: Unindent.
-          # Substitute <name> syntax.
-          # (Substitution will include "'", which will determine next iteration point, so we only need to process one occurence here.)
-          my $pre_str;
-          my $name = '';
-          my $post_str;
-          my $dollar_char = '';
-          if ($substr =~ /^(.*?)\$<(\w+)>(.)(.*)$/) {
-            # $<name>2.
-            $pre_str = $1;
-            $name = $2;
-            $dollar_char = $3;
-            $post_str = $4;
-          } elsif ($substr =~ /^<(\w+)>(.*)$/ && $from_pos > 0 && substr($line, $from_pos - 1, 1) eq $CLOSE_QUOTE) {
-            # ']<name>xxx[' (found <name> after ']).
-            # Note that this does not match after a code block, as desired, because of inserted ')'.
-            $pre_str = '';
-            $name = $1;
-            $post_str = $2;
+        # Substitute <name> syntax.
+        # (Substitution will include "'", which will determine next iteration point, so we only need to process one occurence here.)
+        my $pre_str;
+        my $name = '';
+        my $post_str;
+        my $dollar_char = '';
+        if ($substr =~ /^(.*?)\$<(\w+)>(.)(.*)$/) {
+          # $<name>2.
+          $pre_str = $1;
+          $name = $2;
+          $dollar_char = $3;
+          $post_str = $4;
+        } elsif ($substr =~ /^<(\w+)>(.*)$/ && $from_pos > 0 && substr($line, $from_pos - 1, 1) eq $CLOSE_QUOTE) {
+          # ']<name>xxx[' (found <name> after ']).
+          # Note that this does not match after a code block, as desired, because of inserted ')'.
+          $pre_str = '';
+          $name = $1;
+          $post_str = $2;
+        }
+        
+        if ($name ne '') {
+          # Find <name>.
+          my $depth = 0;
+          while(($depth <= $#m4_indentation_depth) && ($m4_block_name[$depth] ne $name)) {
+            $depth++;
           }
-          
-          if ($name ne '') {
-            # Find <name>.
-            my $depth = 0;
-            while(($depth <= $#m4_indentation_depth) && ($m4_block_name[$depth] ne $name)) {
-              $depth++;
-            }
-            my $dollar = $dollar_char ne '';
-            my $nquote_cnt = $m4_quote_depth + ($dollar ? 0 : 1) - $depth;
-            if (($depth > $#m4_indentation_depth) || ($nquote_cnt < 0)) {
-              &parse_error("Reference to code/text block <$name> is not inside/alongside a block by that name.");
-              $depth = 1;  # Escape to top-level.
-            }
-            my $closes = '';
-            my $opens = '';
-            # Escape from current level through named level.
-            for (my $l = $m4_quote_depth; $l >= $depth; $l--) {
-              $closes .= $CLOSE_QUOTE;
-              $opens .= $OPEN_QUOTE;
-            }
-            # Update $substr with substitution.
-            if ($dollar) {
-              # $<name>2 => ']']']m5_nquote_dollar(1,3)['['['
-              $substr = $pre_str . $closes . "m5_nquote_dollar($dollar_char,$nquote_cnt)" . $opens . $post_str;
-            } elsif (($pos < length($line))) {   # TODO: Check re-open quote, e.g.: && (substr($line, $pos, 1) eq $OPEN_QUOTE)
-              # ']<name>xxx[' => ']']']m5_nquote(3,xxx)['['['  (where the bookend escape quotes are not part of this $substr)
-              $substr = $closes . "m5_nquote($nquote_cnt,$post_str)" . $opens;
-            } else {
-              &parse_error("\"<name>\" quote escapes must return to escaped context on the same line with no intervening quotes.", "error");
-            }
-            # Fix $line and $pos to reflect the substitution.
-            $replace_substr->($substr);
+          my $dollar = $dollar_char ne '';
+          my $nquote_cnt = $m4_quote_depth + ($dollar ? 0 : 1) - $depth;
+          if (($depth > $#m4_indentation_depth) || ($nquote_cnt < 0)) {
+            &parse_error("Reference to code/text block <$name> is not inside/alongside a block by that name.");
+            $depth = 1;  # Escape to top-level.
           }
+          my $closes = '';
+          my $opens = '';
+          # Escape from current level through named level.
+          for (my $l = $m4_quote_depth; $l >= $depth; $l--) {
+            $closes .= $CLOSE_QUOTE;
+            $opens .= $OPEN_QUOTE;
+          }
+          # Update $substr with substitution.
+          if ($dollar) {
+            # $<name>2 => ']']']m5_nquote_dollar(1,3)['['['
+            $substr = $pre_str . $closes . "m5_nquote_dollar($dollar_char,$nquote_cnt)" . $opens . $post_str;
+          } elsif (($pos < length($line))) {   # TODO: Check re-open quote, e.g.: && (substr($line, $pos, 1) eq $OPEN_QUOTE)
+            # ']<name>xxx[' => ']']']m5_nquote(3,xxx)['['['  (where the bookend escape quotes are not part of this $substr)
+            $substr = $closes . "m5_nquote($nquote_cnt,$post_str)" . $opens;
+          } else {
+            &parse_error("\"<name>\" quote escapes must return to escaped context on the same line with no intervening quotes.", "error");
+          }
+          # Fix $line and $pos to reflect the substitution.
+          $replace_substr->($substr);
+        }
       }
           
       
