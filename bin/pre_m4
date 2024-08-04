@@ -495,23 +495,20 @@ sub read_line {
         # TODO: Do not do this in source/text context.
         # TODO: Support labels on all quotes (not just block quotes). They are useful for scoped macros.
         # E.g. [ => m5__block(['  -or-  *<label>{ => m5_eval(m5__scope(['  -or-  [' => m5__text_block(['
-        if ($text =~ s/(\[|\{|$OPEN_QUOTE)\s*$//) {
+        if ($text =~ s/(\[|\{|$OPEN_QUOTE_PATTERN)\s*$//) {
           $line_block_start_type = $1;
           if ($line_block_start_type eq $OPEN_QUOTE) {
             $line_block_start_type = "['";
           }
-          # TODO: Use (.?) and avoid '-'.
-          $text = '-'.$text;  # Add a char for the pattern match.
-          if ($text =~ /^(.*?(.))(\*)?(<(\w+)>)?$/) {
-            my $pre = substr($1, 1);
-            my $need_separator = $2 =~ /\w/;
-            $line_block_eval = defined($3);
-            $line_block_name = defined($5) ? $5 : '';
+          if ($text =~ /(.?)(\*)?(<(\w+)>)?$/p) {
+            my $pre = "${^PREMATCH}$1";
+            my $need_separator = $1 =~ /\w/;
+            $line_block_eval = defined($2);
+            $line_block_name = defined($4) ? $4 : '';
             my $macro = ($line_block_start_type eq '[')  ? "${m5_prefix}_block(" :
                         ($line_block_start_type eq '{')  ? "${m5_prefix}_scope($OPEN_QUOTE$sourcefile_arg$CLOSE_QUOTE," :
-                                                          "${m5_prefix}_text_block("; 
+                                                           "${m5_prefix}_text_block("; 
             $text = $pre . ($need_separator ? ($OPEN_QUOTE . $CLOSE_QUOTE) : '') . ($line_block_eval ? 'm5_eval(' : '') . $macro . $OPEN_QUOTE;
-            
             # Keep track of whether we're inside a text block.
             if ($line_block_start_type eq "['" && !$line_block_eval) {
               $inside_text_block = 1;
