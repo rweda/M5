@@ -206,7 +206,9 @@ m5_var(main_doc, ['
      - `<">`/`<">` for heavily quoted text that may have `\n` and `"` in it. (same begin/end)
      - All of the above followed by a newline for block versions, excluding continuation cases.
      Continuation cases return to quote and argument list context that existed at the start of
-     the line, not including block termination.
+     the line, not including block termination. Hmmmm... how about tying continuation to labels?
+     Labeled escapes (permitting "<>") would always continue (affecting paren counting) when
+     reentered, even across multiple lines.
    - Unquoted whitespace can be ignored!
    - There's no need for `m5_` prefix! Any unquoted text is a macro or variable instantiation.
    - Suddenly, there's no need for code context. There's just quoted context and unquoted context.
@@ -380,8 +382,6 @@ m5_var(main_doc, ['
 
    ...
    **/
-
-
    [[usage]]
    == Getting Started with the M5 Tool
 
