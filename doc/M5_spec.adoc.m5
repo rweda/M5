@@ -204,21 +204,24 @@ m5_var(main_doc, ['
      - `"` for single-line literal text (Note, there is no distinction between begin and end.)
      - `{`/`}` for single-line code (for current implementation, use `[`/`]`)
      - `<">`/`<">` for heavily quoted text that may have `\n` and `"` in it. (same begin/end)
-     - All of the above followed by a newline for block versions, excluding continuation cases.
-     Continuation cases return to quote and argument list context that existed at the start of
-     the line, not including block termination. Hmmmm... how about tying continuation to labels?
-     Labeled escapes (permitting "<>") would always continue (affecting paren counting) when
-     reentered, even across multiple lines.
+     - All of the above followed by a newline for block versions, excluding continuation cases
+     (see below).
    - Unquoted whitespace can be ignored!
    - There's no need for `m5_` prefix! Any unquoted text is a macro or variable instantiation.
    - Suddenly, there's no need for code context. There's just quoted context and unquoted context.
    - There's room for other unquoted syntax, like comments, though, maybe `<">  |` for line comment
    in heavy block quote context, where the ending `<">` is implied by by "\n"?? Probably not.
-   - `"-` for literal quote character. There is nothing else to escape.
+   - `"+` for literal quote character within "...". There is nothing else to escape.
    - Require a prefix for "value of"? Yes, "$MyVar". Thus we can:
    - Allow unquoted text as a complete macro argument. Not all characters are permitted.
    This way, variable names and function parameters need not be quoted.
-   
+   - Continuation cases return to quote and argument list context that existed previously.
+   This affects parenthesis checking and quote-type matching. Currently, this is based on
+   returning to a quote level within a line. Link this instead to labeled escape quotes
+   (permitting "<>"). Label escapes can be more generic allowing quoting within the escape,
+   and we can permit continuation across multiple lines.
+   - "*" (for evaluate) is no longer worth it.
+  
    All other cases are handled by ending the string and starting a new one. And, it's better for
    the escape char to follow the quote since the quote gets you into code context with controlled
    syntax. Otherwise the literal escape char would need an escape char. `-` can also be thought of
@@ -336,11 +339,10 @@ m5_var(main_doc, ['
    - To assist with (language-dependent) source tracking, provide a hook responsible for echoing each
    outputted piece of atomic text that is given its source line number, the number of lines (carriage
    returns) in the text (or end line number), and the call stack, as well as those of the previous text.
-   **/
 
 
-   /** This is a bit overstated. So we get rid of ternary vs. if. Big whoop.
    === A Quick Taste
+   This is a bit overstated. So we get rid of ternary vs. if. Big whoop.
 
    ...
 
@@ -1632,8 +1634,6 @@ m5_var(main_doc, ['
    **/
 
    === Coding Paradigms, Patterns, Tips, Tricks, and Gotchas
-
-
    [[masking]]
    ==== Variable Masking
 
@@ -1657,7 +1657,7 @@ m5_do([
    /Shorthand for m5_doc_macro__adoc__fn__<name>.
    macro(DocFn, ['m5_doc_as_fn($@)m5_get(doc_macro__adoc__fn__$1)'])
    macro(DocFns, ['m5_doc_now_as_fns($@)'])
-   macro(DocVar, m5_defn(doc_macro__doc_var))
+   macro(DocVar, defn(doc_macro__doc_var))
 
 
    var(mac_spec, *['
