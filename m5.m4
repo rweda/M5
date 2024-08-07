@@ -1358,7 +1358,7 @@ m5_do([
          var(SetProtoVar, "doc_macro__"$Format"__fn__"$SetName)
          var(NewDocs, "")
          for_each_line(get($SetProtoVar), [
-            append_var(NewDocs, if_null(NewDocs, "$Protos", "$Line")$nl)
+            append_var(NewDocs, if_null(NewDocs, ['m5_Protos'], ['m5_Line'])$nl)
          ])
          set($SetProtoVar, $NewDocs)
       })

@@ -5,10 +5,8 @@ m5_pragma_disable_literal_comma   /// This library was written before the existe
 m4_define(['m5_\need_docs'], yes)
 m5_use(m5-local)
 
-m5_pragma_disable_paren_checks()
-m5_pragma_disable_bald_macros()
-m5_var(main_doc, ['
-   ']m5_pragma_disable_sugar['
+
+m5_var(main_doc, <">
    = M5 Text Processing Language User's Guide
    :toc: macro
    :toclevels: 3
@@ -203,14 +201,14 @@ m5_var(main_doc, ['
    Quote type:
      - `"` for single-line literal text (Note, there is no distinction between begin and end.)
      - `{`/`}` for single-line code (for current implementation, use `[`/`]`)
-     - `<">`/`<">` for heavily quoted text that may have `\n` and `"` in it. (same begin/end)
+     - `<'>`/`<'>` for heavily quoted text that may have `\n` and `"` in it. (same begin/end)
      - All of the above followed by a newline for block versions, excluding continuation cases
      (see below).
    - Unquoted whitespace can be ignored!
    - There's no need for `m5_` prefix! Any unquoted text is a macro or variable instantiation.
    - Suddenly, there's no need for code context. There's just quoted context and unquoted context.
-   - There's room for other unquoted syntax, like comments, though, maybe `<">  |` for line comment
-   in heavy block quote context, where the ending `<">` is implied by by "\n"?? Probably not.
+   - There's room for other unquoted syntax, like comments, though, maybe `<'>  |` for line comment
+   in heavy block quote context, where the ending `<'>` is implied by by "\n"?? Probably not.
    - `"+` for literal quote character within "...". There is nothing else to escape.
    - Require a prefix for "value of"? Yes, "$MyVar". Thus we can:
    - Allow unquoted text as a complete macro argument. Not all characters are permitted.
@@ -226,7 +224,7 @@ m5_var(main_doc, ['
    the escape char to follow the quote since the quote gets you into code context with controlled
    syntax. Otherwise the literal escape char would need an escape char. `-` can also be thought of
    as code syntax for continue text with added `"`. Note that heavy quotes can also be used.
-   - We add "heavy block quotes" (`<">`...`<">`) to reduce the likelihood of inadvertent end quotes.
+   - We add "heavy block quotes" (`<'>`...`<'>`) to reduce the likelihood of inadvertent end quotes.
    Source context is heavily block quoted.
    - There's no escaping (`m5_\`, `\m5_`).
    - Keep "~" or drop it? Required only when beginning a line?
@@ -241,7 +239,7 @@ m5_var(main_doc, ['
    would call a builtin to access arg 2. Provide other builtins for special M4 `$` syntax.
    - eval("foo(1, 2)") is fine.
    - foo() has zero args; foo("") has one?
-   - But... <">MyVar<"> is clunky. Maybe for heavy text we keep `m5_`/`\m5_` as an/the escape and
+   - But... <'>MyVar<'> is clunky. Maybe for heavy text we keep `m5_`/`\m5_` as an/the escape and
    `///`/`/**` for comments??? Maybe just a special case for variables. Needs regex configurability.
    (Post-string substitutions can be performed by wrapping the heavy string in a macro call.)
    - We need to use `~` for something so we can call the language Tilda and give files a `~` extension,
@@ -249,10 +247,10 @@ m5_var(main_doc, ['
 
    Example:
 
-    Source... blah, blah, blah.<"> # comment <"> Then,
-    blah, blah, blah.<">     | line comment?
+    Source... blah, blah, blah.<'> # comment <'> Then,
+    blah, blah, blah.<'>     | line comment?
     etc.
-    <">
+    <'>
 
     set(Me, "Steve")
     
@@ -264,7 +262,7 @@ m5_var(main_doc, ['
       "Hey, "$Player"!"
       if_eq($Val, 2, {hi()"."})
       # A text block with explicit indentation.
-      chomp(
+      chomp(   # Quote can be on this line as well, as long as the text doesn't start with whitespace.
          "
          Here's a line of text as a block.
       ".)   # "." includes a newline at the end of the block without an extra line.
@@ -273,7 +271,7 @@ m5_var(main_doc, ['
         "Hi,"f:Me"."   # Me in f: context.
         on_return(<{>set(greeting, {pad("Hi"<}>$ArgList<{>"!")})<}>)
       })
-    })<">
+    })<'>
     ...and on we go.
    
    
@@ -1648,9 +1646,11 @@ m5_var(main_doc, ['
    * Functions: Set variables using <<Aftermath>>. Using functions for variable-setting macros is preferred.
    * Macros declaring their body using a code block: Set variable using <<m_out_eval>>.
    * Macros declaring their body using a string: Push/pop local variables named using `${empty}0__` prefix.
+<">)
 
-   ']m5_pragma_enable_sugar['{empty}
-'])m5_pragma_enable_paren_checks()
+
+
+
 m5_do([
    enable_doc(adoc)
 
