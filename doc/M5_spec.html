@@ -2685,9 +2685,6 @@ options are listed here for completeness:</p>
 </li>
 </ul>
 </div>
-<div class="paragraph">
-<p></p>
-</div>
 </div>
 </div>
 </div>
@@ -3051,7 +3048,7 @@ in libraries except for the most commonly-used functions.</p>
 <td class="tableblock halign-left valign-top"><div class="content"><div class="literalblock">
 <div class="content">
 <pre>m5_macro(ParseError, &lt;p&gt;[
-   error(['Failed to parse $&lt;']['p&gt;1.'])
+   error(['Failed to parse $&lt;p&gt;1.'])
 ])</pre>
 </div>
 </div></div></td>
@@ -3315,7 +3312,7 @@ it list this in their "Side Effect(s)".</p>
 sticky_status()
 if(m5_A &lt;= m5_Max, [''])
 sticky_status()
-if(m5_reset_sticky_status(), ['m5_error(m5_get(A) is out of range.)'])</pre>
+if(m5_reset_sticky_status(), ['m5_error(m5_A is out of range.)'])</pre>
 </div>
 </div></div></td>
 </tr>
@@ -3422,7 +3419,7 @@ As an alternative to providing else blocks within <code>m5_if</code>, <a href="#
 <p><code>TrueBody</code>: the body to evaluate if the condition evaluates to true (1)</p>
 </li>
 <li>
-<p><code>&#8230;&#8203;</code>: ['either a <code>FalseBody</code> or (for <code>m5_if</code> only) recursive <code>Cond</code>, <code>TrueBody</code>, <code>&#8230;&#8203;</code> arguments to evaluate if the condition evaluates to false (not 1)']</p>
+<p><code>&#8230;&#8203;</code>: either a <code>FalseBody</code> or (for <code>m5_if</code> only) recursive <code>Cond</code>, <code>TrueBody</code>, <code>&#8230;&#8203;</code> arguments to evaluate if the condition evaluates to false (not 1)</p>
 </li>
 </ol>
 </div></div></td>
@@ -3516,7 +3513,7 @@ and this may be easier to read.
 <td class="tableblock halign-right valign-top"><p class="tableblock">Example(s):</p></td>
 <td class="tableblock halign-left valign-top"><div class="content"><div class="literalblock">
 <div class="content">
-<pre>~if_eq(m4_\Zero, 0, [
+<pre>~if_eq(m5_Zero, 0, [
    ~zero_is_zero(...)
 ], m5_calc(m5_Zero &lt; 0), 1, [
    ~zero_is_negative(...)
@@ -3902,7 +3899,7 @@ and increments by 1 with each iteration.</p>
 <div class="content">
 <pre>~repeat(10, [
    ~do_stuff(...)
-])</pre>
+])  //{empty}/ Iterates m5_LoopCnt 0..9.</pre>
 </div>
 </div></div></td>
 </tr>
@@ -3964,7 +3961,7 @@ and increments by 1 with each iteration.</p>
 <div class="content">
 <pre>~for(fruit, ['apple, orange, '], [
    ~do_stuff(...)
-])</pre>
+])  //{empty}/ (also maintains m5_LoopCnt)</pre>
 </div>
 </div></div></td>
 </tr>
@@ -6300,7 +6297,7 @@ This is like, e.g. <code>$#</code>, but it can be more convenient in nested func
 <td class="tableblock halign-right valign-top"><p class="tableblock">Description:</p></td>
 <td class="tableblock halign-left valign-top"><div class="content"><div class="paragraph">
 <p>These append to code block output that is expanded after the evaluation of the block. <code>m5_out</code> captures
-literal text, while the argument to <code>m5_get(out_eval)</code> gets evaluated. Thus <code>m5_get(out_eval)</code> is useful for code
+literal text, while the argument to <code>m5_out_eval</code> gets evaluated. Thus <code>m5_out_eval</code> is useful for code
 block side effects. <code>m5_out</code> is useful only in pathological cases within statements and by dynamically
 constructed code since the shorthand syntax <code>~(&#8230;&#8203;)</code> is effectively identical to <code>~out(&#8230;&#8203;)</code>.
 Note that these macros are not recommended for use in function blocks as functions have their own
@@ -6972,7 +6969,7 @@ error(*&lt;blk&gt;{
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2024-07-31 21:09:58 -0400
+Last updated 2024-08-07 18:01:36 -0400
 </div>
 </div>
 </body>

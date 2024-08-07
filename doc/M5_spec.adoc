@@ -10,6 +10,8 @@
 
 
 
+
+
 = M5 Text Processing Language User's Guide
 :toc: macro
 :toclevels: 3
@@ -196,6 +198,8 @@ Major next steps include:
 - Some syntactic sugar (quotes, code blocks) should not be recognized in source context.
 
 See issues file in the https://github.com/rweda/M5[M5 repository] for more details.
+
+
 
 
 
@@ -1633,8 +1637,6 @@ aftermath to avoid growing the stack. For example:
 
 
 === Coding Paradigms, Patterns, Tips, Tricks, and Gotchas
-
-
 [[masking]]
 ==== Variable Masking
 
@@ -1649,8 +1651,6 @@ options are listed here for completeness:
 * Functions: Set variables using <<Aftermath>>. Using functions for variable-setting macros is preferred.
 * Macros declaring their body using a code block: Set variable using <<m_out_eval>>.
 * Macros declaring their body using a string: Push/pop local variables named using `${empty}0__` prefix.
-
-{empty}
 
 == Macro Library
 
@@ -1847,7 +1847,7 @@ fn(add, Addend1, Addend2, {
 |Example(s):
 |....
 m5_macro(ParseError, <p>[
-   error(['Failed to parse $<']['p>1.'])
+   error(['Failed to parse $<p>1.'])
 ])
 ....
 
@@ -1984,7 +1984,7 @@ if(m5_A >= m5_Min, [''])
 sticky_status()
 if(m5_A <= m5_Max, [''])
 sticky_status()
-if(m5_reset_sticky_status(), ['m5_error(m5_get(A) is out of range.)'])
+if(m5_reset_sticky_status(), ['m5_error(m5_A is out of range.)'])
 ....
 
 |See also:
@@ -2038,7 +2038,7 @@ NOTE: As an alternative to providing else blocks within `m5_if`, <<m_else>> and 
 
 . `TrueBody`: the body to evaluate if the condition evaluates to true (1)
 
-. `...`: ['either a `FalseBody` or (for `m5_if` only) recursive `Cond`, `TrueBody`, `...` arguments to evaluate if the condition evaluates to false (not 1)']
+. `...`: either a `FalseBody` or (for `m5_if` only) recursive `Cond`, `TrueBody`, `...` arguments to evaluate if the condition evaluates to false (not 1)
 
 |Example(s):
 |....
@@ -2086,7 +2086,7 @@ and this may be easier to read.
 
 |Example(s):
 |....
-~if_eq(m4_\Zero, 0, [
+~if_eq(m5_Zero, 0, [
    ~zero_is_zero(...)
 ], m5_calc(m5_Zero < 0), 1, [
    ~zero_is_negative(...)
@@ -2296,7 +2296,7 @@ and increments by 1 with each iteration.
 |....
 ~repeat(10, [
    ~do_stuff(...)
-])
+])  //{empty}/ Iterates m5_LoopCnt 0..9.
 ....
 
 |See also:
@@ -2328,7 +2328,7 @@ and increments by 1 with each iteration.
 |....
 ~for(fruit, ['apple, orange, '], [
    ~do_stuff(...)
-])
+])  //{empty}/ (also maintains m5_LoopCnt)
 ....
 
 |See also:
@@ -3591,7 +3591,7 @@ This is like, e.g. `${empty}#`, but it can be more convenient in nested function
 |===
 |Description:
 |These append to code block output that is expanded after the evaluation of the block. `m5_out` captures
-literal text, while the argument to `m5_get(out_eval)` gets evaluated. Thus `m5_get(out_eval)` is useful for code
+literal text, while the argument to `m5_out_eval` gets evaluated. Thus `m5_out_eval` is useful for code
 block side effects. `m5_out` is useful only in pathological cases within statements and by dynamically
 constructed code since the shorthand syntax `~(...)` is effectively identical to `~out(...)`.
 Note that these macros are not recommended for use in function blocks as functions have their own
