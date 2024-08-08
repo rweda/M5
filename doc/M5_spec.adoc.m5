@@ -219,6 +219,7 @@ m5_var(main_doc, <">
    (permitting "<>"). Label escapes can be more generic allowing quoting within the escape,
    and we can permit continuation across multiple lines.
    - "*" (for evaluate) is no longer worth it.
+   - Added "3.foo" syntax for numbered function parameters to avoid "[".
   
    All other cases are handled by ending the string and starting a new one. And, it's better for
    the escape char to follow the quote since the quote gets you into code context with controlled

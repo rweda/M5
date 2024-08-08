@@ -745,6 +745,7 @@ m4_define(
                        m4_def(optional_prefix, m5_extract_prefix_regex(\?, _param))
                        m4_def(cnt_prefix, [''])
                        m4_regexp(m5__param, ['^\[\([0-9]+\)\]\(.*\)'], ['m4_def(cnt_prefix, ['\1'])m4_define(['m5__param'], ['\2'])'])
+                       m4_regexp(m5__param, ['^\([0-9]+\)\(\.\)?\(.*\)'], ['m5_fn__num_dot_param(['\1'], ['\2'], ['\3'])'])
                        m4_def(inherit_prefix, m5_extract_prefix_regex(\^, _param))
                        m4_define(['m5__param_name'], m5_extract_prefix_regex(['\w*'], _param))
                        m5_fn__param_comment(['parameter "']m5__param_name['"'])   /// TODO: This should only be done in debug mode.
@@ -796,7 +797,7 @@ m4_define(
                        /// If this is a numbered param, confirm count and append arg to the call.
                        m4_ifelse(m4_cnt_prefix, [''], [''],
                                  ['m4_ifelse(m4_cnt_prefix, m4_numbered_cnt, [''],
-                                             ['m5_error(['In declaration of function ']m5_func_name[', numbered parameters are out of sequence. Parameter given as '][m4_cnt_prefix][' should be '][m4_numbered_cnt]['.']m5_nl)'])
+                                             ['m5_error(['In declaration of function ']m5_func_name[', numbered parameters are out of sequence. Parameter given as '][m4_cnt_prefix][' should be '][m4_numbered_cnt]['.'])'])
                                    m4_define(['m4_numbered_cnt'], m4_incr(m4_numbered_cnt))
                                    m4_str_append(dollar_args, m4_dquote([',']m4_ifelse(m4_inherit_prefix, ^, ['m4_defn(['m5_']']m5__param_name[')'], m4_func_arg)))'])
                        m4_popdef(['m4_func_arg'])
@@ -808,6 +809,10 @@ m4_define(
       '])
    '])
    
+/// A helper to process parameter specifiers like "3.foo".
+m4_define(['m5_fn__num_dot_param'],
+   ['m4_def(cnt_prefix, ['$1'])m4_define(['m5__param'], ['$3'])m4_ifelse(m4_eval((m4_len(['$2']) == 0) != (m4_len(['$3']) == 0)), ['1'],
+       ['m5_error(['In declaration of function ']m5_func_name[', bad formatting of numbered parameter "$1$3".'])'])'])
 
 /// Define m5_lazy_fn.
 ///
@@ -995,7 +1000,7 @@ m5_do([
    macro(echo_args, "$""@")
 
    /Evaluate body for every pattern matching regex in the string. m5_status is unassigned.
-   lazy_fn(for_each_regex, [1], [2], [3], [4], {
+   lazy_fn(for_each_regex, 1, 2, 3, 4, {
       var_regex("$1", "$2\(.*\)", (eval(['m5_\echo_args$3']), $0__Remainder))
       ~if_so([
          ~($4)   /// Evaluate body in context. (No masking variables have been defined.)

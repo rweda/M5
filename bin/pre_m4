@@ -77,6 +77,10 @@ my $heavy_open_quote = '<">';
 my $heavy_close_quote = '<">';
 my $leaf_open_quote = '"';
 my $leaf_close_quote = '"';
+my $code_open_quote = '[';
+my $code_close_quote = ']';
+my $scope_open_quote = '{';
+my $scope_close_quote = '}';
 my $literal_quote_char = '+';  # Quotes are taken literally if _followed_ by this character.
 # This provides single-character quotes that do not conflict with other characters in the file.
 my $OPEN_QUOTE = "\N{U+02}";    # Currently, `['` or `"` map to this; they are quotes for M4 processing; then post_m4 verifies that they are not present.
@@ -95,7 +99,7 @@ my $next_quote_pattern_heavy = qr/\Q$heavy_close_quote\E/p;
 my $next_quote_pattern_leaf = qr/\Q$leaf_close_quote\E/p;
 # Within M4 quotes:
 my $next_quote_pattern_m4 = qr/($OPEN_QUOTE_PATTERN|$CLOSE_QUOTE_PATTERN|\Q$heavy_open_quote\E)/p;
-my $next_quote_pattern_code = qr/($OPEN_QUOTE_PATTERN|$CLOSE_QUOTE_PATTERN|\Q$leaf_open_quote\E|\Q$heavy_open_quote\E)/p;
+my $next_quote_pattern_code = qr/($OPEN_QUOTE_PATTERN|$CLOSE_QUOTE_PATTERN|\Q$leaf_open_quote\E|\Q$heavy_open_quote\E|\Q$code_open_quote\E|\Q$scope_open_quote\E)/p;
 
 my $m5_prefix = "m5$HARDENED_M5_CHAR";  # The prefix for M5 macros.
 my $variable_prefix = '$';  # E.g. $word is a variable instantiation.
@@ -240,7 +244,7 @@ sub paren_check() {
           ($depth == 0) ? "File" :
               "'$m4_quote_type[$depth]'" . (
                   $m4_block_quote[$depth] ? " block starting" :
-                  $m4_quote_type[$depth] eq "{" || $m4_quote_type[$depth] eq "[" ? " code" : "-quoted text"
+                  $m4_quote_type[$depth] eq $scope_open_quote || $m4_quote_type[$depth] eq $code_open_quote ? " code" : "-quoted text"
               ) . " at line $m4_indentation_line_num[$depth]";
       &verbose_parse_error("$it contains " . length($m4_parens[$depth]) . " more open parentheses than close parentheses.\n\tParentheses were last balanced leading into line $m4_balanced_parens_line_num[$m4_quote_depth].", "Warning");
       $reported_paren_error = 1;
@@ -489,7 +493,7 @@ sub read_line {
                     # Not a comment. Bad statement, except for a few special cases:
                     #   - region lines
                     #   - block begin lines
-                    if (!($ind eq '' && $text =~ /^\\/) && $text !~ /^\*?(<\w+>)?[\[\{]\s*$/) {
+                    if (!($ind eq '' && $text =~ /^\\/) && $text !~ /^\*?(<\w+>)?(\Q$code_open_quote\E|\Q$scope_open_quote\E)\s*$/) {
                       &parse_error("Unable to parse code block statement:\n\t\t$orig_text", "Warning");
                     }
                   }
@@ -505,7 +509,7 @@ sub read_line {
         # TODO: Do not do this in source/text context.
         # TODO: Support labels on all quotes (not just block quotes). They are useful for scoped macros.
         # E.g. [ => m5__block(['  -or-  *<label>{ => m5_eval(m5__scope(['  -or-  [' => m5__text_block(['
-        if ($text =~ s/(\[|\{|$OPEN_QUOTE_PATTERN|\Q$leaf_open_quote\E|\Q$heavy_open_quote\E)\s*$//) {
+        if ($text =~ s/(\Q$code_open_quote\E|\Q$scope_open_quote\E|$OPEN_QUOTE_PATTERN|\Q$leaf_open_quote\E|\Q$heavy_open_quote\E)\s*$//) {
           my $open_quote = $1;
           $line_block_start_type = ($open_quote eq $OPEN_QUOTE) ? "['" : $open_quote;
           if ($text =~ /(.?)(\*)?(<(\w+)>)?$/p) {
