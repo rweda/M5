@@ -92,14 +92,11 @@ my $CLOSE_QUOTE_PATTERN = &control_char_to_pattern($CLOSE_QUOTE);
 my $HARDENED_M5_CHAR_PATTERN = &control_char_to_pattern($HARDENED_M5_CHAR);
 
 
-# Patern for next quote in various contexts.
-# Within heavily quoted context:
+# Pattern for next quote in various contexts (heavy leaf quotes, leaf quotes, M4 quotes, and code quotes).
 my $next_quote_pattern_heavy = qr/\Q$heavy_close_quote\E/p;
-# Within leaf-quoted context:
 my $next_quote_pattern_leaf = qr/\Q$leaf_close_quote\E/p;
-# Within M4 quotes:
 my $next_quote_pattern_m4 = qr/($OPEN_QUOTE_PATTERN|$CLOSE_QUOTE_PATTERN|\Q$heavy_open_quote\E)/p;
-my $next_quote_pattern_code = qr/($OPEN_QUOTE_PATTERN|$CLOSE_QUOTE_PATTERN|\Q$leaf_open_quote\E|\Q$heavy_open_quote\E|\Q$code_open_quote\E|\Q$scope_open_quote\E)/p;
+my $next_quote_pattern_code = qr/($OPEN_QUOTE_PATTERN|$CLOSE_QUOTE_PATTERN|\Q$leaf_open_quote\E|\Q$heavy_open_quote\E|\Q$code_open_quote\E|\Q$scope_open_quote\E|\Q$code_close_quote\E|\Q$scope_close_quote\E)/p;
 
 my $m5_prefix = "m5$HARDENED_M5_CHAR";  # The prefix for M5 macros.
 my $variable_prefix = '$';  # E.g. $word is a variable instantiation.
@@ -189,6 +186,7 @@ my @m4_parens = ('');    # The parenthesis context. There are three types of par
                          # and '-' represents a floating quote (and ignored quotes are not represented).
                          # So, after processing "If (truly) m5_hi(['(']and (truly", the string is "(-".
 my @m4_balanced_parens_line_num = (-1); # The last line number on which parentheses were balanced for this block.
+my @m4_escaped = (0);    # [1/0] 1 for <foo>...-escaped scope, reset to 0 upon reentry.
 my $inside_text_block = 0;  # A flag that we're inside a non-evaluating (no "*") text block, in which case, block syntax is disabled.
 # To prevent excessive error reporting.
 my $reported_quote_error1 = 0;
@@ -262,6 +260,7 @@ sub pop_quote {
   pop(@m4_block_name);
   pop(@m4_block_eval);
   pop(@m4_balanced_parens_line_num);
+  pop(@m4_escaped);
 }
 
 # Process the next line of the file.
@@ -560,8 +559,8 @@ sub read_line {
     
     
     # Parse quoting.
-    # (Code quotes have been substituted for control quotes.
-    #  Leaf quotes and <label> escape syntax have not been substituted yet.)
+    # (Code block quotes have been substituted for control quotes.
+    #  Inline code quotes, leaf quotes, and <label> escape syntax have not been substituted yet.)
     #
     my $init_quote_checks_enabled = $quote_checks_enabled;
     $line =~ m#^(\s*)#;
@@ -609,7 +608,7 @@ sub read_line {
           my $postquote = ${^POSTMATCH};
           $pos = $from_pos + length($prequote);
           $open = $quote eq ''     ? -1 :
-                  ($quote =~ /($OPEN_QUOTE_PATTERN|\Q$leaf_open_quote\E|\Q$heavy_open_quote\E)/) &&
+                  ($quote =~ /($OPEN_QUOTE_PATTERN|\Q$leaf_open_quote\E|\Q$heavy_open_quote\E|\Q$code_open_quote\E|\Q$scope_open_quote\E)/) &&
                   !$in_leaf_quotes ? 1 :
                                      0;
           if ($in_leaf_quotes &&
@@ -629,6 +628,7 @@ sub read_line {
       } while ($escaped);
       
       $substr = substr($line, $from_pos, $pos - $from_pos);
+      #print STDERR "DEBUG: Next substr at depth $m4_quote_depth ends with \"$quote\" in context '$m4_quote_type[$m4_quote_depth]': $substr\n" if ($uri eq '/tmp/m5/test.txt');
     };
 
     # The replacement may contain quote, which would end the updated substring.
@@ -799,15 +799,16 @@ sub read_line {
         
         if ($name ne '') {
           # Find <name>.
-          my $depth = 0;
-          while(($depth <= $#m4_indentation_depth) && ($m4_block_name[$depth] ne $name)) {
-            $depth++;
-          }
+          my $depth = $m4_quote_depth;
           my $dollar = $dollar_char ne '';
-          my $nquote_cnt = $m4_quote_depth + ($dollar ? 0 : 1) - $depth;
-          if (($depth > $#m4_indentation_depth) || ($nquote_cnt < 0)) {
-            &parse_error("Reference to code/text block <$name> is not inside/alongside a block by that name.");
-            $depth = 1;  # Escape to top-level.
+          my $nquote_cnt = $dollar ? 0 : 1;
+          while($m4_block_name[$depth] ne $name) {
+            $depth--;
+            $nquote_cnt++;
+            if ($depth <= 0) {
+              &parse_error("Not within a quote labeled <$name>.");
+              last;
+            }
           }
           my $closes = '';
           my $opens = '';
@@ -815,6 +816,8 @@ sub read_line {
           for (my $l = $m4_quote_depth; $l >= $depth; $l--) {
             $closes .= $CLOSE_QUOTE;
             $opens .= $OPEN_QUOTE;
+            # Mark this escaped quote for continuation.
+            $m4_escaped[$l] = 1;
           }
           # Update $substr with substitution.
           if ($dollar) {
@@ -837,11 +840,7 @@ sub read_line {
       if (length($quote) > 1 || ($quote && $quote ne $OPEN_QUOTE && $quote ne $CLOSE_QUOTE)) {
         # Not already $OPEN_QUOTE or $CLOSE_QUOTE.
         # Open or close?
-        my $control_quote =
-            ($m4_quote_type[$m4_quote_depth] eq $leaf_open_quote ||
-             $m4_quote_type[$m4_quote_depth] eq $heavy_open_quote)
-               ? $CLOSE_QUOTE
-               : $OPEN_QUOTE;
+        my $control_quote = $open ? $OPEN_QUOTE : $CLOSE_QUOTE;
         # Replace
         $line = substr($line, 0, $pos) . $control_quote . substr($line, $pos + length($quote));
       }
@@ -945,22 +944,21 @@ sub read_line {
         my $open_quote_type =
              $block_open ?                   $line_block_start_type :
              ($quote eq $leaf_open_quote ||
-              $quote eq $heavy_open_quote) ? $quote :
+              $quote eq $heavy_open_quote ||
+              $quote eq $code_open_quote ||
+              $quote eq $scope_open_quote) ? $quote :
                                              "['";
+        print STDERR "DEBUG: Pushing $open_quote_type.\n" if ($uri eq '/tmp/m5/test.txt');
         # It's okay to update the open indentation to reflect this line if this is deeper indentation
         # than the start of the line or this quote level was or is a special block quote.
-        if (($#m4_indentation_depth < $m4_quote_depth) ||
-            $block_open ||
-            # Let leaf quotes terminate previous M4 quotes.
-            (($quote eq $leaf_open_quote || $quote eq $heavy_open_quote) &&
-             ($m4_quote_type[$m4_quote_depth] eq "['")
-            ) ||
-            # M4 quotes terminate previous leaf quotes.
-            (($quote eq $OPEN_QUOTE) &&
-             ($m4_quote_type[$m4_quote_depth] eq $leaf_open_quote ||
-              $m4_quote_type[$m4_quote_depth] eq $heavy_open_quote
-             )
-            )
+        if ((($#m4_indentation_depth < $m4_quote_depth) ||
+             $block_open ||
+             # If quote type is mismatched this is not a continuation.
+             !($m4_quote_type[$m4_quote_depth] eq $quote ||
+               ($m4_quote_type[$m4_quote_depth] eq "['" && $quote eq $OPEN_QUOTE)
+              )
+            ) &&
+            !$m4_escaped[$m4_quote_depth]  # marked for continuation
            ) {
           # This open quote is not a continuation.
 
@@ -977,7 +975,11 @@ sub read_line {
           $m4_block_name[$m4_quote_depth] = $line_block_name;
           $m4_block_eval[$m4_quote_depth] = $line_block_eval;
           $m4_balanced_parens_line_num[$m4_quote_depth] = $line_num;
+          $m4_escaped[$m4_quote_depth] = 0;
           $m4_body_indentation_depth[$m4_quote_depth] = $block_open ? -1 : $m4_body_indentation_depth[$m4_quote_depth - 1];  # This open quote may or may not reset the body indentation. Allow different indentation for continuation.
+        } else {
+          # In case this quote was escaped for continuation, it no longer is.
+          $m4_escaped[$m4_quote_depth] = 0;
         }
       } elsif ($open == 0) {
         # Close quote found.

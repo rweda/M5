@@ -199,8 +199,9 @@ m5_var(main_doc, <">
    - All literal text must be quoted.
    - Being more explicit about text that should evaluate and text that shouldn't might be better.
    Quote type:
-     - `"` for single-line literal text (Note, there is no distinction between begin and end.)
-     - `{`/`}` for single-line code (for current implementation, use `[`/`]`)
+     - `"` for literal text (Note, there is no distinction between begin and end.)
+     - `{`/`}` for code (for current implementation, use `[`/`]`). Code must be used as a
+     parameter (or use eval sugar).
      - `<'>`/`<'>` for heavily quoted text that may have `\n` and `"` in it. (same begin/end)
      - All of the above followed by a newline for block versions, excluding continuation cases
      (see below).
@@ -1648,8 +1649,6 @@ m5_var(main_doc, <">
    * Macros declaring their body using a code block: Set variable using <<m_out_eval>>.
    * Macros declaring their body using a string: Push/pop local variables named using `${empty}0__` prefix.
 <">)
-
-
 
 
 m5_do([
