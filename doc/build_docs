@@ -6,13 +6,14 @@ cd "$SCRIPT_DIR"
 
 #echo "Generating M5_spec.adoc"
 
-# Use SandPiper-SaaS to build the docs.
-#sandpiper-saas -i M5_spec_adoc.tlv -o M5_spec_adoc.sv --noline
-#/home/steve/repos/mono/sandpiper/bin/sandpiper -i M5_spec_adoc.tlv -o M5_spec_adoc.sv --noline --debug
+# Build the Asciidoc file.
 ../bin/m5 --obj_dir obj M5_spec.adoc.m5 > M5_spec.adoc
 
-#echo "Building M5_spec.html"
+# Build docs from the Asciidoc file.
+
+echo "Building M5_spec.html"
 asciidoctor -w M5_spec.adoc
-#echo "Building M5_spec.pdf"
+echo "Building M5_spec.pdf"
 asciidoctor-pdf M5_spec.adoc
-#asciidoctor -b docbook5 M5_spec.adoc
+echo "Building M5_spec.xml"
+asciidoctor -b docbook5 M5_spec.adoc

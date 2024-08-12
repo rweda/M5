@@ -218,7 +218,16 @@ m5_var(main_doc, <">
    This affects parenthesis checking and quote-type matching. Currently, this is based on
    returning to a quote level within a line. Link this instead to labeled escape quotes
    (permitting "<>"). Label escapes can be more generic allowing quoting within the escape,
-   and we can permit continuation across multiple lines.
+   and we can permit continuation across multiple lines. Hmmm... don't have escape quotes.
+   Instead have scoped variable instantiations and macro calls. E.g.:
+   
+    var(ErrorLevel, "error")  # or "warning" or "info"
+    ...
+    macro(report, Msg, r:{call(r:$ErrorLevel, $Msg)})
+
+   This way there's no syntax ending the code block, so continuation is clear and parens
+   clearly match.
+
    - "*" (for evaluate) is no longer worth it.
    - Added "3.foo" syntax for numbered function parameters to avoid "[".
   
@@ -264,8 +273,8 @@ m5_var(main_doc, <">
       "Hey, "$Player"!"
       if_eq($Val, 2, {hi()"."})
       # A text block with explicit indentation.
-      chomp(   # Quote can be on this line as well, as long as the text doesn't start with whitespace.
-         "
+      chomp("   # Quote can be on this line as well, as long as the text doesn't start with whitespace.
+         v
          Here's a line of text as a block.
       ".)   # "." includes a newline at the end of the block without an extra line.
       
@@ -384,6 +393,8 @@ m5_var(main_doc, <">
 
    ...
    **/
+
+
    [[usage]]
    == Getting Started with the M5 Tool
 
@@ -1256,7 +1267,7 @@ m5_var(main_doc, <">
 
    * `where_am_i`: Prints the current quote context to STDERR.
    * `[enable/disable]_[paren/quote]_checks`: For disabling parenthesis/quote checking.
-   * `[enable/disable]_sugar`: For disabling syntactic sugar (`m5_` and code/text blocks).
+   * `[enable/disable]\_sugar`: For disabling syntactic sugar (`m5_` and code/text blocks).
    * `[enable/disable]_debug`: Improves the readability of the file resulting from sugar processing, and continues processing after normally-fatal errors.
    * `[enable/disable]_verbose_checks`: Enables or disables verbose checking.
 
@@ -1655,23 +1666,21 @@ m5_do([
    enable_doc(adoc)
 
    /Shorthand for m5_doc_macro__adoc__fn__<name>.
-   macro(DocFn, ['m5_doc_as_fn($@)m5_get(doc_macro__adoc__fn__$1)'])
-   macro(DocFns, ['m5_doc_now_as_fns($@)'])
-   macro(DocVar, defn(doc_macro__doc_var))
+   macro(DocFn, {nl()doc_as_fn($@)get(doc_macro__adoc__fn__$1)nl()})
+   macro(DocFns, {nl()doc_now_as_fns($@)}nl())
+   macro(DocVar, nl()defn(doc_macro__doc_var)nl())
 
-
-   var(mac_spec, *['
+   var(mac_spec, *[
+      ~(<">
       
-      == Macro Library
+         == Macro Library
 
-      ['
          This section documents the macros defined by the M5 1.0 library. Some macros documented here are
          necessary to enable inclusion of this library and are, by necessity, built-into the language. This
          distinction may not be documented.
-      ']
       
-      === Specification Conventions
-      ['
+         === Specification Conventions
+      
          Macros are listed by category in a logical order. An alphabetical <<Index>> of macros can be found at the end of
          this document (at least in the `.pdf` version).
          Macros that return integer values, unless otherwise specified, return decimal value strings. Similarly,
@@ -1680,27 +1689,28 @@ m5_do([
          
          Resulting output text is, by default, literal (quoted). Macros named with a `_eval` suffix generally result
          in text that gets evaluated.
-      ']
       
-      === Assigning and Accessing Macros/Variables
+         === Assigning and Accessing Macros/Variables
 
-      ==== Declaring/Setting Variables
+         ==== Declaring/Setting Variables
 
-      m5_DocFn(var, <">
+      <">)
+      
+      ~DocFn(var, <">
          D: Declare a scoped variable. See <<variables>>.
          S: the variable is defined
          E: var(Foo, 5)
          A: (m_macro, m_fn)
       <">, Name: variable name, ?Value: the value for the variable, ...: additional variables and values to declare (values are required))
-
-      m5_DocFn(set, <">
+      
+      ~DocFn(set, <">
          D: Set the value of a scoped variable. See <<variables>>.
          S: the variable's value is set
          E: set(Foo, 5)
          A: (m_var)
       <">, Name: variable name, Value: the value)
-
-      m5_DocFn(push_var, <">
+      
+      ~DocFn(push_var, <">
          D: Declare a variable that must be explicitly popped.
          S: the variable is defined
          E: push_var(Foo, 5)
@@ -1708,8 +1718,8 @@ m5_do([
          pop(Foo)
          A: (m_pop)
       <">, Name: variable name, Value: the value)
-
-      m5_DocFn(pop, <">
+      
+      ~DocFn(pop, <">
          D: Pop a variable or traditional macro declared using `push_var` or `push_macro`.
          S: the macro is popped
          E: push_var(Foo, 5)
@@ -1717,15 +1727,17 @@ m5_do([
          pop(Foo)
          A: (m_push_var, m_push_macro)
       <">, Name: variable name)
-
-      m5_DocFn(null_vars, <">
+      
+      ~DocFn(null_vars, <">
          D: Declare variables with empty values.
          S: the variables are declared
       <">, ...: names of variables to declare)
-
-      ==== Declaring Macros
-
-      m5_DocFns(['fn, lazy_fn'], <">
+      ~("
+      
+         ==== Declaring Macros
+      
+      ")
+      ~DocFns(['fn, lazy_fn'], <">
          D: Declare a function. For details, see <<Functions>>. `fn` and `lazy_fn` are functionally equivalent but
          have different performance profiles, and lazy functions do not support inherited (`^`) parameters.
          Lazy functions wait until they are used before defining themselves, so they are generally preferred
@@ -1739,7 +1751,7 @@ m5_do([
 
 
       /**
-      m5_DocFn(, <">
+      ~DocFn(, <">
          D: 
          O: 
          S: none
@@ -1749,7 +1761,7 @@ m5_do([
       <">, ...: )
       **/
       
-      m5_DocFns(['macro, null_macro'], <">
+      ~DocFns(['macro, null_macro'], <">
          D: Declare a scoped macro. See <<Declaring Macros>>. A null macro must produce no output.
          S: the macro is declared
          E: m5_macro(ParseError, <p>[
@@ -1757,22 +1769,24 @@ m5_do([
          ])
          A: (m_var, m_set_macro)
       <">, Name: the macro name, Body: the body of the macro)
-
-      m5_DocFn(set_macro, <">
+      
+      ~DocFn(set_macro, <">
          D: Set the value of a scoped(?) macro. See <<Declaring Macros>>. Using this macro is rare.
          S: the macro value is set
          A: (m_var, m_set_macro)
       <">, Name: the macro name, Body: the body of the macro)
       
-      m5_DocFn(push_macro, <">
+      ~DocFn(push_macro, <">
          D: Push a new value of a macro that must be explicitly popped. Using this macro is rare.
          S: the macro value is pushed
          A: (m_pop, m_macro, m_set_macro)
       <">, Name: the macro name, Body: the body of the macro)
+      ~("
 
-      ==== Accessing Macro/Variable Values
+         ==== Accessing Macro/Variable Values
       
-      m5_DocFn(get, <">
+      ")
+      ~DocFn(get, <">
          O: the value of a variable without `$` substitution (even if not assigned as a string)
          E: var(OneDollar, ['$1.00'])
          get(OneDollar)
@@ -1780,17 +1794,18 @@ m5_do([
          $1.00
          A: (m_var, m_set)
       <">, Name: name of the variable)
-
-      m5_DocFns(['must_exist, var_must_exist'], <">
+      
+      ~DocFns(['must_exist, var_must_exist'], <">
          D: Ensure that the `Name`d macro (`must_exist`) or variable (`var_must_exist`) exists.
       <">, Name: name of the macro/variable)
-
+      ~("
       
-      === Code Constructs
+         === Code Constructs
       
-      ==== Status
+         ==== Status
 
-      m5_DocVar(status, <">
+      ")
+      ~DocVar(status, <">
          D: This universal variable is set as a side-effect of some macros to indicate an exceptional
          condition or non-evaluation of a body argument. It may be desirable to check this condition
          after calling such macros. Macros, like `m5_else` take action based on the value
@@ -1799,13 +1814,13 @@ m5_do([
          it list this in their "Side Effect(s)".
          A: (m_fn, m_return_status, m_else, m_sticky_status)
       <">)
-
-      m5_DocVar(sticky_status, <">
+      
+      ~DocVar(sticky_status, <">
          D: Used by the <<m_sticky_status>> macro to capture the value of `m5_status`.
          A: (v_status, m_sticky_status)
       <">)
-
-      m5_DocFn(sticky_status, <">
+      
+      ~DocFn(sticky_status, <">
          D: Used to capture the first non-empty status of multiple macro calls.
          S: <<v_sticky_status>> is set to <<v_status>> if it is empty and <<v_status>> is not.
          E: if(m5_A >= m5_Min, [''])
@@ -1815,18 +1830,20 @@ m5_do([
          if(m5_reset_sticky_status(), ['m5_error(m5_A is out of range.)'])
          A: (v_status, m_sticky_status, m_reset_sticky_status)
       <">)
-
-      m5_DocFn(reset_sticky_status, <">
+      
+      ~DocFn(reset_sticky_status, <">
          D: Tests and resets <<v_sticky_status>>.
          O: [`0` / `1`] the original nullness of <<v_sticky_status>>
          S: <<v_sticky_status>> is reset (emptied/nullified)
          A: (m_sticky_status)
       <">)
+      ~("
 
-      ==== Conditionals
+         ==== Conditionals
 
-      m5_doc_as_fn(unless, [''], Cond, TrueBody, FalseBody)
-      m5_DocFns(['if, unless, else_if'], <">
+      ")
+      doc_as_fn(unless, "", Cond, TrueBody, FalseBody)
+      ~DocFns(['if, unless, else_if'], <">
          D: An if/else construct. The condition is an expression that evaluates using <<m_calc>> (generally boolean (0/1)).
          The first block is evaluated if the condition is non-0 (for `if` and `else_if`) or 0 (for `unless`),
          otherwise, subsequent conditions are evaluated, or if only one argument remains, it is the
@@ -1848,8 +1865,8 @@ m5_do([
       <">, Cond: ['the condition expression, evaluated as for `m5_\calc`'],
          TrueBody: ['the body to evaluate if the condition evaluates to true (1)'],
          ...: ['either a `FalseBody` or (for `m5_\if` only) recursive `Cond`, `TrueBody`, `...` arguments to evaluate if the condition evaluates to false (not 1)'])
-
-      m5_DocFns(['if_eq, if_neq'], <">
+      
+      ~DocFns(['if_eq, if_neq'], <">
          D: An if/else construct where each condition is a comparison of an independent pair of strings.
          The first block is evaluated if the strings match (for `if`) or mismatch (for `if_neq`), otherwise, the
          remaining arguments are processed in a recursive call, either comparing the next pair of strings
@@ -1871,11 +1888,11 @@ m5_do([
          String2: the second string to compare,
          TrueBody: the body to evaluate if the strings match,
          ...: ['either a `FalseBody` or recursive `String1`, `String2`, `TrueBody`, `...` arguments to evaluate if the strings do not match'])
-
-      m5_doc_as_fn(if_null, [''], Var, Body, ?ElseBody)
-      m5_doc_as_fn(if_var_def, [''], Var, Body, ?ElseBody)
-      m5_doc_as_fn(if_var_ndef, [''], Var, Body, ?ElseBody)
-      m5_DocFns(['if_null, if_var_def, if_var_ndef, if_defined_as'], <">
+      
+      doc_as_fn(if_null, [''], Var, Body, ?ElseBody)
+      doc_as_fn(if_var_def, [''], Var, Body, ?ElseBody)
+      doc_as_fn(if_var_ndef, [''], Var, Body, ?ElseBody)
+      ~DocFns(['if_null, if_var_def, if_var_ndef, if_defined_as'], <">
          D: Evaluate `Body` if the named variable is empty (`if_null`), defined (`if_var_def`), not defined (`if_var_ndef`), or not defined and equal to the given value (`if_defined_as`).,
          or `ElseBody` otherwise.
          O: the output of the evaluated body
@@ -1888,8 +1905,8 @@ m5_do([
          Value: ['for `if_defined_as` only, the value to compare against'],
          Body: ['the body to evaluate based on `m5_\Name`'s existence or definition'],
          ?ElseBody: a body to evaluate if the condition if `Body` is not evaluated)
-
-      m5_DocFns(['else, if_so'], <">
+      
+      ~DocFns(['else, if_so'], <">
          D: Likely following a macro that sets `m5_status`, this evaluates a body if <<v_status>> is non-empty (for `else`) or empty (for `if_so`).
          O: the output of the evaluated body
          S: status is set, empty iff a body was evaluated; side-effects of the evaluated body
@@ -1901,8 +1918,8 @@ m5_do([
          ])
          A: (m_if, m_if_eq, m_if_neq, m_if_null, m_if_def, m_if_ndef, m_var_regex)
       <">, Body: ['the body to evaluate based on <<v_status>>'])
-
-      m5_DocFn(else_if_def, <">
+      
+      ~DocFn(else_if_def, <">
          D: Evaluate `Body` iff the `Name`d variable is defined.
          O: the output of the evaluated body
          S: status is set, empty iff a body was evaluated; side-effects of the evaluated body
@@ -1910,8 +1927,8 @@ m5_do([
          A: (m_else_if, m_if_def)
       <">, Name: the name of the case variable whose value to compare against all cases,
          Body: ['the body to evaluate based on <<v_status>>'])
-
-      m5_DocFn(case, <">
+      
+      ~DocFn(case, <">
          D: Similar to <<m_if>>, but each condition is a string comparison against a value in the `Name` variable.
          O: the output of the evaluated body
          S: status is set, empty iff a block was evaluated; side-effects of the evaluated body
@@ -1927,11 +1944,12 @@ m5_do([
          Value: the first string value to compare `VarName` against,
          TrueBody: the body to evaluate if the strings match,
          ...: ['either a `FalseBody` or recursive `Value`, `TrueBody`, `...` arguments to evaluate if the strings do not match'])
-      
+      ~("
 
-      ==== Loops
+         ==== Loops
       
-      m5_DocFn(loop, <">
+      ")
+      ~DocFn(loop, <">
          D: A generalized loop construct. Implicit variable `m5_LoopCnt` starts at 0 and increments by 1
          with each iteration (after both blocks).
          O: output of the blocks
@@ -1946,8 +1964,8 @@ m5_do([
          DoBody: ['a block to evaluate before evaluating `WhileCond`'],
          WhileCond: ['an expression (evaluated with <<m_calc>>) that determines whether to continue the loop'],
          ?WhileBody: ['a block to evaluate if `WhileCond` evaluates to true (1)'])
-
-      m5_DocFn(repeat, <">
+      
+      ~DocFn(repeat, <">
          D: Evaluate a block a predetermined number of times. Implicit variable `m5_LoopCnt` starts at 0
          and increments by 1 with each iteration.
          O: output of the block
@@ -1958,8 +1976,8 @@ m5_do([
          A: (m_loop)
       <">, Cnt: ['the number of times to evaluate the body'],
          Body: ['a block to evaluate `Cnt` times'])
-
-      m5_DocFn(for, <">
+      
+      ~DocFn(for, <">
          D: Evaluate a block for each item in a listed. Implicit variable `m5_LoopCnt` starts at 0
          and increments by 1 with each iteration.
          O: output of the block
@@ -1971,10 +1989,12 @@ m5_do([
       <">, Var: ['the loop item variable'],
          List: ['a list of items to iterate over, the last of which will be skipped if empty; for each item, `Var` is set to the item, and `Body` is evaluated'],
          Body: ['a block to evaluate for each item'])
+      ~("
 
-      ==== Recursion
+         ==== Recursion
       
-      m5_DocFn(recurse, <">
+      ")
+      ~DocFn(recurse, <">
          D: Call a macro recursively to a given maximum recursion depth. Functions have a built-in recursion
          limit, so this is only useful for macros.
          O: the output of the recursive call
@@ -1982,13 +2002,14 @@ m5_do([
          E: m5_recurse(20, myself, args)
          A: (v_recursion_limit, m_on_return)
       <">, max_depth: the limit on the depth of recursive calls made through this macro, macro: the recursive macro to call, ...: arguments for `macro`)
+      ~("
 
-
-      === Working with Strings
+         === Working with Strings
       
-      ==== Special Characters
+         ==== Special Characters
       
-      m5_DocFn(nl, <">
+      ")
+      ~DocFn(nl, <">
          D: Produce a new-line. Programmatically-generated output should always use this macro
          (directly or indirectly) to produce new-lines, rather than using an actual new-line in
          the source file. Thus the input file formatting can reflect the code structure, not the output
@@ -1996,7 +2017,7 @@ m5_do([
          O: a new-line
       <">)
       
-      m5_DocFns(['open_quote, close_quote'], <">
+      ~DocFns(['open_quote, close_quote'], <">
          D: Produce an open or close quote. These should rarely (never?) be needed and should be used with extra
          caution since they can create undetected imbalanced quoting. The resulting quote is literal,
          but it will be interpreted as a quote if evaluated.
@@ -2004,12 +2025,12 @@ m5_do([
          A: (m_quote)
       <">)
       
-      m5_DocVar(arg_comma, <">
+      ~DocVar(arg_comma, <">
          O: A macro argument separator comma.
          A: (Literal Commas)
       <">)
       
-      m5_DocFns(['orig_open_quote, orig_close_quote'], <">
+      ~DocFns(['orig_open_quote, orig_close_quote'], <">
          D: Produce `['` or `']`. These quotes in the original file are translated internally to ASCII
          control characters, and in output (STDOUT and STDERR) these control characters are translated to single-unicode-character
          "printable quotes". This original quote syntax is most easily produced using these macros, and
@@ -2019,13 +2040,13 @@ m5_do([
          A: (m_printable_open_quote, m_printable_close_quote)
       <">)
       
-      m5_DocFns(['printable_open_quote, printable_close_quote'], <">
+      ~DocFns(['printable_open_quote, printable_close_quote'], <">
          D: Produce the single unicode character used to represent `['` or `']` in output (STDOUT and STDERR).
          O: the printable quote
          A: (m_orig_open_quote, m_orig_close_quote)
       <">)
       
-      m5_DocFn(['UNDEFINED'], <">
+      ~DocFn(['UNDEFINED'], <">
          D: A unique untypeable value indicating that no assignment has been made.
          This is not used by any standard macro, but is available for explicit use.
          O: the value indicating "undefined"
@@ -2033,18 +2054,20 @@ m5_do([
          m5_if_eq(Foo, m5_UNDEFINED, ['['Foo is undefined.']'])
          R: Foo is undefined.
       <">)
-      
-      ==== Slicing and Dicing Strings
+      ~("
 
-      m5_DocFns(['append_var, prepend_var, append_macro, prepend_macro'], <">
+         ==== Slicing and Dicing Strings
+
+      ")
+      ~DocFns(['append_var, prepend_var, append_macro, prepend_macro'], <">
          D: Append or prepend to a variable or macro. (A macro evaluates its context; a variable does not.)
          E: m5_var(Hi, ['Hello'])
          m5_append_var([', ']m5_Name['!'])
          m5_Hi
          P: Hello, Joe!
       <">, Name: the variable name, String: the string to append/prepend)
-
-      m5_DocFns(['substr, substr_eval'], <">
+      
+      ~DocFns(['substr, substr_eval'], <">
          D: Extract a substring from `String` starting from `Index` and extending for `Length` ASCII characters (unicode bytes)
          or to the end of the
          string if `Length` is omitted or exceeds the string length. The first character of the string has index 0.
@@ -2068,14 +2091,14 @@ m5_do([
          P: lo Wo
          A: (m_dequote, m_requote)
       <">, String: the string, From: the starting position of the substring, ?Length: the length of the substring)
-
-      m5_DocFn(join, <">
+      
+      ~DocFn(join, <">
          O: the arguments, delimited by the given delimiter string
          E: m5_join([', '], ['one'], ['two'], ['three'])
          P: one, two, three
       <">, Delimiter: text to delimit arguments, ...: arguments to concatenate (with delimitation))
 
-      m5_DocFns(['translit, translit_eval'], <">
+      ~DocFns(['translit, translit_eval'], <">
          D: Transliterate a string, providing a set of character-for-character substitutions (where a character
          is a unicode byte). `translit_eval` evaluates the resulting string.
          Note that `['` and `']` are internally single characters. It is possible to
@@ -2086,14 +2109,14 @@ m5_do([
          P: Testing: A, B, C.
       <">, String: the string to tranliterate, InChars: the input characters to replace, OutChars: the corresponding character replacements)
 
-      m5_DocFns(['uppercase, lowercase'], <">
+      ~DocFns(['uppercase, lowercase'], <">
          D: Convert upper-case ASCII characters to lower-case.
          O: the converted string
          E: m5_uppercase(['Hello!'])
          P: HELLO!
       <">, String: the string)
 
-      m5_DocFn(replicate, <">
+      ~DocFn(replicate, <">
          D: Replicate a string the given number of times. (A non-evaluating version of `m5_repeat`.)
          O: the replicated string
          E: m5_replicate(3, ['.'])
@@ -2101,14 +2124,16 @@ m5_do([
          A: (m_repeat)
       <">, Cnt: the number of repetitions, String: the string to repeat)
 
-      m5_DocFn(strip_trailing_whitespace_from, <">
+      ~DocFn(strip_trailing_whitespace_from, <">
          D: Strip trailing whitespace from the given variable.
          S: the variable is updated
       <">, Var: the variable)
+      ~("
 
-      ==== Formatting Strings
-      
-      m5_DocFn(format_eval, <">
+         ==== Formatting Strings
+
+      ")
+      ~DocFn(format_eval, <">
          D: Produce formatted output, much like the C `printf` function. The `string` argument may contain `%`
          specifications that format values from `...` arguments.
 
@@ -2143,31 +2168,34 @@ m5_do([
          6: 0X2.0P+0
          7: 20
       <">, string: the string to format, ...: ['values to format, one for each `%` sequence in `string`'])
+      ~("
 
-      ==== Inspecting Strings
-      
-      m5_DocFn(length, <">
+         ==== Inspecting Strings
+
+      ")
+      ~DocFn(length, <">
          O: the length of a string in ASCII characters (unicode bytes)
       <">, String: the string)
       
-      m5_DocFn(index_of, <">
+      ~DocFn(index_of, <">
          O: the position in a string in ASCII characters (unicode bytes) of the first occurence of a given substring or -1 if not present, where the string starts with character zero
       <">, String: the string, Substring: the substring to find)
 
-      m5_DocFn(num_lines, <">
+      ~DocFn(num_lines, <">
          O: the number of new-lines in the given string
       <">, String: the string)
       
-      m5_DocFn(for_each_line, <">
+      ~DocFn(for_each_line, <">
          D: Evaluate `m5_Body` for every line of `m5_Text`, with `m5_Line` assigned to the line (without any new-lines).
          O: output from `m5_Body`
          S: side-effects of `m5_Body`
       <">, Text: the block of text, Body: ['the body to evaluate for every `m5_\if` of `m5_\Text`'])
-
+      ~("
 
       ==== Safely Working with Strings
 
-      m5_DocFns(['dequote, requote'], <">
+      ")
+      ~DocFns(['dequote, requote'], <">
          D: For strings that may contain quotes, working with substrings can lead to imbalanced quotes
          and unpredictable behavior. `dequote` replaces quotes for (different) control-character/byte quotes, aka "surrogate-quotes"
          that have no special meaning. Dequoted strings can be safely sliced and diced, and once reconstructed into
@@ -2175,24 +2203,24 @@ m5_do([
          O: dequoted or requoted string
       <">, String: the string to dequote or requote)
 
-      m5_DocFn(output_with_restored_quotes, <">
+      ~DocFn(output_with_restored_quotes, <">
          O: the given string with quotes, surrogate quotes and printable quotes replaced by their original format ([''])
          A: (m_printable_open_quote, m_printable_close_quote)
       <">, String: the string to output)
 
-      m5_DocFn(no_quotes, <">
+      ~DocFn(no_quotes, <">
          D: Assert that the given string contains no quotes.
       <">, String: the string to test)
-      
-      ==== Regular Expressions
+      ~("
 
-      ['
+         ==== Regular Expressions
+
          Regular expressions in M5 use the same regular expression syntax as GNU Emacs. (See
          https://www.gnu.org/software/emacs/manual/html_node/emacs/Regexps.html[GNU Emacs Regular Expressions].)
          This syntax is similar to BRE, Basic Regular Expressions in POSIX and is regrettably rather limited.
          Extended Regular Expressions are not supported.
-      ']
 
+      ")
       /**
       m5_DocFn(, <">
          D: 
@@ -2204,7 +2232,7 @@ m5_do([
       <">, ...: )
       **/
 
-      m5_DocFns(['regex, regex_eval'], <">
+      ~DocFns(['regex, regex_eval'], <">
          D: Searches for `Regexp` in `String`, resulting in either the position of the match or the given replacement.
          
          `Replacement` provides the output text. It may contain references to subexpressions of `Regex` to expand
@@ -2227,7 +2255,7 @@ m5_do([
          Regex: the regular expression to match,
          ?Replacement: the replacement)
 
-      m5_DocFn(var_regex, <">
+      ~DocFn(var_regex, <">
          D: Declare variables assigned to subexpressions of a regular expression.
          S: `status` is assigned, non-empty iff no match.
          E: m5_var_regex(['mul A, B'], ['^\(\w+\)\s+\(w+\),\s*\(w+\)$'], (Operation, Src1, Src2))
@@ -2238,7 +2266,7 @@ m5_do([
          Regex: the Gnu Emacs regular expression,
          VarList: a list in parentheses of variables to declare for subexpressions)
 
-      m5_DocFns(['if_regex, else_if_regex'], <">
+      ~DocFns(['if_regex, else_if_regex'], <">
          D: For chaining `var_regex` to parse text that could match a number of formats.
          Each pattern match is in its own scope. `else_if_regex` does nothing if `m5_status` is non-empty.
          O: output of the matching body
@@ -2255,7 +2283,7 @@ m5_do([
          Body: the body to evaluate if the pattern matches,
          ...: ['else body or additional repeated Regex, VarList, Body, ... to process if pattern doesn't match'])
 
-      m5_DocFn(for_each_regex, <">
+      ~DocFn(for_each_regex, <">
          D: Evaluate body for every pattern matching regex in the string. <<v_status>> is unassigned.
          S: side-effects of evaluating the body
          E: m5_for_each_regex(H1dd3n D1git5, ['\([0-9]\)'], (Digit), ['Found m5_Digit. '])
@@ -2265,17 +2293,18 @@ m5_do([
          Regex: the Gnu Emacs regular expression,
          VarList: a (non-empty) list in parentheses of variables to declare for subexpressions,
          Body: the body to evaluate for each matching expression)
+      ~("
 
+         === Utilities
+      
+         ==== Fundamental Macros
 
-      === Utilities
-      
-      ==== Fundamental Macros
-      
-      m5_DocFn(defn, <">
+      ")
+      ~DocFn(defn, <">
          O: the M4 definition of a macro; note that the M4 definition is slightly different from the M5 definition
       <">, Name: the name of the macro)
 
-      m5_DocFn(call, <">
+      ~DocFn(call, <">
          D: Call a macro. Versus directly calling a macro, this indirect mechanism has two primary uses.
          First it provides a consistent syntax for calls with zero arguments as for calls with a non-zero
          number of arguments. Second, the macro name can be constructed.
@@ -2285,14 +2314,14 @@ m5_do([
          A: (m_comma_shift, m_comma_args)
       <">, Name: the name of the macro to call, ...: the arguments of the macro to call)
 
-      m5_DocFn(quote, <">                  
+      ~DocFn(quote, <">                  
          O: a comma-separated list of quoted arguments, i.e. `${empty}@`                   
          E: m5_quote(A, ['B'])
          P: ['A'],['B']
          A: (m_nquote)
       <">, ...: arguments to be quoted)
       
-      m5_DocFn(nquote, <">
+      ~DocFn(nquote, <">
          O: the arguments within the given number of quotes, the innermost applying individually to
          each argument, separated by commas. A `num` of `0` results in the inlining of `${empty}@`.
          E: 1: m5_nquote(3, A, ['m5_nl'])
@@ -2302,7 +2331,7 @@ m5_do([
          A: (m_quote)
       <">, ...: )
       
-      m5_DocFn(eval, <">
+      ~DocFn(eval, <">
          D: Evaluate the argument.
          O: the result of evaluating the argument
          S: the side-effects resulting from evaluation
@@ -2312,15 +2341,17 @@ m5_do([
          2: m5_calc(1 + 1)
       <">, Expr: the expression to evaluate)
 
-      m5_DocFns(['comment, nullify'], <">
+      ~DocFns(['comment, nullify'], <">
          O: nothing at all; used to provide a comment (though <<comments>> are preferred) or to discard the result of an evaluation
       <">, ...: )
+      ~("
+         
+         ==== Manipulating Macro Stacks
 
-      ==== Manipulating Macro Stacks
+         See <<Macro Stacks>>.
 
-      See <<Macro Stacks>>.
-
-      m5_DocFns(['get_ago'], <">
+      ")
+      ~DocFns(['get_ago'], <">
          O: ['a value from a variable's stack, or empty if not defined']
          E: *{
             var(Foo, A)
@@ -2331,7 +2362,7 @@ m5_do([
          P: AB
       <">, Name: variable name, Ago: ['0 for current definition, 1 for previous, and so on'])
 
-      m5_DocFn(depth_of, <">
+      ~DocFn(depth_of, <">
          O: the number of values on a variable's stack
          E: m5_depth_of(Foo)
          m5_push_var(Foo, A)
@@ -2340,10 +2371,12 @@ m5_do([
          
          1
       <">, Name: macro name)
+      ~("
 
-      ==== Argument Processing
+         ==== Argument Processing
 
-      m5_DocFns(['shift, comma_shift'], <">
+      ")
+      ~DocFns(['shift, comma_shift'], <">
          D: Removes the first argument. `comma_shift` includes a leading `,` if there are more than zero arguments.
          O: a list of remaining arguments, or `['']` if less than two arguments
          S: none
@@ -2351,7 +2384,7 @@ m5_do([
          m5_call(foo['']m5_comma_shift($@)) //<"><">/ $@ has at least 1 argument
       <">, ...: arguments to shift)
 
-      m5_DocFn(nargs, <">
+      ~DocFn(nargs, <">
          O: the number of arguments given (useful for variables that contain lists)
          E: m5_set(ExampleList, ['hi, there'])
          m5_nargs(m5_ExampleList)
@@ -2359,13 +2392,13 @@ m5_do([
          2
       <">, ...: arguments)
 
-      m5_DocFn(argn, <">
+      ~DocFn(argn, <">
          O: the nth of the given `arguments` or `['']` for non-existent arguments
          E: m5_argn(2, a, b, c)
          P: b
       <">, ArgNum: the argument number (n) (must be positive), ...: arguments)
 
-      m5_DocFn(comma_args, <">
+      ~DocFn(comma_args, <">
          D: Convert a quoted argument list to a list of arguments with a preceding comma.
          This is necessary to properly work with argument lists that may contain zero arguments.
          E: m5_call(foo['']m5_comma_args(['$@']), last)
@@ -2373,7 +2406,7 @@ m5_do([
       <">, ...: quoted argument list)
 
       /** Deprecated. Use above instead for better consistency
-      m5_DocFn(call_varargs, <">
+      ~DocFn(call_varargs, <">
          D: For working with argument lists that can have zero arguments, this is a bit cleaner
          looking that using `m5_comma_args` for common cases. This is a variant of `m5_call` that has a
          final argument that is a list of 0 or more additional arguments.
@@ -2382,7 +2415,7 @@ m5_do([
       <">, ...: quoted, argument list)
       **/
       
-      m5_DocFn(echo_args, <">
+      ~DocFn(echo_args, <">
          D: For rather pathological use illustrated in the example, ...
          O: the argument list (`${empty}@`)
          E: m5_macro(append_to_paren_list, ['m5_echo_args$1, ${empty}2'])
@@ -2391,7 +2424,7 @@ m5_do([
       <">, ...: the arguments to output)
 
       /**
-      m5_DocFn(, <">
+      ~DocFn(, <">
          D: 
          O: 
          S: none
@@ -2400,10 +2433,12 @@ m5_do([
          A: ()
       <">, ...: )
       **/
+      ~("
 
-      ==== Arithmetic Macros
-      
-      m5_DocFn(calc, <">
+         ==== Arithmetic Macros
+
+      ")
+      ~DocFn(calc, <">
          D: Calculate an expression.
          Calculations are done with 32-bit signed integers. Overflow silently results in wraparound.
          A warning is issued if division by zero is attempted, or if the expression could not be parsed.
@@ -2448,7 +2483,7 @@ m5_do([
          ?Radix: the radix of the output (default 10),
          ?Width: ['a minimum width to which to zero-pad the result if necessary (excluding a possible negative sign)'])
 
-      m5_DocFns(['equate, operate_on'], <">
+      ~DocFns(['equate, operate_on'], <">
          D: Set a variable to the result of an arithmetic expression computed by <<m_calc>>. For
          `m5_operate_on`, the variable value implicitly preceeds the expression, similar to `+=`, `*=`, etc. in other languages.
          S: the variable is set
@@ -2461,30 +2496,33 @@ m5_do([
          A: (m_set, m_calc)
       <">, Name: name of the variable to set, Expr: the expression/partial-expression to evaluate)
 
-      m5_DocFns(['increment, decrement'], <">
+      ~DocFns(['increment, decrement'], <">
          D: Increment/decrement a variable holding an integer value by one or by the given amount.
          S: the variable is updated
          E: m5_increment(Cnt)
          A: (m_set, m_calc, m_operate_on)
       <">, Name: name of the variable to set, ?Amount: ['the integer amount to increment/decrement, defaulting to zero'])
+      ~("
 
-      ==== Boolean Macros
+         ==== Boolean Macros
       
-      These have boolean (`0` / `1`) results. Note that some <<m_calc>> expressions result in boolean values as well.
+         These have boolean (`0` / `1`) results. Note that some <<m_calc>> expressions result in boolean values as well.
       
-      m5_DocFns(['is_null, isnt_null'], <">
+      ")
+      ~DocFns(['is_null, isnt_null'], <">
          O: [`0` / `1`] indicating whether the value of the given variable (which must exist) is empty
       <">, Name: the variable name)
 
-      m5_DocFns(['eq, neq'], <">
+      ~DocFns(['eq, neq'], <">
          O: [`0` / `1`] indicating whether the given `String1` is/is-not equivalent to `String2` or any of the remaining string arguments
          E: m5_if(m5_neq(m5_Response, ok, bad), ['m5_error(Unknown response: m5_Response.)'])
       <">, String1: the first string, String2: the second string, ...: further strings to also compare)
+      ~("
 
+         ==== Within Functions or Code Blocks
 
-      ==== Within Functions or Code Blocks
-      
-      m5_DocFns(['fn_args, comma_fn_args'], <">
+      ")
+      ~DocFns(['fn_args, comma_fn_args'], <">
          D: `m5_fn_args()` results in an unquoted list containing the numbered argument (each individually quoted) of the current function.
          This is like `${empty}@`, but it can be more convenient in nested functions where the use of
          <<block_labels>> (e.g. `${empty}<label>@`) would be needed. `m5_comma_fn_args()` is the same, but has a preceeding comma if the list is
@@ -2496,7 +2534,7 @@ m5_do([
          A: (m_fn_arg, m_fn_arg_cnt)
       <">)
       
-      m5_DocFn(fn_arg, <">
+      ~DocFn(fn_arg, <">
          D: Access a function argument by position from `m5_fn_args`.
          This is like, e.g. `${empty}3`, but it can be more convenient in nested functions where the use of
          <<block_labels>> (e.g. `${empty}<label>3`) would be needed, and
@@ -2505,7 +2543,7 @@ m5_do([
          A: (m_fn_args, m_fn_arg_cnt)
       <">, Num: the argument number)
 
-      m5_DocFn(fn_arg_cnt, <">
+      ~DocFn(fn_arg_cnt, <">
          D: The number of arguments in `m5_fn_args` or `${empty}#`.
          This is like, e.g. `${empty}#`, but it can be more convenient in nested functions where the use of
          <<block_labels>> (e.g. `${empty}<label>#`) would be needed.
@@ -2513,7 +2551,7 @@ m5_do([
          A: (m_fn_args, m_fn_arg)
       <">)
 
-      m5_DocFns(['out, out_eval'], <">
+      ~DocFns(['out, out_eval'], <">
          D: These append to code block output that is expanded after the evaluation of the block. `m5_out` captures
          literal text, while the argument to `m5_out_eval` gets evaluated. Thus `m5_out_eval` is useful for code
          block side effects. `m5_out` is useful only in pathological cases within statements and by dynamically
@@ -2526,14 +2564,14 @@ m5_do([
          A: (Code Blocks, Aftermath)
       <">, String: the string to output)
 
-      m5_DocFn(return_status, <">
+      ~DocFn(return_status, <">
          D: Provide return status. (Shorthand for `m5_on_return(set, status, m5_Value)`.) This negates any prior calls
          to `return_status` from the same function.
          S: sets `m5_status`
          A: (m_on_return, status, Aftermath)
       <">, ?Value: ['the status value to return, defaulting to the current value of `m5_\status`'])
       
-      m5_DocFn(on_return, MacroName, ..., <">
+      ~DocFn(on_return, MacroName, ..., <">
          D: Call a macro upon returning from a function. Arguments are those for m5_call.
          This is most often used to have a function declare or set a variable/macro as a side effect.
          It is also useful to perform a tail recursive call without growing the call stack.
@@ -2550,12 +2588,13 @@ m5_do([
          })
          A: (m_return_status, Aftermath)
       <">, MacroName: ['the name of the macro to call'], ...: ['its arguments'])
-
+      ~("
 
       === Checking and Debugging
 
+      ")
       /**
-      m5_DocFn(, <">
+      ~DocFn(, <">
          D: 
          O: 
          S: none
@@ -2565,59 +2604,62 @@ m5_do([
       <">, ...: )
       **/
       
-      m5_DocFn(debug_level, <">
+      ~DocFn(debug_level, <">
          D: Get or set the debug level.
          O: with zero arguments, the current debug level
          S: sets `debug_level`
          E: debug_level(max)
          use(m5-1.0)
       <">, ?level: ['[`min`, `default`, `max`] the debug level to set'])
-      
+      ~("
 
-      ==== Checking and Reporting to STDERR
+         ==== Checking and Reporting to STDERR
+         
+         These macros output text to the standard error output stream (STDERR) (with `[{empty}'` / `'{empty}]` quotes represented by single characters).
+         (Note that STDOUT is the destination for the evaluated output.)
       
-      These macros output text to the standard error output stream (STDERR) (with `[{empty}'` / `'{empty}]` quotes represented by single characters).
-      (Note that STDOUT is the destination for the evaluated output.)
-      
-      m5_DocFns(['errprint, errprint_nl'], <">
+      ")
+      ~DocFns(['errprint, errprint_nl'], <">
          D: Write to STDERR stream (with a trailing new-line for `errprint_nl`).
          E: m5_errprint_nl(['Hello World.'])
       <">, text: ['the text to output'])
 
-      m5_DocFns(['warning, error, fatal_error, DEBUG'], <">
+      ~DocFns(['warning, error, fatal_error, DEBUG'], <">
          D: Report an error/warning/debug message and stack trace (except for `DEBUG_if`).
          Exit for fatal_error, with non-zero exit code.
          E: m5_error(['Parsing failed.'])
       <">, message: ['the message to report; (`Error:` pre-text (for example) provided by the macro)'])
 
-      m5_DocFns(['warning_if, error_if, fatal_error_if, DEBUG_if'], <">
+      ~DocFns(['warning_if, error_if, fatal_error_if, DEBUG_if'], <">
          D: Report an error/warning/debug message and stack trace (except for `DEBUG_if`) if the given condition is true.
          Exit for fatal_error, with non-zero exit code.
          E: m5_error_if(m5_Cnt < 0, ['Negative count.'])
       <">, condition: ['the condition, as in `m5_\if`.'], message: ['the message to report; (`Error:` pre-text (for example) provided by the macro)'])
 
-      m5_DocFns(['assert, fatal_assert'], <">
+      ~DocFns(['assert, fatal_assert'], <">
          D: Assert that a condition is true, reporting an error if it is not, e.g. `Error: Failed assertion: -1 < 0`. Exit for fatal_error, with non-zero exit code.
          E: m5_assert(m5_Cnt < 0)
       <">, message: ['the message to report; (`Error:` pre-text (for example) provided by the macro)'])
 
-      m5_doc_as_fn(verify_min_args, <">
+      doc_as_fn(verify_min_args, <">
       <">, Name, Min, Actual)
-      m5_doc_as_fn(verify_num_args, <">
+      doc_as_fn(verify_num_args, <">
       <">, Name, Min, Actual)
-      m5_DocFns(['verify_min_args, verify_num_args, verify_min_max_args'], <">
+      ~DocFns(['verify_min_args, verify_num_args, verify_min_max_args'], <">
          D: Verify that a traditional macro has a minimum number, a range, or an exact number of arguments.
          E: m5_verify_min_args(my_fn, 2, $#)
       <">, Name: the name of this macro (for error message), Min: the required minimum or exact number of arguments,
          Max: the maximum number of arguments, Actual: the actual number of arguments)
-      
-      ==== Uncategorized Debug Macros
-      
-      m5_DocVar(recursion_limit, <">
+      ~("
+
+         ==== Uncategorized Debug Macros
+
+      ")
+      ~DocVar(recursion_limit, <">
          D: If the function call stack exceeds this value, a fatal error is reported.
       <">)
 
-      m5_DocFn(abbreviate_args, <">
+      ~DocFn(abbreviate_args, <">
          D: For reporting messages containing argument lists, abbreviate long arguments and/or a long argument list by replacing
             long input args and remaining arguments beyond a limit with ['...'].
          O: a quoted string of quoted args with a comma preceding every arg.
@@ -2625,7 +2667,7 @@ m5_do([
       <">, max_args: ['if more than this number of args are given, additional args are represented as ['...']'],
          max_arg_length: ['maximum length in characters to display of each argument'],
          ...: ['arguments to represent in output'])
-   '])
+   ])
 
 
 

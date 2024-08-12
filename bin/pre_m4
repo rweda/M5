@@ -81,7 +81,7 @@ my $code_open_quote = '[';
 my $code_close_quote = ']';
 my $scope_open_quote = '{';
 my $scope_close_quote = '}';
-my $literal_quote_char = '+';  # Quotes are taken literally if _followed_ by this character.
+my $literal_quote_char = '~';  # Quotes are taken literally if _followed_ by this character.
 # This provides single-character quotes that do not conflict with other characters in the file.
 my $OPEN_QUOTE = "\N{U+02}";    # Currently, `['` or `"` map to this; they are quotes for M4 processing; then post_m4 verifies that they are not present.
 my $CLOSE_QUOTE = "\N{U+03}";   #  "
@@ -478,8 +478,8 @@ sub read_line {
             # word( => m5__l(63)m5__stmt(['m5_word'],
             if ($text !~ s/^(\w+)\(/${m5_prefix}_l($line_num)$stmt_type(${OPEN_QUOTE}$m5_prefix$1$CLOSE_QUOTE,/) {
               # word => m5__stmt_var(word).
-              if ($text =~ s/^(\w+)(.*)/${m5_prefix}_l($line_num)${stmt_type}_var($OPEN_QUOTE$1$CLOSE_QUOTE)$2/) {
-                # Replaced word. Must have been ~word.
+              if ($text =~ s/^\$?(\w+)(.*)/${m5_prefix}_l($line_num)${stmt_type}_var($OPEN_QUOTE$1$CLOSE_QUOTE)$2/) {
+                # Replaced word. Must have been ~word or ~$word.
                 if (!$out) {
                   &parse_error("Code block variable statements require \"~\":\n\t\t$orig_text", "Warning");
                 }
@@ -948,7 +948,6 @@ sub read_line {
               $quote eq $code_open_quote ||
               $quote eq $scope_open_quote) ? $quote :
                                              "['";
-        print STDERR "DEBUG: Pushing $open_quote_type.\n" if ($uri eq '/tmp/m5/test.txt');
         # It's okay to update the open indentation to reflect this line if this is deeper indentation
         # than the start of the line or this quote level was or is a special block quote.
         if ((($#m4_indentation_depth < $m4_quote_depth) ||
