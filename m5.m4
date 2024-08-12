@@ -938,7 +938,7 @@ m5_do([
    /      $post; then compute $pre based on the length of the surrounding match. This is compute-heavy.
    lazy_fn(var_regex, string, re, var_list, {
       /Make sure var_list is as expected.
-      if_eq(m4_regexp($var_list, "^(.*)$"), "-1", ['m5_fatal_error(['Malformed argument var_list for function var_regex should be a list in parentheses. Value is "']m5_var_list['".'])'])
+      if_eq(m4_regexp($var_list, "^(.*)$"), "-1", {fatal_error("Malformed argument var_list for function var_regex should be a list in parentheses. Value is "~"$var_list""~.")})
       var(exp_cnt, 0)  /// Count of regexp expressions.
       /The function result for evaluation.
       var(rslt_expr, m4_regexp($string, $re, ['['['']']']quote(eval(['m5_\var_regex__match_str']$var_list))))   /// ['['['']']'] ensures non-empty if matched.
@@ -973,7 +973,7 @@ m5_do([
    lazy_fn(if_regex, string, re, var_list, body, ..., {
       return_status("")  /// default
       var_regex($string, $re, $var_list)
-      ~if_so(['m5_eval($body)'])   /// TODO: Use m5_eval_body_arg.
+      ~if_so({m5_eval($body)})   /// TODO: Use m5_eval_body_arg.
       ~else_if($# == 1, "$1")  /// else body
       ~else_if($# > 1, [
          /recurse
@@ -988,12 +988,12 @@ m5_do([
    })
 
    macro(else_if_regex,
-      ['m4_ifelse(m5_status, [''], [''], ['m5_if_regex($@)'])'])
+      {m4_ifelse($status, "", {}, {if_regex($@)})})
 
    macro(if_status,
-      ['m5_deprecated(['$0'])['$1']m5_if_so(m5_shift($@))'])
+      {deprecated("$0")"$1"if_so(shift($@))})
    macro(else_if_status,
-      ['m5_deprecated(['$0'])m4_ifelse(m5_status, [''], [''], ['m5_if_status($@)'])'])
+      {deprecated("$0")m4_ifelse($status, "", {}, {if_status($@)})})
 
 
    /See docs.
@@ -1019,14 +1019,14 @@ m5_do([
          set(text, $text"")
       ])
       /For each line, eval the body.
-      ~on_return(for_each_regex, $text, "^\([^]*\)?", (Line), ['m5_var(line, m5_Line)']$body)
+      ~on_return(for_each_regex, $text, "^\([^]*\)?", (Line), {var(line, $Line)}$body)
       /TODO: Above, $line is assigned for backward-compatibility only for risc-v_defs.tlv.
    })
 
 
    /Strip trailing whitespace from variable.
    fn(strip_trailing_whitespace_from, it, {
-      set($it, substr(get($it), 0, calc(length(get($it)) - length(regex(get($it), ['\(\s*\)$'], ['\1'])))))
+      set($it, substr(get($it), 0, calc(length(get($it)) - length(regex(get($it), "\(\s*\)$", "\1")))))
    })
 ])
 
@@ -1053,11 +1053,11 @@ m5_do([
          ], "^\([a-f]\)", (digit), [
             increment(val, eval("1"translit_eval($digit, "abcdef", "012345")))
          ], [
-            error(['Illegal digit in hexadecimal value "']$digits['".'])
+            error("Illegal digit in hexadecimal value "~"$digits""~.")
          ])
          /Next
          set(digits, substr_eval($digits, 1))
-      ], ['m5_isnt_null(digits)'])
+      ], {isnt_null(digits)})
       ~val
    })
   
@@ -1316,7 +1316,7 @@ m5_do([
             call("doc_macro__"$Format"__process_macro_desc", $Desc)
             _doc_only_fn($Name['']comma_fn_args(), "<<dummy-body>>")
          ], [
-            error("No macro "+"$Name""+ to document.")
+            error("No macro "~"$Name""~ to document.")
          ])
       })
       
@@ -1333,7 +1333,7 @@ m5_do([
          ^Format,
       {
          /Extract prototypes and assign the set to doc_macro__<Format>__fn__<SetName>
-         var(SetName, argn(1, eval($Names))__and_friends)
+         var(SetName, argn(1, eval($Names))"__and_friends")
          var(Separator, "")
          var(Protos, "")
          for(Name, $Names, [
@@ -1344,10 +1344,10 @@ m5_do([
             ])
             var(Doc, get("doc_macro__"$Format"__fn__"$Name))
             var(Proto, regex($Doc, "\(^.*\)"$nl, "\1"))
-            if_eq(Proto, "", [
+            if_eq($Proto, "", [
                error("Unable to extract prototype from docs of "$Name.)
             ], [
-               append_var(Protos, $Separator['']$Proto)
+               append_var(Protos, $Separator$Proto)
                set(Separator, " +"$nl)
             ])
             
@@ -1363,7 +1363,7 @@ m5_do([
          var(SetProtoVar, "doc_macro__"$Format"__fn__"$SetName)
          var(NewDocs, "")
          for_each_line(get($SetProtoVar), [
-            append_var(NewDocs, if_null(NewDocs, ['m5_Protos'], ['m5_Line'])$nl)
+            append_var(NewDocs, if_null(NewDocs, {$Protos}, {$Line})$nl)
          ])
          set($SetProtoVar, $NewDocs)
       })
@@ -1395,7 +1395,7 @@ m5_do([
             set(ParamName, <unnamed-$doc_fn__unnamed_cnt>)
          ])
          /Append this parameter to parameter list.
-         append_var(doc_fn__params, $doc_fn__comma['']$ParamName)
+         append_var(doc_fn__params, $doc_fn__comma$ParamName)
          /Append to parameter descriptions.
          append_var(doc_fn__param_descs, *[
             ~(". `"$ParamName"`")
@@ -1420,7 +1420,7 @@ m5_do([
          push_var("doc_macro__adoc__fn__"$doc_fn__name, *[
             ~("[[m_"$doc_fn__name",`m5_"$doc_fn__name"`]]")
             ~("`m5_""(("$doc_fn__name"))("$doc_fn__params")`"$nl)
-            ~(['[frame=none,grid=none,cols=">1, 5a"]']$nl)
+            ~(<">[frame=none,grid=none,cols=">1, 5a"]<">$nl)
             ~("|==="$nl)
             ~if_var_def(doc_fn__desc, [
                ~doc_fn__desc
