@@ -248,7 +248,7 @@ m4__define_libraries(
 m4_define(['m5_use'],
    ['m4_ifelse(m4_eval($# >= 1), 1,
                ['m4_ifdef(['m4__lib:$1'],
-                          ['m4_include_lib(m4_defn(['m4__lib:$1']), m4_substr(['$1'], 0, m4_index(['$1'], ['-'])))'],
+                          ['m4_null(m4_include_lib(m4_defn(['m4__lib:$1']), m4_substr(['$1'], 0, m4_index(['$1'], ['-']))))'],
                           ['m4_errprint(['Unknown library: "$1".']m5_nl())'])'])'])
 
 
