@@ -352,7 +352,7 @@ sub read_line {
       #
       # TODO: Is this relevant to M5?:
       # Commented quotes are parsed in order to match the parsing that will
-      #   be done by M4 while interpretting this file in quoted context.
+      #   be done by M4 while interpreting this file in quoted context.
       #
       # Also, support code blocks.
       # A code block is quoted text that evaluates statements that produce the resulting text, rather than
@@ -408,12 +408,13 @@ sub read_line {
          ) {
         &parse_error("Inside a code block while inside a text block, this shouldn't be possible. $m4_quote_type[$m4_quote_depth]", "BUG")
       }
-      
       # Parse block end at start of line, and substitute for ']).
       my $end_block = $m4_block_quote[$m4_quote_depth] &&
                       (!$inside_text_block || (length($ind) == $m4_indentation_depth[$m4_quote_depth])) &&
-                      ($text =~ s/^(\]|\}|$CLOSE_QUOTE_PATTERN)/$CLOSE_QUOTE)/ ||
-                       $text =~ s/^(\Q$leaf_close_quote\E|\Q$heavy_close_quote\E)/$1)/
+                      # Substitute quotes and add ')'
+                      (($text =~ s/^(\]|\}|$CLOSE_QUOTE_PATTERN)/$CLOSE_QUOTE)/) ||
+                       (($m4_quote_type[$m4_quote_depth] eq $heavy_open_quote) && ($text =~ s/^(\Q$heavy_open_quote\E)/$1)/)) ||
+                       (($m4_quote_type[$m4_quote_depth] eq $leaf_open_quote) && ($text =~ s/^(\Q$leaf_open_quote\E)/$1)/))
                       );
       my $end_block_type = $end_block ? $1 : '';
       

@@ -53,10 +53,20 @@ POST_M4_ARGS=("${@:2}")
 
 
 # If object directory is not specified, make a temporary object directory.
+# Also create a "latest" link to it.
 # If specified, make sure it exists.
 if [ -z "$OBJ_DIR" ];
 then
     OBJ_DIR="$(mktemp -d -t m5_obj_XXXXXXXXXX)"
+    # Make a "m5_obj_latest" link to it (if it can be created or modified as a link).
+    if [ -L "/tmp/m5_obj_latest" ];
+    then
+        rm "/tmp/m5_obj_latest"
+    fi
+    if [ ! -e "/tmp/m5_obj_latest" ];
+    then
+        ln -s "$OBJ_DIR" "/tmp/m5_obj_latest"
+    fi
 else
     mkdir -p "$OBJ_DIR"
 fi
