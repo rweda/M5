@@ -582,7 +582,7 @@ m4_define(['m5_pop_macro'], m4_defn(['m5_popdef']))   /// TODO: Transition this 
 /// Binding bodies.
 
 /// Deprecated: Use
-///    on_return(m5_Body)
+///    on_return(eval, $Body)
 ///    return_status(...)
 ///  instead (requiring execution as a aftermath).
 /// TODO: This will also pop/push m5_my.
@@ -973,7 +973,11 @@ m5_do([
    lazy_fn(if_regex, string, re, var_list, body, ..., {
       return_status("")  /// default
       var_regex($string, $re, $var_list)
-      ~if_so({m5_eval($body)})   /// TODO: Use m5_eval_body_arg.
+      ~if_so({eval($body)})
+      /TODO: This (commented below) seems right (though I'm confused by the TODO above). But it's not working for M5 doc build. Difference should be $status. Needs debugging.
+      /~if_so([
+      /   on_return(eval, $body)
+      /])
       ~else_if($# == 1, "$1")  /// else body
       ~else_if($# > 1, [
          /recurse
@@ -1252,6 +1256,9 @@ m5_do([
             /Process section identifier.
             var(IsStart, 0)  /// [0/1] Start a section.
             if_regex($Line, "^\([DOSEPA]\): ?\(.*\)", (NewSection, Remainder), [
+               if_var_def(NewSection, "", {
+                  DEBUG("No $NewSection for: "$Line)
+               })
                set(IsStart, 1)
                set(Section, $NewSection)
                set(Line, $Remainder)
@@ -1278,8 +1285,8 @@ m5_do([
       
       /Document a universal variable.
       fn(doc_macro__adoc__doc_var, Name, Text, {
-         ~("[[v_"$Name",`m5_"$Name"`]]")
-         ~("`m5_""(("$Name"))` (Universal variable)"$nl)
+         ~("[[v_"$Name",`$"$Name"`]]")
+         ~("`$(("$Name"))` (Universal variable)"$nl)
          ~(<">[frame=none,grid=none,cols=">1, 5a"]<">$nl)
          ~("|==="$nl)
          doc_macro__adoc__process_macro_desc($Text)
@@ -1418,8 +1425,8 @@ m5_do([
       /Then deletes definitions.
       fn(doc_fn__end__adoc, <adoc>{
          push_var("doc_macro__adoc__fn__"$doc_fn__name, *[
-            ~("[[m_"$doc_fn__name",`m5_"$doc_fn__name"`]]")
-            ~("`m5_""(("$doc_fn__name"))("$doc_fn__params")`"$nl)
+            ~("[[m_"$doc_fn__name",`"$doc_fn__name"("if_eq($doc_fn__params, "", "", "...")")`]]")
+            ~("`(("$doc_fn__name"))("$doc_fn__params")`"$nl)
             ~(<">[frame=none,grid=none,cols=">1, 5a"]<">$nl)
             ~("|==="$nl)
             ~if_var_def(doc_fn__desc, [

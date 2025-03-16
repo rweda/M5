@@ -3,8 +3,6 @@
 // with careful use of quotes, etc.
 
 
-// Included URL: "/home/steve/repos/M5/lib/m5.m4"
-
 
 
 
@@ -198,6 +196,19 @@ Major next steps include:
 - Some syntactic sugar (quotes, code blocks) should not be recognized in source context.
 
 See issues file in the https://github.com/rweda/M5[M5 repository] for more details.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1259,7 +1270,7 @@ Pragmas processing happens after M5 comments are stripped. The following strings
 
 * `where_am_i`: Prints the current quote context to STDERR.
 * `[enable/disable]_[paren/quote]_checks`: For disabling parenthesis/quote checking.
-* `[enable/disable]_sugar`: For disabling syntactic sugar (`m5_` and code/text blocks).
+* `[enable/disable]\_sugar`: For disabling syntactic sugar (`m5_` and code/text blocks).
 * `[enable/disable]_debug`: Improves the readability of the file resulting from sugar processing, and continues processing after normally-fatal errors.
 * `[enable/disable]_verbose_checks`: Enables or disables verbose checking.
 
@@ -1416,6 +1427,7 @@ The parameter list (`<param-list>`) is a list of zero or more `<param-spec>`{emp
                 e.g. `?^<name>`. There is no corresponding argument in a call of this function. It is conventional to list
                 inherited parameters last (before the body) to maintain correspondence between the parameter
                 list of the definition and the argument list of a call.
+                Note that `$`s are problematic in inherited parameter values as undesired substitution may occur.
   * `<comment>`: A description of the parameter. In addition to commenting the code, this can be extracted in
                 documentation.
 - `...`:        Listed after last numbered parameter to allow extra numbered arguments. Without this, extra arguments
@@ -1659,6 +1671,7 @@ necessary to enable inclusion of this library and are, by necessity, built-into 
 distinction may not be documented.
 
 === Specification Conventions
+
 Macros are listed by category in a logical order. An alphabetical <<Index>> of macros can be found at the end of
 this document (at least in the `.pdf` version).
 Macros that return integer values, unless otherwise specified, return decimal value strings. Similarly,
@@ -1672,7 +1685,7 @@ in text that gets evaluated.
 
 ==== Declaring/Setting Variables
 
-[[m_var,`m5_var`]]`m5_((var))(Name, Value, ...)`
+[[m_var,`var(...)`]]`((var))(Name, Value, ...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -1698,7 +1711,7 @@ var(Foo, 5)
 |===
 
 
-[[m_set,`m5_set`]]`m5_((set))(Name, Value)`
+[[m_set,`set(...)`]]`((set))(Name, Value)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -1722,7 +1735,7 @@ set(Foo, 5)
 |===
 
 
-[[m_push_var,`m5_push_var`]]`m5_((push_var))(Name, Value)`
+[[m_push_var,`push_var(...)`]]`((push_var))(Name, Value)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -1748,7 +1761,7 @@ pop(Foo)
 |===
 
 
-[[m_pop,`m5_pop`]]`m5_((pop))(Name)`
+[[m_pop,`pop(...)`]]`((pop))(Name)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -1772,7 +1785,7 @@ pop(Foo)
 |===
 
 
-[[m_null_vars,`m5_null_vars`]]`m5_((null_vars))(...)`
+[[m_null_vars,`null_vars(...)`]]`((null_vars))(...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -1789,8 +1802,8 @@ pop(Foo)
 
 ==== Declaring Macros
 
-[[m_fn,`m5_fn`]]`m5_((fn))(...)` +
-[[m_lazy_fn,`m5_lazy_fn`]]`m5_((lazy_fn))(...)`
+[[m_fn,`fn(...)`]]`((fn))(...)` +
+[[m_lazy_fn,`lazy_fn(...)`]]`((lazy_fn))(...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -1817,20 +1830,8 @@ fn(add, Addend1, Addend2, {
 |===
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-[[m_macro,`m5_macro`]]`m5_((macro))(Name, Body)` +
-[[m_null_macro,`m5_null_macro`]]`m5_((null_macro))(Name, Body)`
+[[m_macro,`macro(...)`]]`((macro))(Name, Body)` +
+[[m_null_macro,`null_macro(...)`]]`((null_macro))(Name, Body)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -1856,7 +1857,7 @@ m5_macro(ParseError, <p>[
 |===
 
 
-[[m_set_macro,`m5_set_macro`]]`m5_((set_macro))(Name, Body)`
+[[m_set_macro,`set_macro(...)`]]`((set_macro))(Name, Body)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -1875,7 +1876,7 @@ m5_macro(ParseError, <p>[
 |===
 
 
-[[m_push_macro,`m5_push_macro`]]`m5_((push_macro))(Name, Body)`
+[[m_push_macro,`push_macro(...)`]]`((push_macro))(Name, Body)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -1896,7 +1897,7 @@ m5_macro(ParseError, <p>[
 
 ==== Accessing Macro/Variable Values
 
-[[m_get,`m5_get`]]`m5_((get))(Name)`
+[[m_get,`get(...)`]]`((get))(Name)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -1922,8 +1923,8 @@ $1.00
 |===
 
 
-[[m_must_exist,`m5_must_exist`]]`m5_((must_exist))(Name)` +
-[[m_var_must_exist,`m5_var_must_exist`]]`m5_((var_must_exist))(Name)`
+[[m_must_exist,`must_exist(...)`]]`((must_exist))(Name)` +
+[[m_var_must_exist,`var_must_exist(...)`]]`((var_must_exist))(Name)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -1935,12 +1936,11 @@ $1.00
 |===
 
 
-
 === Code Constructs
 
 ==== Status
 
-[[v_status,`m5_status`]]`m5_((status))` (Universal variable)
+[[v_status,`$status`]]`$((status))` (Universal variable)
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -1957,7 +1957,7 @@ it list this in their "Side Effect(s)".
 
 
 
-[[v_sticky_status,`m5_sticky_status`]]`m5_((sticky_status))` (Universal variable)
+[[v_sticky_status,`$sticky_status`]]`$((sticky_status))` (Universal variable)
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -1969,7 +1969,7 @@ it list this in their "Side Effect(s)".
 
 
 
-[[m_sticky_status,`m5_sticky_status`]]`m5_((sticky_status))()`
+[[m_sticky_status,`sticky_status()`]]`((sticky_status))()`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -1992,7 +1992,7 @@ if(m5_reset_sticky_status(), ['m5_error(m5_A is out of range.)'])
 |===
 
 
-[[m_reset_sticky_status,`m5_reset_sticky_status`]]`m5_((reset_sticky_status))()`
+[[m_reset_sticky_status,`reset_sticky_status()`]]`((reset_sticky_status))()`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2011,10 +2011,9 @@ if(m5_reset_sticky_status(), ['m5_error(m5_A is out of range.)'])
 
 ==== Conditionals
 
-
-[[m_if,`m5_if`]]`m5_((if))(Cond, TrueBody, ...)` +
-[[m_unless,`m5_unless`]]`m5_((unless))(Cond, TrueBody, FalseBody)` +
-[[m_else_if,`m5_else_if`]]`m5_((else_if))(Cond, TrueBody, ...)`
+[[m_if,`if(...)`]]`((if))(Cond, TrueBody, ...)` +
+[[m_unless,`unless(...)`]]`((unless))(Cond, TrueBody, FalseBody)` +
+[[m_else_if,`else_if(...)`]]`((else_if))(Cond, TrueBody, ...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2056,8 +2055,8 @@ NOTE: As an alternative to providing else blocks within `m5_if`, <<m_else>> and 
 |===
 
 
-[[m_if_eq,`m5_if_eq`]]`m5_((if_eq))(String1, String2, TrueBody, ...)` +
-[[m_if_neq,`m5_if_neq`]]`m5_((if_neq))(String1, String2, TrueBody, ...)`
+[[m_if_eq,`if_eq(...)`]]`((if_eq))(String1, String2, TrueBody, ...)` +
+[[m_if_neq,`if_neq(...)`]]`((if_neq))(String1, String2, TrueBody, ...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2100,13 +2099,10 @@ and this may be easier to read.
 |===
 
 
-
-
-
-[[m_if_null,`m5_if_null`]]`m5_((if_null))(Var, Body, ElseBody)` +
-[[m_if_var_def,`m5_if_var_def`]]`m5_((if_var_def))(Var, Body, ElseBody)` +
-[[m_if_var_ndef,`m5_if_var_ndef`]]`m5_((if_var_ndef))(Var, Body, ElseBody)` +
-[[m_if_defined_as,`m5_if_defined_as`]]`m5_((if_defined_as))(Var, Value, Body, ElseBody)`
+[[m_if_null,`if_null(...)`]]`((if_null))(Var, Body, ElseBody)` +
+[[m_if_var_def,`if_var_def(...)`]]`((if_var_def))(Var, Body, ElseBody)` +
+[[m_if_var_ndef,`if_var_ndef(...)`]]`((if_var_ndef))(Var, Body, ElseBody)` +
+[[m_if_defined_as,`if_defined_as(...)`]]`((if_defined_as))(Var, Value, Body, ElseBody)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2140,8 +2136,8 @@ if_null(Tag, [
 |===
 
 
-[[m_else,`m5_else`]]`m5_((else))(Body)` +
-[[m_if_so,`m5_if_so`]]`m5_((if_so))(Body)`
+[[m_else,`else(...)`]]`((else))(Body)` +
+[[m_if_so,`if_so(...)`]]`((if_so))(Body)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2171,7 +2167,7 @@ else([
 |===
 
 
-[[m_else_if_def,`m5_else_if_def`]]`m5_((else_if_def))(Name, Body)`
+[[m_else_if_def,`else_if_def(...)`]]`((else_if_def))(Name, Body)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2198,7 +2194,7 @@ m5_set(Either, if_var_def(First, m5_First)m5_else_if_def(Second, m5_Second))
 |===
 
 
-[[m_case,`m5_case`]]`m5_((case))(Name, Value, TrueBody, ...)`
+[[m_case,`case(...)`]]`((case))(Name, Value, TrueBody, ...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2235,10 +2231,9 @@ m5_set(Either, if_var_def(First, m5_First)m5_else_if_def(Second, m5_Second))
 |===
 
 
-
 ==== Loops
 
-[[m_loop,`m5_loop`]]`m5_((loop))(InitList, DoBody, WhileCond, WhileBody)`
+[[m_loop,`loop(...)`]]`((loop))(InitList, DoBody, WhileCond, WhileBody)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2274,7 +2269,7 @@ with each iteration (after both blocks).
 |===
 
 
-[[m_repeat,`m5_repeat`]]`m5_((repeat))(Cnt, Body)`
+[[m_repeat,`repeat(...)`]]`((repeat))(Cnt, Body)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2304,7 +2299,7 @@ and increments by 1 with each iteration.
 |===
 
 
-[[m_for,`m5_for`]]`m5_((for))(Var, List, Body)`
+[[m_for,`for(...)`]]`((for))(Var, List, Body)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2338,7 +2333,7 @@ and increments by 1 with each iteration.
 
 ==== Recursion
 
-[[m_recurse,`m5_recurse`]]`m5_((recurse))(max_depth, macro, ...)`
+[[m_recurse,`recurse(...)`]]`((recurse))(max_depth, macro, ...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2368,12 +2363,11 @@ m5_recurse(20, myself, args)
 |===
 
 
-
 === Working with Strings
 
 ==== Special Characters
 
-[[m_nl,`m5_nl`]]`m5_((nl))()`
+[[m_nl,`nl()`]]`((nl))()`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2388,8 +2382,8 @@ formatting.
 |===
 
 
-[[m_open_quote,`m5_open_quote`]]`m5_((open_quote))()` +
-[[m_close_quote,`m5_close_quote`]]`m5_((close_quote))()`
+[[m_open_quote,`open_quote()`]]`((open_quote))()` +
+[[m_close_quote,`close_quote()`]]`((close_quote))()`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2405,7 +2399,7 @@ but it will be interpreted as a quote if evaluated.
 |===
 
 
-[[v_arg_comma,`m5_arg_comma`]]`m5_((arg_comma))` (Universal variable)
+[[v_arg_comma,`$arg_comma`]]`$((arg_comma))` (Universal variable)
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -2417,8 +2411,8 @@ but it will be interpreted as a quote if evaluated.
 
 
 
-[[m_orig_open_quote,`m5_orig_open_quote`]]`m5_((orig_open_quote))()` +
-[[m_orig_close_quote,`m5_orig_close_quote`]]`m5_((orig_close_quote))()`
+[[m_orig_open_quote,`orig_open_quote()`]]`((orig_open_quote))()` +
+[[m_orig_close_quote,`orig_close_quote()`]]`((orig_close_quote))()`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2436,8 +2430,8 @@ regular expressions).
 |===
 
 
-[[m_printable_open_quote,`m5_printable_open_quote`]]`m5_((printable_open_quote))()` +
-[[m_printable_close_quote,`m5_printable_close_quote`]]`m5_((printable_close_quote))()`
+[[m_printable_open_quote,`printable_open_quote()`]]`((printable_open_quote))()` +
+[[m_printable_close_quote,`printable_close_quote()`]]`((printable_close_quote))()`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2451,7 +2445,7 @@ regular expressions).
 |===
 
 
-[[m_UNDEFINED,`m5_UNDEFINED`]]`m5_((UNDEFINED))()`
+[[m_UNDEFINED,`UNDEFINED()`]]`((UNDEFINED))()`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2473,10 +2467,10 @@ R: Foo is undefined.
 
 ==== Slicing and Dicing Strings
 
-[[m_append_var,`m5_append_var`]]`m5_((append_var))(Name, String)` +
-[[m_prepend_var,`m5_prepend_var`]]`m5_((prepend_var))(Name, String)` +
-[[m_append_macro,`m5_append_macro`]]`m5_((append_macro))(Name, String)` +
-[[m_prepend_macro,`m5_prepend_macro`]]`m5_((prepend_macro))(Name, String)`
+[[m_append_var,`append_var(...)`]]`((append_var))(Name, String)` +
+[[m_prepend_var,`prepend_var(...)`]]`((prepend_var))(Name, String)` +
+[[m_append_macro,`append_macro(...)`]]`((append_macro))(Name, String)` +
+[[m_prepend_macro,`prepend_macro(...)`]]`((prepend_macro))(Name, String)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2502,8 +2496,8 @@ Hello, Joe!
 |===
 
 
-[[m_substr,`m5_substr`]]`m5_((substr))(String, From, Length)` +
-[[m_substr_eval,`m5_substr_eval`]]`m5_((substr_eval))(String, From, Length)`
+[[m_substr,`substr(...)`]]`((substr))(String, From, Length)` +
+[[m_substr_eval,`substr_eval(...)`]]`((substr_eval))(String, From, Length)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2551,7 +2545,7 @@ lo Wo
 |===
 
 
-[[m_join,`m5_join`]]`m5_((join))(Delimiter, ...)`
+[[m_join,`join(...)`]]`((join))(Delimiter, ...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -2575,8 +2569,8 @@ one, two, three
 |===
 
 
-[[m_translit,`m5_translit`]]`m5_((translit))(String, InChars, OutChars)` +
-[[m_translit_eval,`m5_translit_eval`]]`m5_((translit_eval))(String, InChars, OutChars)`
+[[m_translit,`translit(...)`]]`((translit))(String, InChars, OutChars)` +
+[[m_translit_eval,`translit_eval(...)`]]`((translit_eval))(String, InChars, OutChars)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2611,8 +2605,8 @@ Testing: A, B, C.
 |===
 
 
-[[m_uppercase,`m5_uppercase`]]`m5_((uppercase))(String)` +
-[[m_lowercase,`m5_lowercase`]]`m5_((lowercase))(String)`
+[[m_uppercase,`uppercase(...)`]]`((uppercase))(String)` +
+[[m_lowercase,`lowercase(...)`]]`((lowercase))(String)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2637,7 +2631,7 @@ HELLO!
 |===
 
 
-[[m_replicate,`m5_replicate`]]`m5_((replicate))(Cnt, String)`
+[[m_replicate,`replicate(...)`]]`((replicate))(Cnt, String)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2666,7 +2660,7 @@ m5_replicate(3, ['.'])
 |===
 
 
-[[m_strip_trailing_whitespace_from,`m5_strip_trailing_whitespace_from`]]`m5_((strip_trailing_whitespace_from))(Var)`
+[[m_strip_trailing_whitespace_from,`strip_trailing_whitespace_from(...)`]]`((strip_trailing_whitespace_from))(Var)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2683,7 +2677,7 @@ m5_replicate(3, ['.'])
 
 ==== Formatting Strings
 
-[[m_format_eval,`m5_format_eval`]]`m5_((format_eval))(string, ...)`
+[[m_format_eval,`format_eval(...)`]]`((format_eval))(string, ...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2741,7 +2735,7 @@ For more details on the functioning of `printf`, see the C Library Manual, or th
 
 ==== Inspecting Strings
 
-[[m_length,`m5_length`]]`m5_((length))(String)`
+[[m_length,`length(...)`]]`((length))(String)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -2753,7 +2747,7 @@ For more details on the functioning of `printf`, see the C Library Manual, or th
 |===
 
 
-[[m_index_of,`m5_index_of`]]`m5_((index_of))(String, Substring)`
+[[m_index_of,`index_of(...)`]]`((index_of))(String, Substring)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -2767,7 +2761,7 @@ For more details on the functioning of `printf`, see the C Library Manual, or th
 |===
 
 
-[[m_num_lines,`m5_num_lines`]]`m5_((num_lines))(String)`
+[[m_num_lines,`num_lines(...)`]]`((num_lines))(String)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -2779,7 +2773,7 @@ For more details on the functioning of `printf`, see the C Library Manual, or th
 |===
 
 
-[[m_for_each_line,`m5_for_each_line`]]`m5_((for_each_line))(Text, Body)`
+[[m_for_each_line,`for_each_line(...)`]]`((for_each_line))(Text, Body)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2799,11 +2793,10 @@ For more details on the functioning of `printf`, see the C Library Manual, or th
 |===
 
 
-
 ==== Safely Working with Strings
 
-[[m_dequote,`m5_dequote`]]`m5_((dequote))(String)` +
-[[m_requote,`m5_requote`]]`m5_((requote))(String)`
+[[m_dequote,`dequote(...)`]]`((dequote))(String)` +
+[[m_requote,`requote(...)`]]`((requote))(String)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2821,7 +2814,7 @@ strings containing balanced (surrogate) quotes, dequoted strings can be requoted
 |===
 
 
-[[m_output_with_restored_quotes,`m5_output_with_restored_quotes`]]`m5_((output_with_restored_quotes))(String)`
+[[m_output_with_restored_quotes,`output_with_restored_quotes(...)`]]`((output_with_restored_quotes))(String)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -2835,7 +2828,7 @@ strings containing balanced (surrogate) quotes, dequoted strings can be requoted
 |===
 
 
-[[m_no_quotes,`m5_no_quotes`]]`m5_((no_quotes))(String)`
+[[m_no_quotes,`no_quotes(...)`]]`((no_quotes))(String)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2854,23 +2847,13 @@ https://www.gnu.org/software/emacs/manual/html_node/emacs/Regexps.html[GNU Emacs
 This syntax is similar to BRE, Basic Regular Expressions in POSIX and is regrettably rather limited.
 Extended Regular Expressions are not supported.
 
-
-
-
-
-
-
-
-
-
-
-
-[[m_regex,`m5_regex`]]`m5_((regex))(String, Regex, Replacement)` +
-[[m_regex_eval,`m5_regex_eval`]]`m5_((regex_eval))(String, Regex, Replacement)`
+[[m_regex,`regex(...)`]]`((regex))(String, Regex, Replacement)` +
+[[m_regex_eval,`regex_eval(...)`]]`((regex_eval))(String, Regex, Replacement)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
-|Searches for `Regexp` in `String`, resulting in either the position of the match or the given replacement.
+|Searches for the first occurence of `Regexp` in `String`, resulting in either the position of the match
+or its replacement.
 
 `Replacement` provides the output text. It may contain references to subexpressions of `Regex` to expand
 in the output. In `Replacement`, `\n` references the nth parenthesized subexpression of `Regexp`, up to nine
@@ -2912,7 +2895,7 @@ First word: Hello.
 |===
 
 
-[[m_var_regex,`m5_var_regex`]]`m5_((var_regex))(String, Regex, VarList)`
+[[m_var_regex,`var_regex(...)`]]`((var_regex))(String, Regex, VarList)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2940,8 +2923,8 @@ m5_else(['m5_error(['Match failed.'])'])
 |===
 
 
-[[m_if_regex,`m5_if_regex`]]`m5_((if_regex))(String, Regex, VarList, Body, ...)` +
-[[m_else_if_regex,`m5_else_if_regex`]]`m5_((else_if_regex))(String, Regex, VarList, Body, ...)`
+[[m_if_regex,`if_regex(...)`]]`((if_regex))(String, Regex, VarList, Body, ...)` +
+[[m_else_if_regex,`else_if_regex(...)`]]`((else_if_regex))(String, Regex, VarList, Body, ...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -2979,11 +2962,12 @@ Each pattern match is in its own scope. `else_if_regex` does nothing if `m5_stat
 |===
 
 
-[[m_for_each_regex,`m5_for_each_regex`]]`m5_((for_each_regex))(String, Regex, VarList, Body)`
+[[m_for_each_regex,`for_each_regex(...)`]]`((for_each_regex))(String, Regex, VarList, Body)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
-|Evaluate body for every pattern matching regex in the string. <<v_status>> is unassigned.
+|Evaluate body for every pattern matching regex in the first line of `String`.
+<<v_status>> is unassigned.
 
 |Side Effect(s):
 |side-effects of evaluating the body
@@ -3008,16 +2992,15 @@ Found 1. Found 3. Found 1. Found 5.
 ....
 
 |See also:
-|<<m_regex>>, <<m_regex_eval>>, <<m_if_regex>>, <<m_else_if_regex>>
+|<<m_regex>>, <<m_for_each_line>>, <<m_regex_eval>>, <<m_if_regex>>, <<m_else_if_regex>>
 |===
-
 
 
 === Utilities
 
 ==== Fundamental Macros
 
-[[m_defn,`m5_defn`]]`m5_((defn))(Name)`
+[[m_defn,`defn(...)`]]`((defn))(Name)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -3029,7 +3012,7 @@ Found 1. Found 3. Found 1. Found 5.
 |===
 
 
-[[m_call,`m5_call`]]`m5_((call))(Name, ...)`
+[[m_call,`call(...)`]]`((call))(Name, ...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3058,7 +3041,7 @@ m5_call(error, ['Fail!'])
 |===
 
 
-[[m_quote,`m5_quote`]]`m5_((quote))(...)`
+[[m_quote,`quote(...)`]]`((quote))(...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -3082,7 +3065,7 @@ m5_quote(A, ['B'])
 |===
 
 
-[[m_nquote,`m5_nquote`]]`m5_((nquote))(...)`
+[[m_nquote,`nquote(...)`]]`((nquote))(...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -3109,7 +3092,7 @@ each argument, separated by commas. A `num` of `0` results in the inlining of `$
 |===
 
 
-[[m_eval,`m5_eval`]]`m5_((eval))(Expr)`
+[[m_eval,`eval(...)`]]`((eval))(Expr)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3139,8 +3122,8 @@ each argument, separated by commas. A `num` of `0` results in the inlining of `$
 |===
 
 
-[[m_comment,`m5_comment`]]`m5_((comment))(...)` +
-[[m_nullify,`m5_nullify`]]`m5_((nullify))(...)`
+[[m_comment,`comment(...)`]]`((comment))(...)` +
+[[m_nullify,`nullify(...)`]]`((nullify))(...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -3156,7 +3139,7 @@ each argument, separated by commas. A `num` of `0` results in the inlining of `$
 
 See <<Macro Stacks>>.
 
-[[m_get_ago,`m5_get_ago`]]`m5_((get_ago))(Name, Ago)`
+[[m_get_ago,`get_ago(...)`]]`((get_ago))(Name, Ago)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -3185,7 +3168,7 @@ AB
 |===
 
 
-[[m_depth_of,`m5_depth_of`]]`m5_((depth_of))(Name)`
+[[m_depth_of,`depth_of(...)`]]`((depth_of))(Name)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -3213,8 +3196,8 @@ m5_depth_of(Foo)
 
 ==== Argument Processing
 
-[[m_shift,`m5_shift`]]`m5_((shift))(...)` +
-[[m_comma_shift,`m5_comma_shift`]]`m5_((comma_shift))(...)`
+[[m_shift,`shift(...)`]]`((shift))(...)` +
+[[m_comma_shift,`comma_shift(...)`]]`((comma_shift))(...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3238,7 +3221,7 @@ m5_call(foo['']m5_comma_shift($@)) /// $@ has at least 1 argument
 |===
 
 
-[[m_nargs,`m5_nargs`]]`m5_((nargs))(...)`
+[[m_nargs,`nargs(...)`]]`((nargs))(...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -3251,18 +3234,20 @@ m5_call(foo['']m5_comma_shift($@)) /// $@ has at least 1 argument
 |....
 m5_set(ExampleList, ['hi, there'])
 m5_nargs(m5_ExampleList)
+m5_nargs(m5_eval(m5_ExampleList))
 ....
 
 |Example Output:
 |....
 
+1
 2
 ....
 
 |===
 
 
-[[m_argn,`m5_argn`]]`m5_((argn))(ArgNum, ...)`
+[[m_argn,`argn(...)`]]`((argn))(ArgNum, ...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -3286,7 +3271,7 @@ b
 |===
 
 
-[[m_comma_args,`m5_comma_args`]]`m5_((comma_args))(...)`
+[[m_comma_args,`comma_args(...)`]]`((comma_args))(...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3306,17 +3291,7 @@ m5_call(foo['']m5_comma_args(['$@']), last)
 |===
 
 
-
-
-
-
-
-
-
-
-
-
-[[m_echo_args,`m5_echo_args`]]`m5_((echo_args))(...)`
+[[m_echo_args,`echo_args(...)`]]`((echo_args))(...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3342,20 +3317,9 @@ m5_append_to_paren_list((one, two), three)
 |===
 
 
-
-
-
-
-
-
-
-
-
-
-
 ==== Arithmetic Macros
 
-[[m_calc,`m5_calc`]]`m5_((calc))(Expr, Radix, Width)`
+[[m_calc,`calc(...)`]]`((calc))(Expr, Radix, Width)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3386,7 +3350,7 @@ Immediate values in `Expr` may be expressed in any radix (aka base) from 1 to 36
 - `0`: Octal (base 8)
 - `0x`: hexadecimal (base 16)
 - `0b`: binary (base 2)
-- `0r:`, where `r` is the radix in decimal: Base `r`.
+- `0r#:` where `#` is the radix in decimal (base `r`)
 
 Digits are `0`, `1`, `2`, …, `9`, `a`, `b` … `z`. Lower and upper case letters can be used
 interchangeably in numbers and prefixes. For radix 1, leading zeros are ignored, and all remaining
@@ -3420,8 +3384,8 @@ have a negative sign (`-`) and they have no radix prefix; digits > 9 use lower-c
 |===
 
 
-[[m_equate,`m5_equate`]]`m5_((equate))(Name, Expr)` +
-[[m_operate_on,`m5_operate_on`]]`m5_((operate_on))(Name, Expr)`
+[[m_equate,`equate(...)`]]`((equate))(Name, Expr)` +
+[[m_operate_on,`operate_on(...)`]]`((operate_on))(Name, Expr)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3455,8 +3419,8 @@ m5_Foo
 |===
 
 
-[[m_increment,`m5_increment`]]`m5_((increment))(Name, Amount)` +
-[[m_decrement,`m5_decrement`]]`m5_((decrement))(Name, Amount)`
+[[m_increment,`increment(...)`]]`((increment))(Name, Amount)` +
+[[m_decrement,`decrement(...)`]]`((decrement))(Name, Amount)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3484,8 +3448,8 @@ m5_increment(Cnt)
 
 These have boolean (`0` / `1`) results. Note that some <<m_calc>> expressions result in boolean values as well.
 
-[[m_is_null,`m5_is_null`]]`m5_((is_null))(Name)` +
-[[m_isnt_null,`m5_isnt_null`]]`m5_((isnt_null))(Name)`
+[[m_is_null,`is_null(...)`]]`((is_null))(Name)` +
+[[m_isnt_null,`isnt_null(...)`]]`((isnt_null))(Name)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -3497,8 +3461,8 @@ These have boolean (`0` / `1`) results. Note that some <<m_calc>> expressions re
 |===
 
 
-[[m_eq,`m5_eq`]]`m5_((eq))(String1, String2, ...)` +
-[[m_neq,`m5_neq`]]`m5_((neq))(String1, String2, ...)`
+[[m_eq,`eq(...)`]]`((eq))(String1, String2, ...)` +
+[[m_neq,`neq(...)`]]`((neq))(String1, String2, ...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Output:
@@ -3519,11 +3483,10 @@ m5_if(m5_neq(m5_Response, ok, bad), ['m5_error(Unknown response: m5_Response.)']
 |===
 
 
-
 ==== Within Functions or Code Blocks
 
-[[m_fn_args,`m5_fn_args`]]`m5_((fn_args))()` +
-[[m_comma_fn_args,`m5_comma_fn_args`]]`m5_((comma_fn_args))()`
+[[m_fn_args,`fn_args()`]]`((fn_args))()` +
+[[m_comma_fn_args,`comma_fn_args()`]]`((comma_fn_args))()`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3549,7 +3512,7 @@ m5_foo(1['']m5_comma_fn_args())   /// works for 0 or more fn_args
 |===
 
 
-[[m_fn_arg,`m5_fn_arg`]]`m5_((fn_arg))(Num)`
+[[m_fn_arg,`fn_arg(...)`]]`((fn_arg))(Num)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3569,7 +3532,7 @@ can be parameterized (e.g. `m5_fn_arg(m5_ArgNum)`).
 |===
 
 
-[[m_fn_arg_cnt,`m5_fn_arg_cnt`]]`m5_((fn_arg_cnt))()`
+[[m_fn_arg_cnt,`fn_arg_cnt()`]]`((fn_arg_cnt))()`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3585,8 +3548,8 @@ This is like, e.g. `${empty}#`, but it can be more convenient in nested function
 |===
 
 
-[[m_out,`m5_out`]]`m5_((out))(String)` +
-[[m_out_eval,`m5_out_eval`]]`m5_((out_eval))(String)`
+[[m_out,`out(...)`]]`((out))(String)` +
+[[m_out_eval,`out_eval(...)`]]`((out_eval))(String)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3612,7 +3575,7 @@ statement syntax with these
 |===
 
 
-[[m_return_status,`m5_return_status`]]`m5_((return_status))(Value)`
+[[m_return_status,`return_status(...)`]]`((return_status))(Value)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3630,36 +3593,44 @@ to `return_status` from the same function.
 |===
 
 
-[[m_on_return,`m5_on_return`]]`m5_((on_return))(..., D, MacroName, ...)`
+[[m_on_return,`on_return(...)`]]`((on_return))(MacroName, ...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
+|Description:
+|Call a macro upon returning from a function. Arguments are those for m5_call.
+This is most often used to have a function declare or set a variable/macro as a side effect.
+It is also useful to perform a tail recursive call without growing the call stack.
+
+|Side Effect(s):
+|that of the resulting function call
+
 |Parameter(s):
-|. `...`
-
-. `D`: Call a macro upon returning from a function. Arguments are those for m5_call.
-
-. `MacroName`: the name of the macro to call
+|. `MacroName`: the name of the macro to call
 
 . `...`: its arguments
 
-|===
+|Example(s):
+|....
+fn(set_to_five, VarName, {
+   on_return(set, m5_VarName, 5)
+})
+fn(set2, VarName1, Val1, VarName2, Val2, {
+   ...
+   on_return(eval, {
+      set(VarName1, m5_Val1)
+      set(VarName2, m5_Val2)
+   })
+})
+....
 
+|See also:
+|<<m_return_status>>, <<Aftermath>>
+|===
 
 
 === Checking and Debugging
 
-
-
-
-
-
-
-
-
-
-
-
-[[m_debug_level,`m5_debug_level`]]`m5_((debug_level))(level)`
+[[m_debug_level,`debug_level(...)`]]`((debug_level))(level)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3683,14 +3654,13 @@ use(m5-1.0)
 |===
 
 
-
 ==== Checking and Reporting to STDERR
 
 These macros output text to the standard error output stream (STDERR) (with `[{empty}'` / `'{empty}]` quotes represented by single characters).
 (Note that STDOUT is the destination for the evaluated output.)
 
-[[m_errprint,`m5_errprint`]]`m5_((errprint))(text)` +
-[[m_errprint_nl,`m5_errprint_nl`]]`m5_((errprint_nl))(text)`
+[[m_errprint,`errprint(...)`]]`((errprint))(text)` +
+[[m_errprint_nl,`errprint_nl(...)`]]`((errprint_nl))(text)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3707,14 +3677,14 @@ m5_errprint_nl(['Hello World.'])
 |===
 
 
-[[m_warning,`m5_warning`]]`m5_((warning))(message)` +
-[[m_error,`m5_error`]]`m5_((error))(message)` +
-[[m_fatal_error,`m5_fatal_error`]]`m5_((fatal_error))(message)` +
-[[m_DEBUG,`m5_DEBUG`]]`m5_((DEBUG))(message)`
+[[m_warning,`warning(...)`]]`((warning))(message)` +
+[[m_error,`error(...)`]]`((error))(message)` +
+[[m_fatal_error,`fatal_error(...)`]]`((fatal_error))(message)` +
+[[m_DEBUG,`DEBUG(...)`]]`((DEBUG))(message)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
-|Report an error/warning/debug message and stack trace (except for `DEBUG_if`).
+|Report an error/warning/debug message and stack trace (except for `DEBUG`).
 Exit for fatal_error, with non-zero exit code.
 
 |Parameter(s):
@@ -3728,10 +3698,10 @@ m5_error(['Parsing failed.'])
 |===
 
 
-[[m_warning_if,`m5_warning_if`]]`m5_((warning_if))(condition, message)` +
-[[m_error_if,`m5_error_if`]]`m5_((error_if))(condition, message)` +
-[[m_fatal_error_if,`m5_fatal_error_if`]]`m5_((fatal_error_if))(condition, message)` +
-[[m_DEBUG_if,`m5_DEBUG_if`]]`m5_((DEBUG_if))(condition, message)`
+[[m_warning_if,`warning_if(...)`]]`((warning_if))(condition, message)` +
+[[m_error_if,`error_if(...)`]]`((error_if))(condition, message)` +
+[[m_fatal_error_if,`fatal_error_if(...)`]]`((fatal_error_if))(condition, message)` +
+[[m_DEBUG_if,`DEBUG_if(...)`]]`((DEBUG_if))(condition, message)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3751,15 +3721,15 @@ m5_error_if(m5_Cnt < 0, ['Negative count.'])
 |===
 
 
-[[m_assert,`m5_assert`]]`m5_((assert))(message)` +
-[[m_fatal_assert,`m5_fatal_assert`]]`m5_((fatal_assert))(message)`
+[[m_assert,`assert(...)`]]`((assert))(condition)` +
+[[m_fatal_assert,`fatal_assert(...)`]]`((fatal_assert))(condition)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
 |Assert that a condition is true, reporting an error if it is not, e.g. `Error: Failed assertion: -1 < 0`. Exit for fatal_error, with non-zero exit code.
 
 |Parameter(s):
-|. `message`: the message to report; (`Error:` pre-text (for example) provided by the macro)
+|. `condition`: the condition to check (and report)
 
 |Example(s):
 |....
@@ -3769,11 +3739,9 @@ m5_assert(m5_Cnt < 0)
 |===
 
 
-
-
-[[m_verify_min_args,`m5_verify_min_args`]]`m5_((verify_min_args))(Name, Min, Actual)` +
-[[m_verify_num_args,`m5_verify_num_args`]]`m5_((verify_num_args))(Name, Min, Actual)` +
-[[m_verify_min_max_args,`m5_verify_min_max_args`]]`m5_((verify_min_max_args))(Name, Min, Max, Actual)`
+[[m_verify_min_args,`verify_min_args(...)`]]`((verify_min_args))(Name, Min, Actual)` +
+[[m_verify_num_args,`verify_num_args(...)`]]`((verify_num_args))(Name, Min, Actual)` +
+[[m_verify_min_max_args,`verify_min_max_args(...)`]]`((verify_min_max_args))(Name, Min, Max, Actual)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3798,7 +3766,7 @@ m5_verify_min_args(my_fn, 2, $#)
 
 ==== Uncategorized Debug Macros
 
-[[v_recursion_limit,`m5_recursion_limit`]]`m5_((recursion_limit))` (Universal variable)
+[[v_recursion_limit,`$recursion_limit`]]`$((recursion_limit))` (Universal variable)
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3808,7 +3776,7 @@ m5_verify_min_args(my_fn, 2, $#)
 
 
 
-[[m_abbreviate_args,`m5_abbreviate_args`]]`m5_((abbreviate_args))(max_args, max_arg_length, ...)`
+[[m_abbreviate_args,`abbreviate_args(...)`]]`((abbreviate_args))(max_args, max_arg_length, ...)`
 [frame=none,grid=none,cols=">1, 5a"]
 |===
 |Description:
@@ -3831,6 +3799,7 @@ m5_abbreviate_args(5, 15, $@)
 ....
 
 |===
+
 
 
 == Reference Card

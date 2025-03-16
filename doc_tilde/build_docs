@@ -1,0 +1,18 @@
+#/usr/bash
+set -e
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+cd "$SCRIPT_DIR"
+
+#echo "Generating M5_spec.adoc"
+
+# Build the Asciidoc file.
+../bin/m5 --obj_dir obj Tilde_spec.adoc.m5 > Tilde_spec.adoc
+
+# Build docs from the Asciidoc file.
+echo "Building Tilde_spec.html"
+asciidoctor -w Tilde_spec.adoc
+echo "Building Tilde_spec.pdf"
+asciidoctor-pdf Tilde_spec.adoc
+echo "Building Tilde_spec.xml"
+asciidoctor -b docbook5 Tilde_spec.adoc

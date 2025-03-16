@@ -7,6 +7,8 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # Process command line arguments.
 # --obj_dir <directory> specifies the directory for intermediate files.
 # -h/--help prints help.
+# TODO: -D for defining variables.
+# TODO: Option to read from stdin (or always do? not backward compatible).
 # ($2 is currently an undocumented argument that is passed to post_m4, providing the
 #  name of the output file for error messages.)
 while [[ $# -gt 0 ]]

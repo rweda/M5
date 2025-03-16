@@ -1,27 +1,25 @@
-// This M5 spec is generated with the help of M5 itself.
-// Since M5 syntax appears throughout, we have to be careful about M5's processing of this syntax
-// with careful use of quotes, etc.
+// The Tilde spec is generated with the help of Tilde itself.
+// Since Tilde syntax appears throughout, we have to be careful about Tilde's processing of this syntax.
 m5_pragma_disable_literal_comma   /// This library was written before the existence of literal commas.
 m4_define(['m5_\need_docs'], yes)
 m5_use(m5-local)
 
 
 m5_var(main_doc, <">
-   = M5 Text Processing Language User's Guide
+   = Tilde Text Processing Language User's Guide
    :toc: macro
    :toclevels: 3
    // Web page meta data.
-   :keywords:  Gnu, M4, M5, macro, preprocessor, TL-Verilog, Redwood +
-               EDA, HDL
-   :description: M5 is a macro preprocessor on steroids. It is built on the simple principle of text +
+   :keywords:  Tilde, macro, preprocessor
+   :description: Tilde is a macro preprocessor on steroids. It is built on the simple principle of text +
                substitution but provides features and syntax on par with other simple programming languages. +
                It is an easy and capable tack-on enhancement to any text format as well as +
                a reasonable general-purpose programming language specializing in text processing. +
-               Its broad applicability makes M5 a valuable tool in every programmer/engineer/scientist/AI's toolbelt.
+               Its broad applicability makes Tilde a valuable tool in every programmer/engineer/scientist/AI's toolbelt.
 
    
 
-   //:library: M5
+   //:library: Tilde
    :idprefix: m5_
    :numbered:
    :secnums:
@@ -41,14 +39,15 @@ m5_var(main_doc, <">
    _To enrich any text format_
 
    [.text-center]
-   M5 version 2.0, document subversion 1, 2024 +
+   Tilde version 1.0, document subversion 1, 2024 +
    by Steve Hoover, Redwood EDA, LLC +
    (mailto:steve.hoover@redwoodeda.com[steve.hoover@redwoodeda.com])
 
    This document is licensed under the https://creativecommons.org/publicdomain/zero/1.0/legalcode[CC0 1.0 Universal] license.
 
-   The M5 text processing language and tool enhances the Gnu M4 macro preprocessor,
-   adding features typical of programming languages.
+   Tilde is a simple but capable language for text processing. It is built to extend the capabilities of
+   any text file format without getting in the way. It extends concepts of macro preprocessing into the realm
+   of programming, restricted to processing text.
 
    toc::[]
 
@@ -58,21 +57,89 @@ m5_var(main_doc, <">
 
    {description}
 
-   This chapter provides background and general information about M5, guidance about this specification,
-   and instructions for using M5.
+   This chapter provides background and general information about the Tilde language and tool and
+   guidance about this specification.
 
 
    === About this Specification
 
-   This document covers the M5 language as well as its standard <<Macro Library>>. This document's major
+   This document covers the Tilde language as well as its standard <<Macro Library>>. This document's major
    version reflects the language version, and the minor version reflects the library version. There is
    also a document subversion distinguishing versions of this document with no corresponding language or
    library changes.
 
+   To target different users, this document contains the following sections:
 
-   === M5's Origin Story
+   - <<Background Information>>
+   - <<Getting Started with the Tilde Tool>>
+   - <<Reading Tilde Code>>
+   - <<Writing Tilde Code>>
+   - <<Standard Library Reference>>
 
-   I created M5 as a preprocessor for the https://tl-x.org[TL-Verilog] hardware
+   To use Tilde on an existing Tilde file, you only need to read <<Getting Started with the Tilde Tool>>.
+
+   To understand a file that uses Tilde, you only need to read the <<Reading Tilde Code>> and
+   consult the <<Standard Library Reference>> as needed.
+
+   To write Tilde code, you need to read the <<Writing Tilde Code>> section as well and become generally
+   familiar with the <<Standard Library Reference>>.
+
+   This <<Background Information>> section is optional for everyone.
+
+
+   === An Overview of Tilde Concepts
+
+   Tilde is built to enhance, not replace, any programming language, text format, or even plain-text file.
+   Tilde aims to be:
+   
+   - non-meddlesome, avoiding any syntax that could conflict with a target language
+   - easy to learn to write, and even easier to read
+   - capable (not optimal) as a general-purpose language (within the realm of text processing)
+   - enabling of custom embedded syntaxes
+   - easy to debug (potentially--debugging tools are not yet available)
+
+   Tilde may execute shell commands and can thus be used as a scripting language.
+
+   Libraries are included by URI (URL or local file) and may be cached locally. Thus no library
+   installation or package manager is required.
+
+   There are only two data types: text and code. Code is to be evaluated. Text may
+   be formatted to represent other data types. For example, a function may produce an
+   "integer" value, meaning it produces a string containing the decimal representation of
+   an integer value.
+
+   Multiline strings are easily expressed using indentation to avoid the need for escape characters.
+   Multiline strings are a great way to make unrestricted embedded formats.
+
+   "Variables" typically hold text string values, and "macros" (most of which are "functions") hold code. Variables and functions
+   are global name/value pairs, though each name can hold a stack of values, with the top value being
+   active. These stacks are used to provide scoped variables/macros.
+
+   Macros have ordered and (generally) named parameters. They evaluate to strings. The macro
+   body is code that contains a series of: literal text strings, variable instantiations, arithmetic
+   expressions, and macro calls. Each may append to the output of the function
+   or assign/push/pop variables/macros.
+
+
+   === Use Models
+
+   Tilde can be enabled on any source file in your project. For example, in a Make-based build
+   flow, add this to your Makefile:
+   
+    %: %~
+      tilde $< > $@
+
+   To then enable Tilde on any specific source file, simply rename the file with a trailing `~`.
+   
+   Tilde can also be used to define parameterized web files. A webserver can be configured to serve
+   parameterized files using Tilde (similar to PHP). For example,
+   `http://example.com/index.html?foo=bar` can invoke Tilde on `index.html~` with a Tilde variable `foo`
+   set to `bar` that is used to configure `index.html~`.
+
+
+   === Tilde's Origin Story
+
+   I created Tilde as a preprocessor for the https://tl-x.org[TL-Verilog] hardware
    language and later decoupled it as a stand-alone tool. The original intent was to use
    an out-of-the box macro preprocessor to provide a stop-gap solutions to missing TL-Verilog language
    features for "code construction" as TL-Verilog took shape. While other hardware languages build on existing
@@ -85,7 +152,7 @@ m5_var(main_doc, <">
    had led to some worthwhile insights and that there was a place in the
    world for a better text processing language/tool, so I carved out some time to polish my mountain of hacks.
 
-   Though M5 would benefit from a fresh non-M4/Perl-based implementation, I had to draw the line somewhere.
+   Though Tilde would benefit from a fresh non-M4/Perl-based implementation, I had to draw the line somewhere.
    At this point, that legacy is mostly behind the scenes, and while it's not everything I'd like it to be,
    it's close, and it's way better than any other text preprocessor I'm aware of.
 
@@ -94,22 +161,22 @@ m5_var(main_doc, <">
 
 
    [[vs_m4]]
-   === M5 Versus M4
+   === Tilde Versus M4
 
-   M5 uses M4 to implement a text-preprocessing language with some subtle philosophical
-   differences. M5 aims to preserve most of the conceptual simplicity of
+   Tilde uses M4 to implement a text-preprocessing language with some subtle philosophical
+   differences. Tilde aims to preserve most of the conceptual simplicity of
    macro preprocessing while adding features that improve readability, manageability, and
    debuggability for more complex use cases.
 
    This document is intended to stand on its own, independent of the
    https://www.gnu.org/software/m4/[M4 documentation]. The M4 documentation
-   can, in fact, be confusing due to M5's philosophical differences with M4.
+   can, in fact, be confusing due to Tilde's philosophical differences with M4.
 
-   Beyond M4, M5 contributes:
+   Beyond M4, Tilde contributes:
 
    - features that feel like a typical, simple programming language
    - literal string variables
-   - functions with named arguments
+   - functions with named parameters
    - variable/macro scope
    - an intentionally minimal amount of syntactic sugar
    - document generation assistance
@@ -118,28 +185,27 @@ m5_var(main_doc, <">
    - a richer core library of utilities
    - a future plan for modular libraries
 
-   === Limitations of M5
+   === Limitations of Tilde
 
-   M4 has certain limitations that M5 is unable to address. M5 uses M4 as is without
-   modifications to the M4 implementation (though these limitations may motivate
-   changes to M4 in the future).
+   M4 has certain limitations that Tilde is unable to address without a re-implementation that is
+   not based on M4 or modifications to M4 itself.
 
    ==== Security
    M4 has full access to its host environment (similar to most programming and scripting
    languages, but unlike many macro preprocessors). Malware can easily do harm. Third-
-   party M5 code should be carefully vetted before use, or M5 should be run within a contained
-   environment. M5 provides a simple mechanism for library inclusion by URL (or it will).
+   party Tilde code should be carefully vetted before use, or Tilde should be run within a contained
+   environment. Tilde provides a simple mechanism for library inclusion by URL (or it will).
    This enables easy execution of public third-party code, so use it with extreme caution.
 
    ==== Modularity
    M4 does not provide any library, namespace, and version management facilities.
-   Though M5 does not currently address these needs, plans have been sketched in code comments.
+   Though Tilde does not currently address these needs, plans have been sketched in code comments.
 
    ==== String processing
    While macro processing is all about string processing, safely manipulating arbitrary
    strings is not possible in M4 or it is beyond awkward at best. M4 provides
    `m4_regexp`, `m4_patsubst`, and `m4_substr`. These return unquoted strings that will
-   necessarily be elaborated, potentially altering the string. While M5 is able to jump
+   necessarily be elaborated, potentially altering the string. While Tilde is able to jump
    through hoops to provide <<m_regex>> and <<m_substr>> (for strings of limited length)
    that return quoted (literal) text, `m4_patsubst` cannot be fixed (though <<m_for_each_regex>>
    is similar). The result of `m4_patsubst` can be quoted only by quoting the input string,
@@ -148,7 +214,7 @@ m5_var(main_doc, <">
 
    In addition to these issues, care must be taken to ensure that resulting text does not contain mismatching
    quotes or parentheses or combine with surrounding text to result in the same. Such
-   resulting mismatches are difficult to debug. M5 provides a notion of "unquoted strings"
+   resulting mismatches are difficult to debug. Tilde provides a notion of "unquoted strings"
    that can be safely manipulated using <<m_regex>>, and <<m_substr>>.
 
    Additionally the regex configuration used by M4 is quite dated. For example, it does
@@ -176,16 +242,19 @@ m5_var(main_doc, <">
    M4's facilities for associating output with input only map output lines to line numbers of
    top-level calls. M4 does not maintain a call stack with line numbers.
 
-   M4 and M5 have no debugger to step through code. Printing (see <<m_DEBUG>> is the debugging mechanism of choice.
+   M4 and Tilde have no debugger to step through code. Printing (see <<m_DEBUG>> is the debugging mechanism of choice.
 
    ==== Performance
-   M5 is intended for text processing, not for compute-intensive algorithms. Use a programming
+   Tilde is intended for text processing, not for compute-intensive algorithms. Use a programming
    language for that.
 
    ==== Graphics
-   M5 is for text processing only.
+   Tilde is for text processing only.
 
    ==== Status
+
+   This specification documents intended language syntax prior to a clean re-implementation.
+   Stay tuned.
 
    Major next steps include:
 
@@ -218,16 +287,7 @@ m5_var(main_doc, <">
    This affects parenthesis checking and quote-type matching. Currently, this is based on
    returning to a quote level within a line. Link this instead to labeled escape quotes
    (permitting "<>"). Label escapes can be more generic allowing quoting within the escape,
-   and we can permit continuation across multiple lines. Hmmm... don't have escape quotes.
-   Instead have scoped variable instantiations and macro calls. E.g.:
-   
-    var(ErrorLevel, "error")  # or "warning" or "info"
-    ...
-    macro(report, Msg, r:{call(r:$ErrorLevel, $Msg)})
-
-   This way there's no syntax ending the code block, so continuation is clear and parens
-   clearly match.
-
+   and we can permit continuation across multiple lines.
    - "*" (for evaluate) is no longer worth it.
    - Added "3.foo" syntax for numbered function parameters to avoid "[".
   
@@ -253,7 +313,7 @@ m5_var(main_doc, <">
    - But... <'>MyVar<'> is clunky. Maybe for heavy text we keep `m5_`/`\m5_` as an/the escape and
    `///`/`/**` for comments??? Maybe just a special case for variables. Needs regex configurability.
    (Post-string substitutions can be performed by wrapping the heavy string in a macro call.)
-   - We need to use `~` for something so we can call the language Tilda and give files a `~` extension,
+   - We need to use `~` for something so we can call the language Tilde and give files a `~` extension,
    like `model.tlv~`. Two-line make code to preprocess and run.
 
    Example:
@@ -273,8 +333,8 @@ m5_var(main_doc, <">
       "Hey, "$Player"!"
       if_eq($Val, 2, {hi()"."})
       # A text block with explicit indentation.
-      chomp("   # Quote can be on this line as well, as long as the text doesn't start with whitespace.
-         v
+      chomp(   # Quote can be on this line as well, as long as the text doesn't start with whitespace.
+         "
          Here's a line of text as a block.
       ".)   # "." includes a newline at the end of the block without an extra line.
       
@@ -333,7 +393,7 @@ m5_var(main_doc, <">
    would substitute it for a control character prefix, and M4 would be configured to recognize
    this control character as a word.)
    - No inline behavior of macros (`['']`) implied after macro definitions.
-   - Many of the M4 macros that return unquoted text would return quoted text, and other <<Limitations_of_M5>>
+   - Many of the M4 macros that return unquoted text would return quoted text, and other <<Limitations_of_Tilde>>
    would be fixed as well.
    - All m6_... are interpreted as a call; error reported if macro doesn't exist.
    - Source tracking:
@@ -387,7 +447,7 @@ m5_var(main_doc, <">
 
    As a conditional assignment:
 
-    ~set(BallCnt, m5_if(m5_BallCnt < 0, ['0'], ['m5_BallCnt'])
+    ~set(BallCnt, m5_if(m5_BallCnt < 0, ['0'], ['m5_BallCnt']))
    
     ball_cnt = (ball_cnt < 0) ? 0 : ball_cnt;
 
@@ -396,25 +456,25 @@ m5_var(main_doc, <">
 
 
    [[usage]]
-   == Getting Started with the M5 Tool
+   == Getting Started with the Tilde Tool
 
    [[config]]
-   === Configuring M5
+   === Configuring Tilde
 
-   M5 adds a minimal amount of syntax, and it is important that this syntax is unlikely to conflict
+   Tilde adds a minimal amount of syntax, and it is important that this syntax is unlikely to conflict
    with the target language syntax. The syntax that could conflict is listed in <<Ensure No Impact>>.
    Currently, there is no easy mechanisms to configure this syntax.
 
 
-   === Running M5
+   === Running Tilde
 
    The Linux command:
 
    ```sh
-   m5 in-file > out-file
+   tilde in-file > out-file
    ```
 
-   runs M5 in its default configuration.
+   runs Tilde in its default configuration.
 
    /// TODO:
    (Currently, there's a dependency on M4 and perl and no installation script.)
@@ -424,934 +484,386 @@ m5_var(main_doc, <">
 
    === Ensure No Impact
 
-   When enabling the use of M5 on a file, first, be sure M5 processing does nothing to the file.
-   M5 should output the input text, unaltered, as long as your file contains no:
+   When enabling the use of Tilde on a file, first, be sure Tilde processing does nothing to the file.
+   Tilde should output the input text, unaltered, as long as your file contains no:
 
-   - quotes, e.g. `['`, `']`)  _(This requirement is being removed with no quote processing in source context.)_
-   - `m5_` or `m4_`
-   - M5 comments, e.g. `/{empty}//`, `+/']['**+`, `+']['**/+`
-   - code blocks, e.g. `[` or `{` followed by a newline or `]` or `}` beginning a line after optional whitespace
-     _(This requirement is being removed with no processing in source context.)_
+   - `<">~`
 
 
    === Tool Flow
 
-   Since M5 is simply substituting text, you can do bizarre things, which can be difficult to debug.
+   Since Tilde is simply substituting text, you can do bizarre things, which can be difficult to debug.
    Understanding the tool flow can help you look one step under the hood to debug issues or understand
    how syntax is interpreted.
 
-   M5 basically processes files in two steps:
+   Tilde basically processes files in two steps:
 
    - Interpret syntactic sugar.
    - Run M4.
 
    (There is a third step as well that is very minor to undo some of the sugaring.)
 
-   Object files are generated (run `m5 -h` for options) that expose the interpretation of M5 sugar.
+   Object files are generated (run `tilde -h` for options) that expose the interpretation of Tilde sugar.
    Note that quotes and commas are substituted with control characters in these files, so you will
    need an appropriate tool to view them. Your shell may recognize them as binary files and prompt you
    about viewing them, which is fine to do.
 
 
 
-   == An Overview of M5 Concepts
+   == Reading Tilde Code
 
-   === Macro Preprocessing in General
+   === A Quick Overview by Example
 
-   Macro preprocessors extend a target programming language, text format, or general text file with the ability to define
-   and call (aka instantiate, invoke, expand, evaluate, or elaborate) parameterized macros that provide
-   text substitutions. Macros are generally used to provide convenient shorthand for commonly-used constructs.
-   A macro preprocessor processes a text file sequentially with a default behavior of passing
-   the input text through as output text. When a macro name is encountered, it and its argument list are substituted
-   for new text according to its definition.
+   The following example gives a general view of typical Tilde code and provides context for describing
+   its language features. This example defines a "macro" called `withdraw` that updates a `Balance` variable
+   (referenced as `$Balance`) and returns text describing the transaction. It should be fairly readable
+   even without knowledge of Tilde syntax.
 
-   M5 provides convenient syntax for macro preprocessing as well as programatic text processing, sharing the same
-   macros for each. This provides advanced text manipulation to supercharge any programming language or text file.
-
-
-   === Macros Overview
-
-   A macro that simply outputs a static text string can be defined within the source file like this:
-
-    m5_macro(hello, Hello World!)
-
-   The above text will substitute with an empty string but will define a macro that can be called like this:
-
-    m5_hello()
-
-   Resulting in:
-
-    Hello World!
-
-   Macros can also be parameterized. Here we define a macro that outputs a string with a single
-   parameter referenced as `${empty}1`:
-
-    m5_macro(hello, Hello $1!)
-
-   And call it like this:
-
-    m5_hello(World)
-
-   Resulting in:
-
-    Hello World!
-
-   For more details on macro syntax, see <<Declaring Macros>>, <<Calling Macros>>, and <<Macro Arguments>>.
-
-
-   === Quotes Overview
-
-   Quotes (`['` and `']`) may be used around text to prevent substitutions. For example, to provide
-   a macro whose result includes a comma, quotes are needed:
-
-    m5_macro(hello, ['Hello, $1!'])
-
-   Without these quotes, the comma in `Hello, $1!` would be interpreted as a macro argument separator.
-
-   Furthermore, a second level of quotes may be needed to prevent the interpretation of the comma after
-   substitution:
-
-    m5_macro(hello, ['['Hello, $1!']'])
-    m5_hello(World)
-
-   The call substitutes with `['Hello, World!']` (actually `['Hello, World!']['']`), which elaborates to the literal text:
-
-    Hello, World!
-
-   For more details on quote use, see <<quotes>>.
-
-
-   === Variables Overview
-
-   Variables hold string values. They can be thought of as macros without arguments. They are defined as:
-
-    m5_var(Hello, ['Hello, World!'])
-    m5_var(Age, 23)
-
-   And used as:
-      
-    m5_Hello I am m5_Age years old.
-
-   Resulting in:
-      
-    Hello, World! I am 23 years old.
-
-   Variables are always returned as literal strings, so a second level of quoting is
-   not required for the definition of `Hello`.
-
-   Variables are scoped, and by convention, scoped
-   definitions are named in camel case (strictly speaking, Pascal case).
-
-   For more details on variable use, see <<variables>> and <<variable_sugar>>.
-
-
-   === Macro Stacks
-
-   All macros and variables, are actually stacks of definitions that can be pushed and popped. (These
-   stacks are frequently one entry deep.) The top definition is active, providing the replacement text when
-   the macro/variable is instantiated. The others are only accessible by popping the stack.
-   Pushing and popping are not generally done explicitly, but rather through scoped declarations. See <<Scoped Code Blocks>>.
-
-
-   === Code Syntax Overview
-
-   The above syntax is convenient in "source context", embedded into another language. It is clear where substitutions
-   occur because all macro calls and variables are referenced with an `m5_` prefix. This syntax, however, quickly becomes
-   clunky for any substantial text manipulation, requiring excessive `m5_`-prefixing.
-   Additionally, it is difficult to format code readably because carriage returns and other whitespace are generally
-   taken literally. This results in single-line syntax with many levels of nesting that quickly become difficult
-   to follow.
-
-   To enable code structure that looks more like a programming language, "code context" can be established
-   within which code syntax is supported.
-
-   Take for example this one-line definition in source context of an `assert` macro:
-
-    m5_macro(assert, ['m5_if(['$1'], ['m5_error(['Failed assertion: $1.'])'])'])
-
-   This can be written equivalently (though with a slight performance impact) as:
-
-    m5_macro(assert, {
-       if(['$1'], [
-          error(['Failed assertion: $1.'])
-       ])
+    # Withdraw credits from $Balance.
+    # Args:
+    #   Amount: The number of credits to withdraw.
+    # Side Effects:
+    #   Updates $Balance.
+    # Output:
+    #   Text describing the transaction.
+    #   E.g.:
+    #     Withdrawing 40.
+    #     Starting balance: 100.
+    #     New balance: 60.
+    macro(withdraw, Amount, {
+       # Report the transaction and balance.
+       "Withdrawing " $Amount "." |     # Note: "|" produces a newline.
+       "Starting balance: " $Balance "." |
+       if([$Balance >= $Amount], {
+          # Make/report the withdrawal.
+          decrement(Balance, $Amount)
+          "New balance: " $Balance "." |
+       }, {
+          # No withdrawal.
+          "Insufficient balance." |
+       })
     })
+   
+   /**
+   The following is a simple form letter in Tilde:
 
-   `m5_macro(` enters "argument list context", where parentheses and brackets have special meaning.
-   `{` at the end of its line enters code context, where, most notably, text does not implicitly
-   pass through to the output and `m5_` is implied at the beginning of each code statement
-   (beginning its line). On the final line, `}` and `)` exit these contexts
+    <">~  # Exit literal text.
+    # Get the payment amount from a file.
+    set(Amount, {include("payments/" $Name)})
+    # Back to literal text.
+    <">~
+    Dear <">~$Name<">~,
 
-   For more details, see <<code_blocks>> and <<contexts>>.
+    Thank you for your recent payment of <">~$Amount<">~. We appreciate your business.
 
+    Sincerely,
+    Acme Corporation
+   **/
 
-   === Functions and Scope Overview
+   This macro is called below:
 
-   M5 also provides a syntax for function declarations with named parameters. The assert macro can be
-   defined as a function as:
+    var(Balance, 100)   # Declare variable $Balance with value 100.
+    withdraw(40)        # Withdraw 40 from $Balance.
+   
+   and produces the text:
 
-    fn(assert, Expr, {
-       if(m5_Expr, [
-          error(Failed assertion: m5_Expr.)
-       ])
-    })
+    Withdrawing 40.
+    Starting balance: 100.
+    New balance: 60.
 
-   Like any respectable programming language, `Expr`, above, is local to the function.
-   Functions and other macros may produce result text (see <<Function Output Example>> and <<code_blocks>>). They may also produce
-   side effects including variable declarations (see <<Aftermath>>) and STDERR output (see <<m_error>>).
+   Macro arguments are supplied as "code"--a sequence of "statements", with optional whitespace
+   separation, where statements may be:
 
-   For more details on functions, see <<Functions>>. For more details on scope, see <<scope>>.
+   - Literal strings, e.g. `"Withdrawing "` and `Balance`
+   - Variable instantiations, e.g. `$Amount`
+   - Arithmetic expressions: e.g. `[Balance >= $Amount]`
+   - Macros calls: e.g. `var(Balance, 100)`
+   - Special syntax: e.g. `|` for newline
+   - Code blocks: i.e. `{...}`
 
+   Aside from code blocks, each of these produces (possibly empty) text, and the result of evaluating the code
+   is the concatenation of this text.
 
-   === Function Output Example
-
-   We can add output text to this function indicating assertion failures in the resulting text:
-      
-    fn(assert, Expr, {
-       ~if(m5_Expr, [
-          error(Failed assertion: m5_Expr.)
-          ~(Failed assertion: m5_Expr.)
-       ])
-    })
-
-   Statements producing output are prefixed with a tilde (`~`).
-
-
-   === Libraries and Namespaces Overview
-
-   M5 has a simple and effective import mechanism where a macro library file is simply imported by its URI
-   (URL or local file). Libraries can be imported into their own namespace (though this mechanism is not
-   yet implemented).
-
-   /// For more details on libraries, see <<Libraries>>. For more details on namespaces, see <<Namespaces>>.
-
-
-   === Processing Steps
-
-   Several of the above constructs, including code blocks and statements are termed "syntactic sugar" and
-   are processed in a first pass before macro substitution--yes as a pre-preprocessing step.
-
-   M5 processing involves the following (ordered) steps:
-
-   * Substitute quotes for single control characters.
-   * Process syntactic sugar (in a single pass):
-   ** Strip M5 comments.
-   ** Process other syntactic sugar, including block and label syntax.
-   ** Process pragmas; check indentation and quote/parenthesis matching.
-   * Write the resulting file.
-   * Run M4 on this file (substituting macros).
+   A macro argument can be as simple as a literal string or as complex as
+   a function body. For example, the code above calls `macro` with three arguments as `macro(withdraw, Amount, {...})`. The first
+   two arguments are unquoted strings (aka "tokens"), and the third is the entire body of the `withdraw`
+   macro.
+   
+   When calling a macro, the code of each argument is evaluated, and the resulting strings are passed
+   into the parameters. For an argument that is enclosed in `{`/`}`, the parameter becomes the code itself,
+   and this code may be evaluated later. The arguments to the `if` macro call above, for example, include
+   two code arguments, and the `if` macro evaluates one of them.
+   
+   The remainder of this section describes these language features in greater detail using their default
+   syntax. Note that some syntax is configurable. See <<Syntax Configuration>>.
 
 
-   == Sugar-Free M5 Details
+   === Literal Strings
 
-   === Defining "Sugar-Free"
+   ==== Quoted Literal Strings
 
-   M5 can be used "sugar-free". It's just a bit clunky for humans. <<Syntactic Sugar>> is recognized in the
-   source file. Text that is constructed on the fly and evaluated (e.g. by <<m_eval>>) is evaluated sugar-free.
+   There are two syntaxes for quoted literal strings:
 
+   - `+"+`/`+"+`: Light quotes. These are used for literal text strings.
+   - `<">~`/`<">~`: Heavy quotes. These are also used for literal text strings and are
+   generally used for larger, often multiline text.
 
-   [[quotes]]
-   === Quotes
+   Heavily quoted strings differ from lightly quoted strings only in the quote characters used.
+   Heavy quotes reduce the likelihood of conflicts with end quote characters in the strings.
+   
+   The only characters with special (non-literal) meaning within the string are the corresponding end
+   quote characters. If the end quote characters are needed literally in the string, they can be followed
+   by a `~` character. The `~` will be dropped and the string will continue until a non-literal
+   end quote is encountered. Thus:
 
-   Unwanted processing, such as macro substitution, can be avoided using quotes. By default,
-   these are `['` and `']` (and a configuration mechanism is not yet available to change this).
-   Like syntactic sugar, they are recognized only when they appear in a
-   source file and cannot be constructed from their component characters. Quotes, however, are an essential
-   part of M5, not a syntactic convenience.
+    "Say, "~Cheese"~!"
 
-   Quoted text begins with `['`. The quoted text is parsed only for `['` and `']` and ends at the corresponding `']`.
-   The quoted text passes through to the resulting text, including internal matching quotes, without any
-   substitutions. The outer quotes themselves are discarded.
-   The end quote acts as a word boundary for subsequent text processing.
+   represents the string: `Say, "Cheese"!`. Alternatively, heavy quotes can be used to avoid
+   the need for the literal (`~`) character:
 
-   Within quotes, intervening
-   characters that would otherwise have special treatment, such as commas, parentheses, and `m5_`-prefixed
-   words (after sugar processing), have no special treatment.
+    <">~Say, "~Cheese"!<">~
+   
+   NOTE: Most languages use an escape character that precedes, not follows, the character to be escaped.
+   Such a prefix escape character would itself need to have an escape sequence. Using a postfix character
+   avoids this need. Other escape scenarios are handled in Tilde by ending the string and
+   starting a new one later, which is concatenated, e.g.: `"Hi, "$Name"!"`.
 
-   Quotes can be used to delimit words. For example, the empty quotes below:
+   ==== Unquoted Literal Characters
 
-    Index['']m5_Index
+   Argument characters that have no special meaning may pass through to a macro parameter literally.
 
-   enable `m5_Index` to substitute, as would:
+   For example:
 
-    ['Index']m5_Index
+    var(Player.1.Score, 0)
 
-   (`Index\m5_Index` is a shorthand for this. See <<prefix_escapes>>.)
+   is equivalent to:
 
-   Quotes can also be used to avoid the interpretation of `m5_foo` as syntactic sugar. (See <<Macro Call Sugar>>.)
+    var("Player.1.Score", "0")
 
-   Special syntax is provided for multi-line literal quoted text. (See <<Code Blocks>>.) Outside of those
-   constructs, quoted text should not contain newlines since newlines are used to format code.
-   Instead, the <<m_nl>> variable (or macro) provides a literal newline character, for example:
+   For details on which characters are permitted without quotes, see <<Unquoted Character Restrictions>>.
 
-    m5_DEBUG(['Line:']m5_nl['  ']m5_Line)
+   ==== Multiline Strings
+
+   Multiline strings begin with light or heavy quotes (`"` or `<">~`) that are followed immediately by a newline.
+   The string is indented beneath the line containing the begin quote. It is terminated by
+   the corresponding close quote beginning a line at the same level of indentation as the line on which
+   the string began. The string's indentation, as well as the initial and final newline are excluded from
+   the string. For example:
+
+    set(MyPythonCode, <">~
+      def foo():
+        print("Hello, world!")
+    <">~)
+   
+   The indentation is determined by the first non-whitespace character of the string.
+   To enable multiline strings that begin with whitespace, a line containing only `v`
+   can be used to point to the first character of the string. For example:
+
+      set(MyPythonCode, <">~
+        v
+          def foo():
+            print("Hello, world!")
+      <">~)
+
+   Defines a similar string with two spaces of indentation.
+
+   === Arithmetic Expressions
+
+   Arithmetic expressions can be provided within `[`/`]` and cannot be immediately preceded
+   by word characters.
+
+   For example:
+
+    var(Val, [1 + 2 * 3])
+    $Val    # Yields: "7"
+   
+   `[1 + 2 * 3]` is essentially shorthand syntax for `calc(1+2*3)`. (See <<m_calc>>.)
+   
+   Like other macro argument text, the text of the expression is code that evaluates to a string.
+   The string, in this case, must be a valid expression as defined by <<m_calc>>. The example below
+   illustrates that expressions may contain subexpressions, variable instantiations, macro calls,
+   and unquoted characters.
+
+      var(Val, [[$Val + 1] * if($Negate, -1, 1)])
+
+   The set of characters that may be unquoted is different for expressions than for macro arguments.
+   (See <<Argument Text>>.)
 
 
    [[variables]]
    === Variables
 
-   A variable holds a literal text string. Variables are defined using: <<m_var>>, are reassigned using <<m_set>>,
+   Variables are name/value pairs where each may be an arbitrary string. Values may also be
+   code. (See <<Code>>.)
+   
+   Variables are global, though each can hold a stack of values, with the top value being
+   active. These stacks are used to provide scoped variables.
+
+   Tilde does not specifically support data structures, but these can be implemented by libraries.
+   For example, the variable `Player.1.Score` might represent a field `Score` of entry `1` of
+   the `Player` array.
+
+   Variables are defined (or pushed to their stack) using: <<m_var>>, are reassigned using <<m_set>>,
    and are accessed using <<m_get>>. For example:
 
-    m5_var(Foo, 5)
-    m5_set(Foo, m5_calc(m5_Foo + 1))
-    m5_get(Foo)   /// Yields: "6"
+    var(Foo, 5)
+    increment(Foo)
+    get(Foo)   /// Yields: "6"
 
-   Syntactic sugar provides variable access using, e.g., `m5_Foo` rather than `m5_get(Foo)`. (See <<variable_sugar>>.)
+   The syntax `$Foo` is shorthand for `get(Foo)`. Thus:
 
-
-   === Declaring Macros
-
-   Here we declare an `echo` macro.
-
-    m5_macro(echo, ['['$1']'])
-
-   where
-
-    m5_echo(['Hello, World!'])
-
-   substitutes with `['Hello, World!']`, and this elaborates as `Hello, World!`.
-
-   /**
-   [%autowidth]
-   |===
-   |Category |Definition |Call |Resulting Text
-
-   |Variables
-   |`m5_var(Foo, 5)`
-   |`m5_Foo`
-   |`5`
-
-   |Traditional macros
-   |`m5_macro(foo, ['['Arg: $1']'])`
-   |`m5_foo(hi)`
-   |`Arg: hi`
-
-   |Functions
-   |`m5_fn(foo, in, ['m5_out(['Arg: ']m5_in)'])`
-   |`m5_foo(hi)`
-   |`Arg: hi`
-   |===
-   **/
-
-   The most direct way to declare a macro is with <<m_macro>>. For example:
-
-    m5_macro(foo,
-       ['['Args:$1,$2']'])
-
-   This defines the macro body as `['Args:$1,$2']`.
-
-   A macro call returns the body of the macro definition with numbered parameters substituted with
-   the corresponding arguments. Dollar parameter substitutions are made throughout the entire body
-   string regardless of the use of quotes and adjacent text. The result is then evaluated, so these macros can perform
-   computations, assign variables, provide argument lists, etc. In this case, the body is quoted, so
-   its resulting text is literal. For example:
-   
-    m5_foo(A,B)     ==> Yields: "Args:A,B"
-
-   A few special dollar parameters are supported in addition to numbered parameters. The following
-   notations are substituted:
-
-   - `${empty}1`, `${empty}2`, etc.: These substitute with corresponding arguments.
-   - `${empty}#`: The number of arguments.
-   - `${empty}@`: This substitutes with a comma delimited list of the arguments, each quoted so as to be
-         taken literally. So, `m5_macro(foo, ['m5_bar(${empty}@)'])` is one way to define `m5_foo(...)` to have the
-         same behavior as `m5_bar(...)`.
-   - `${empty}*`: This is rarely useful. It is similar to `${empty}@`, but arguments are unquoted.
-   - `${empty}0`: The name of the macro itself. It can be convenient for making recursive calls
-         (though see <<m_recurse>>). `${empty}0__` can also be used as a name prefix to localize a macro name
-         to this macro, though this use model is discouraged. (See <<masking>>.)
-         For <<Functions>>, `${empty}0` is the internal name holding the function body. It should not
-         be used for recursion but can be used as a unique prefix.
-
-   CAUTION: Macros may be declared by other macros in which case the inner macro body appears within
-   the outer macro body. Numbered parameters appearing in the inner body would be substituted as
-   parameters of the _outer_ body. It is generally not recommended to use numbered
-   parameters for arguments of nested macros, though it is possible. For more on the topic,
-   see <<block_labels>>.
-
-   A richer declaration mechanism is provided by <<m_fn>>. (See <<Functions>>.)
+    $Foo   /// Yields: "6"
 
 
-   === Calling Macros
+   === Macro Calls
 
    The following illustrates a call of the macro named `foo`:
 
-    m5_foo(hello, 5)
+    foo(hello, 5)
 
-   NOTE: When this syntax appears in a source file, it is recognized as syntatic sugar and is processed
-   to provide additional checking. Here, we specifically descibe the processing of this syntax when
-   constructed from other processing, noting that syntactic sugar results in similar behavior. (See. <<Macro Call Sugar>>.)
+   A well-formed macro name is comprised of one or more word characters
+   (`a-z`, `A-Z`, `0-9`, and `_`). Though discouraged, it is possible to define macros with names containing non-word characters.
+   Such macros can only be called indirectly, e.g. `call("b@d", args)`. (See <<m_call>>.)
 
-   A well-formed M5 macro name is comprised of one or more word
-   characters (`a-z`, `A-Z`, `0-9`, and `_`).
+   The text string for an argument, between `(`, `,`, and/or `)`, is code or a code block. (See <<Code>>.)
 
-   When elaboration encounters (in unquoted text and without a preceding word character or immediately following
-   another macro call) `m5_`, followed immediately by the
-   well-formed name of a defined macro, followed immediately by `(` (e.g. `m5_foo(`) an argument list (see <<arguments>>) is processed,
-   then the macro is "called" (or "expanded"). `$` substitutions are performed on the macro body (see <<Declaring Macros>>), the
-   resulting text replaces the macro name and argument list followed by an implicit `['']` to create a word boundary,
-   and elaboration is resumed from the start of this substituted text.
-
-   Macro names should not be encountered without an argument list. Though this would result in calling the
-   macro with zero arguments, it is discouraged due to the syntactic confusion with variables. Macros
-   can be called with zero arguments using `m5_call(macro_name)` instead. (See <<m_call>>.)
-
-   NOTE: Though discouraged, it is possible to define macros with names containing non-word characters.
-   Such macros can only be called indirectly (e.g. `m5_call(b@d, args)`). (See <<m_call>>.)
-
-   NOTE: In addition to `m5_` macros,
-   the M4 macros from which M5 is constructed are available, prefixed by `m4_`, though their
-   direct use is discouraged and this document does not describe their use. Elaboration of the string `m4_`
-   should by avoided.
+   Empty argument text, as in `foo(, )`, is not permitted. Empty argument values are typically provided as `""`,
+   thus `foo("", "")` is legal syntax. `foo()` represents a zero-argument call, not a call with a single empty argument.
 
 
-   [[arguments]]
-   === Macro Arguments
+   === Code Blocks
 
-   Macro calls pass arguments within `(` and `)` that are comma-separated.
-   For each argument, preceding whitespace is not part of the argument, while postceding whitespace
-   is. Specifically, the argument list begins after the unquoted `(`. Subsequent text is elaborated
-   sequentially (invoking macros and interpreting quotes). The text value of the first argument begins
-   at the first elaborated non-whitespace charater following the `(`. Unquoted `(` are counted as
-   an argument is processed. An argument is terminated by the first unquoted and non-parenthetical
-   `,` or `)` in the resulting elaborated text. A subsequent argument, similarly,
-   begins with the first non-whitespace character following the `,` separator. Whitespace includes
-   spaces, newlines, and tabs. An unquoted `)` ends the list.
+   Code blocks are code enclosed in `{`/`}`. They capture code for future evaluation.
 
-   Some examples to illustrate preceding and postceding whitespace and nested macros:
+   A code block can be evaluated (to a string) using the <<m_eval>> macro. For example:
 
-   If, `m5_foo(A,B)` echoes its arguments to produce literal text `{A;B}`, then:
+    eval({set(Foo, 5)})
+
+   Has the same effect as:
+
+    set(Foo, 5)
    
-    m5_foo(  A,  B)          ==> Yields: "{A;B}"
-    m5_foo(    ['']  A,B)    ==> Yields: "{  A;B}"
-    m5_foo(  A  ,  B  )      ==> Yields: "{A  ;B  }"
-    m5_foo(m5_foo(A, B), C)   ==> Yields: "{{A;B};C}"
-    m5_foo(m5_foo([')'],B),C)==> Yields: "{{);B};C}"  (with a warning about unbalanced parentheses)
+   The <<m_if>> macro, below, has a first argument that is a condition and second
+   and third arguments that may be evaluated (using <<m_eval>>) depending on the value
+   of the condition. For example:
 
-   Arguments can be empty text, such as `()` (one empty argument) and `(,)` (two empty arguments).
-   Note that the use of quotes is prefered for clarity. For example, `([''])` and
-   `([''], [''])` are identical to the previous cases.
+    if($Okay, {doit()}, {error("Bad.")})
 
-   The above syntax does not permit macro calls with zero arguments, but `m5_call(macro_name)` can be used
-   for this purpose. (See <<m_call>>.)
+   If <<m_eval>> is given a string rather than a code block, it simply returns the string.
+   Thus a macro argument that is to be evaluated as code may generally also be given without `{`/`}`
+   to pre-evaluate the code. For example:
 
-   Be aware that when argument lists get long, it is useful to break them up on multiple lines. The newlines
-   should precede, not postcede the arguments, so they are not included in the arguments. E.g.:
-
-    m5_foo(long-arg1,
-           long-arg2)
-
-   Notably, the closing parenthesis should *not* be on a the next line by itself. This would include the
-   newline and spaces in the second argument.
-
-
-
-   == Syntactic Sugar
-
-   Syntactic sugar is syntax that is processed directly in the source file prior to macro processing. (See <<Processing Steps>>.)
-
-   === Comments
-
-   ==== M5 Comments (`/{empty}//` and `/{empty}*{empty}*`...`{empty}*{empty}*/`)
-
-   M5 comments are one form of syntactic sugar. They look like:
-
-    /']['// This line comment will disappear.
-    /*']['* This block comment will also disappear. *']['*/
-
-   Block comments begin with `/{empty}*{empty}*` and end with `{empty}*{empty}*/`. Line comments
-   begin with `/{empty}//` and end with a newline. Both are stripped prior to any other processing.
-   As such:
-
-   - M5-commented parentheses and quotes are not visible to parenthesis and quote matching checks, etc.
-   - M5 comments may follow the `[` or `{` beginning a code block or after a comma and prior to an argument
-   that begins on the next line without affecting the code block or argument.
-
-   Whitespace preceding a line comment is also stripped. Newlines from block comments are preserved.
-
-   NOTE: Text immediately following `{empty}*{empty}*/` may, after stripping the comment, begin the line.
-   Comments are stripped before indentation checking. It is thus generally recommented that multi-line block comments
-   end with a newline.
-
-   In case `/{empty}//` or `/{empty}*{empty}*` are needed in the resulting file, quotes can be used, e.g.: `['//']['/']`, to
-   disrupt the syntax.
-
-
-   ==== Target-Language Comments (E.g. `//`)
-
-   Comments in the target language are not recognized as comments by M5. To disable
-   M5 code, it is important to use M5 comments, not target-language comments. (Thus it can be especially
-   problematic when one's editor mode highlights target-language comments in a manner that suggests the
-   code has no impact.)
-
-
-   [[statement_comments]]
-   ==== Statement Comments (E.g. `/`)
-
-   These are specific to <<code_blocks>>, introduced later.
-
-
-   [[macro_sugar]]
-   === Macro Call Sugar
-
-   `m5_\foo(` is syntactic sugar for `m5_\call(foo,`. (See <<m_call>>.) This transformation
-   (as long as it is evaluated) has no impact other than to verify that the macro exists.
-   `m5_\foo(` should not appear in literal text that is never to be evaluated as it would
-   get undesirably sugared. (See <<quotes>> and <<prefix_escapes>> for syntax to avoid undesired sugaring.)
-
-   NOTE: M5 may avoid applying this sugar for common macros from the M5 core library that are
-   assumed to be defined.
-
-   This `m5_foo(` syntax also enters "argument list context" (see <<contexts>>).
-
-
-   [[variable_sugar]]
-   === Variable Sugar
-
-   `m5_Foo` (without a postceding `(`) is syntactic sugar for `m5_get(Foo)`. (See <<m_get>>.)
-   `m5_Foo` should not appear in literal text that is never to be evaluated as it would
-   get undesirably sugared. (For syntax to avoid undesired sugaring, see <<quotes>> and <<prefix_escapes>>.)
-
-
-   [[prefix_escapes]]
-   [reftext="Backslash Word Boundary"]
-   === Backslash Word Boundary (`m5_\` and `\m5_`)
-
-   As more convenient alternatives to quotes:
-
-   - `m5_\foo` results in `m5_foo` without sugaring. This should be used in quoted, non-evaluated context when the literal
-   string `m5_foo` is desired.
-   - `\m5_foo` is shorthand for `['']m5_foo` to provide a word boundary, enabling M5 processing of `m5_foo` when preceded by a word.
-
-   [[bodies]]
-   === Multi-line Constructs: Blocks and Bodies
-
-   ==== What are Bodies and Blocks?
-
-   A "body" is a parameter or macro value that is to be be evaluated in the context of a caller.
-   Macros, like <<m_if>> and <<m_loop>> have "immediate" body parameters. These bodies are to be evaluated
-   by calls to these macros themselves. The final argument to a function or macro declaration
-   is an "indirect" body argument. This body is to be evaluated, not by the declaration macro itself, but by the
-   caller of the macro it declares.
-
-   NOTE: Declaring macros that evaluate body arguments requires special consideration. See <<body_arguments>>.
-
-   <<Code Blocks>> are convenient syntactic sugar constructs for multi-line body arguments formatted like code.
-
-   <<Text blocks>> are syntactic sugar for specifying multi-line blocks of arbitrary text, indented with
-   the code.
-
-   ==== Macro Bodies
-
-   A body argument can be provided as a quoted string of text:
-
-    m5_if(m5_A > m5_B, ['['Yes, ']m5_A[' > ']m5_B'])   /// Might result in "Yes, 4 > 2".
-
-   Note that the quoting of `['Yes, ']` prevents misinterpretation of the `,` as an argument separator
-   as the body is evaluated.
-
-   This syntax is fine for simple text substitutions, but it is essentially restricted to a single line
-   which is unreadable for larger bodies that might define local variables, perform calculations,
-   evaluate code conditionally, iterate in loops, call other functions, recurse, etc.
-
-   [[code_blocks]]
-   ==== Code Blocks
-
-   M5 supports special multi-line syntactic sugar convenient for body arguments, called "code blocks". These look more
-   like blocks of code in a traditional programming language. Aside from comments and whitespace, they
-   contain only macro calls and variable elaborations ("statements"). The resulting text of the code block is constructed from the results
-   of these macro calls.
-
-   The code below is equivalent to the example above, expressed using a code body (and assuming it is
-   itself called from within a code body).
-
-    /Might result in "Yes, 4 > 2".
-    ~if(m5_A > m5_B, [
-       ~(['Yes, '])
-       ~A
-       ~([' > '])
-       ~B
-    ])
-
-   The block begins with `[`, followed immediately by a newline. It ends with a line that begins with `]`,
-   indented consistently with the beginning line. The above code block is "unscoped". A "scoped" code block
-   uses, instead, `{` and `}`. Scopes are detailed in <<scope>>.
-
-   The first non-blank line of the block determines the indentation of the block. Indentation uses spaces;
-   tabs are discouraged, but must be used consistently if they are used. All non-blank lines at this level
-   of indentation (after stripping M5 comments) begin a "statement".
-   Lines with deeper indentation would continue a statement. A continuation line either begins a macro argument
-   or is part of its own (nested) code block argument.
-
-   Essentially, the body, when evaluated, results in the text produced by its statements, which are macros or
-   variables, listed without their `m5_` prefix, or inline text.
-
-   Specifically, statements can be:
-
-   - Macro calls, such as `~if(m5_A > m5_B, ...)`.
-   - Variable elaborations, such as `~A`.
-   - Output statements, such as `~(['Yes, '])`.
-   - Comments, such as `/A comment`.
-
-   Statements that produce output (as all statements in the above example's code block do) must be preceded by `~`
-   (and others may be). This simply helps to identify
-   the source of code block ouput. The `~(...)` syntax produces the given text. A `m5_` prefix is implicit on statements.
-   In the rare (and discouraged) event that a macro without this prefix is to be called, such as use of an `m4_`
-   macro, using `~out(m4_...)` will do the trick.
-
-   The earlier example behaves the same as:
-
-    m5_out(m5_if(m5_A > m5_B, m5__block(['
-       m5_out(['Yes, '])
-       m5_out(m5_get(A))
-       m5_out([' > '])
-       m5_out(m5_get(B))
-    ']))
-
-   The (internal) `m5__block` macro evaluates its argument and results in any text captured by `m5_out`.  
-
-
-   [[scope]]
-   ==== Scoped Code Blocks
-
-   Scoped <<Code Blocks>> are delimited by `{` / `}` quotes.
-   Within a code block, variable declarations (e.g. made by <<m_var>>) are scoped. Their definitions are pushed by the declaration, and
-   popped at the end of their scope. (See <<Macro Stacks>> regarding pushing and popping.)
-
-   It is recommended that all indirect body arguments (see <<bodies>>), such as those of <<m_fn>> be scoped. Immediate body
-   arguments (see <<bodies>>), such as those of <<m_if>>, are most often unscoped, but scope may be used to isolate the side
-   effects of the block to explicit <<m_out_eval>> calls. Scoped and unscoped blocks are illustrated in the following example:
-
-    fn(check, Cond, {
-       if(m5_Cond, [
-          warning(Check failed.)
-       ])
-    )}
-
-   Declarations from outer scopes are visible in inner scopes. Similarly, declarations from calling scopes
-   are visible in callee scopes, though functions should generally be written without any assumptions about the calling
-   scope. Exceptions should be clearly documented/commented.
-
-   NOTE: It is fine to redeclare a variable in the same scope. The redeclaration will override the first,
-   and both definitions will be popped after evaluating the code block. Notably, a variable may be
-   conditionally declared without any negative consequence on stack maintenance.
-
-   By convention, scoped variables and macros use Pascal case, e.g. `MyVar`. (See <<Macro Naming Conventions>>.)
-
-
-   [[text_blocks]]
-   ==== Text Blocks
-
-   "Text blocks" provide a syntax for multi-line quoted text that is indented with its surroundings.
-   They are delimited similarly to code blocks, but use standard (`['` / `']` ) quotes. The openning quote
-   must be followed by a newline and the closing quote must begin a new line that is indented consistently
-   with the line beginning the block. Their indentation is defined by the first non-blank line in the block.
-   All lines must contain at least this indentation (except the last). This fixed level of indentation
-   and the beginning and ending newline are removed. For example:
-
-    macro(copyright, ['['
-       Copyright (c) 20xx
-       All rights reserved.
-    ']'])
-
-   This is equivalent to:
-
-    macro(copyright, ['['Copyright (c) 20xx']m5_nl['All rights reserved.']'])
-
-   The text of the block is in source context, thus syntactic sugar is interpretted under the assumption
-   that the text is to be evaluated. Text blocks that contain literal (quoted) text that is not evaluated
-   should avoid entering argument list context with `m5_`, using quotes or `$` (if within a macro body), and it
-   should be understood that vanishing comments would be removed.
-
-
-   ==== Evaluate Blocks
-
-   It can be convenient to form non-body arguments by evaluating code. Syntactic sugar is provided for
-   this in the form of a `*` preceding the block open quote.
-
-   For example, here a scoped evaluate code block is used to form an error message by searching for
-   negative arguments:
-
-    error(*{    /// like:  error(m5_eval({
-       ~(['Arguments include negative values: '])
-       var(Comma, [''])
-       ~for(Value, ['$@'], [
-          ~if(m5_Value < 0, [
-             ~Comma
-             set(Comma, [', '])
-             ~Value
-          ])
-       ])
-       ~(['.'])
-    })
-
-
-   [[block_labels]]
-   [reftext="Block Labels"]
-   ==== Block Labels: Escaping Blocks and Labeled Numbered Parameters
-
-   Proper use of quotes can get a bit tedious, especially when it is necessary to escape out of several
-   levels of nested quotes. It can improve maintainability, code clarity, and
-   performance to make judicious use of block labels. Note, however, that *the need for block labels is
-   rare* and is mostly replaced by mechanisms provided by <<Functions>>.
-
-   Blocks can be labeled using syntax such as:
-
-    macro(my_macro, ..., <sf>{
-    })
-
-   Labels can be used in two ways.
-
-   - First, to escape out of a block, typically to generate text of the block.
-   - Second, to specify the block associated with a numbered parameter.
-
-   Both use cases are illustrated in the following example that attempts to declare a macro for parsing text.
-   This macro declares a helper macro `ParseError` for reporting parse errors that can be
-   used many times by `my_parser`.
-
-    /Parse a block of text.
-    macro(my_parser, {
-       var(Text, ['$1'])  //']['/ Text to parse
-       var(What, ['$2'])  //']['/ A description identifying what is begin parsed
-       /Report a parse error, e.g. m5_ParseError(['unrecognized character'])
-       macro(ParseError, {
-          error(['Parsing of ']m5_What[' failed with: "$1"'])  /// !!! TWO MISTAKES !!!
-       })
-       ...
-    })
-
-   This code contains, potentially, two mistakes in the error message. First, `m5_What` will be
-   substituted at the time of the call to `ParseError`. As long as `my_parser` does not
-   modify the value of `What`, this is fine, but it might be preferred to expand `m5_What` in
-   the definition itself to avoid this potential <<masking>> issue in case `What` is reused.
-
-   Secondly, `${empty}1` will be substituted upon calling `my_parser`, not upon calling `ParseError`,
-   and it will be substituted with a null string.
-
-   The corrected example would use:
-
-    macro(ParseError, <err>{
-       error(['Parsing of ']<err>m5_What[' failed with: "$<err>1"'])  /']['// 2 Fixes!
-    })
-
-   This code corrects both issues:
-
+    DEBUG("BoolVar is " if($BoolVar, {"true"}, {"false"}) ".")
    
+   can be simplified to:
 
-   - `'{empty}]<err>m5_What[{empty}'`: This syntax acts in this case
-   as `'{empty}]'{empty}]m5_nquote(1,m5_get(What))[{empty}'[{empty}'`, escaping enough
-   levels of quoting to evaluate `m5_What` in the text of the `err` block and having the effect of
-   using the definition of `m5_What` at the time of the macro definition. (The added level of quotes
-   corresponds to the `{` / `}` block quotes which are sugar for `['` / `']`.)
-   - `$<err>1`: This syntax associates `${empty}1` with the `err` block and is in this example
-   equivalent to `'{empty}]'{empty}]m5_nquote_dollar(1,1)[{empty}'[{empty}'`.
+    DEBUG("BoolVar is " if($BoolVar, "true", "false") ".")
 
+   Generally, as above, a macro argument will either be a single code block or statements producing strings.
+   There are, however, no restrictions on mixing code blocks and other statements. An argument can contain
+   a mix of pre-evaluated strings and code blocks. Consider the following example, which iterates over
+   items, listing each one with leading text:
 
-   [[contexts]]
-   === Contexts
+    repeat($NumItems, {$Indentation ": " GetItem($LoopCnt)})
 
-   The various features of M5 apply in different contexts. This section summarizes the syntaxes
-   that transition among contexts and the syntactic features available in each context. The
-   context in which various features are supported is also summarized in <<Reference Card>>.
-   Contexts can be nested, with the innermost context determining which features are available.
+   The first argument of the `repeat` macro is the number of iterations. The second is code to evaluate for each
+   iteration. `$LoopCnt` is implicitly defined by `repeat` as the loop index. In this example, `$Indentation ": "` is
+   the same for every iteration and can be pre-evaluated. We can achieve this as:
 
-   The following file illustrates different contexts:
-
-    Copyright (c) Joe Cool      /']['// source context
-    m5_do([                     /']['// enter argument list context then code context
-       var(Ver, 1.0)            /']['//     code context
-       var(Banner, ['           /']['//     code context, enters source context
-          Zap™ (v']m5_Ver[')    /']['//       text (escaping to code) context
-          Author: Joe Cool      /']['//       text context
-       '])                      /']['//     exits source context
-    ])                          /']['// exit code context then argument list context
-    File version: m5_Ver        /']['// source context
-
-   ==== Source Context
-
-   Source context generally passes text through to the output. It is the default context and is
-   also the context of text blocks.
-
-   Features supported in source context are supported in all contexts. For text that is intended
-   to be literal, caution must be taken to avoid inadvertent use of these syntaxes.
-   (See <<Ensure No Impact>>.)
-
-   The following are recognized in source context:
-
-   - Vanishing comments
-   - Macro calls
-   - Variable instantiation
-   - Pragmas
-
-   ==== Text Context
-
-   Text context is the default context entered by (block or non-block) `[{empty}'` quotes.
-
-   In addition to the features of source context, the following are recognized in
-   text context:
-
-   - quotes are parsed and matched (see <<matching>>)
-
-   ==== M5 Context
-
-   Argument list context is entered from source and text contexts by, for example, `m5_foo(`. This context is exited by the corresponding `)`.
-   In addition to text context features, the following are recognized in argument list context:
-
-   - code and text blocks
-   - parentheses are matched (see <<matching>>)
-
-   ==== Code Context
-
-   Code context is for <<Code Blocks>>, supporting syntactic sugar for formatting
-   macro code more like programs.
-
-   Code context is entered by `[`/`{` that end a line (after
-   stripping vanishing comments) and is exited by the corresponding `]`/`}`
-   beginning a line at matching indentation (also after
-   stripping vanishing comments).
-
-   In addition to argument list context features, the following are recognized in code context:
-
-   - implicit `m5_` beginning lines
-   - `~` allowing output (including, e.g. `~(hi)`, `~MyVar`, `~nl()`)
-   - `/` comments
-
-
-   [[pragmas]]
-   [[checks]]
-   === Syntax Checks and Pragmas
-
-   [[indentation_checks]]
-   ==== Indentation Checks
-
-   M5 checks that indentation is consistent for code and text blocks.
-
-
-   [[matching]]
-   ==== Quote and Parenthesis Matching
-
-   Parenthesis and quote matching is performed on the code after stripping comments.
-   Quotes (including `[` / `]` and `{` / `}` quotes for code blocks) must be
-   balanced.
+    repeat($NumItems, {} $Indentation ": " {GetItem($LoopCnt)})    # TODO: Is {} needed to coerce here or will coercion necessarily happen later anyway.
+    repeat($NumItems, {:$Indentation ": " GetItem($LoopCnt)})      # Or, code block have to be a complete argument?
    
-   Within each level of quotes, parentheses must be balanced. Parentheses in
-   source and text context are excluded from this check, thus requiring parentheses
-   for macros and parentheses that appear unquoted within macro arguments to be
-   balanced.
+   TODO: Macro has everything a function has except scope for the body. That includes aftermath and
+         push/pop of parameters (popped before aftermath). Function in not
+         built-in and adds scope to the body. Code block is a macro with zero args.
+   Nope: Calls push/pop $1... Functions add scope and push/pop params and are built-in so $1... can
+         be assigned to ... args only. Code blocks are functions with no parameters (so there
+         can be no push/pop of $1... and no scope). Use foo() or eval(foo) to evaluate code blocks??
+   Nope: Macros are not built-in. Functions/code blocks are special built-in stacked variables and have text representations
+         of their bodies accessible via body_of(...). (Functions are scoped; code blocks are not.)
+         {} are code quotes.
+         (They can be passed as code parameters as {foo()} (deferred) or get_code(foo).)
+         Macros are a library function that modifies the code to replace $1, etc.
+   TODO: Returning unquoted (inline) text to be evaluated, such as arg lists? Looks like I got rid of that in M5?
+         Maybe comma should be allowed in a code block as an argument separator--no, too dangerous.
 
-   Within a line, `'{empty}]` / `[{empty}'` quotes may be used (including nesting) to escape
-   from and return to the same quoted context. This applies to contexts of all quote
-   types, including code blocks, even though they are bound using different
-   quote syntax. The context that is escaped from and returned to is the same
-   context, thus parenthesis matching happens across the escaping. Thus, the
-   parentheses on this code statement line are matching:
+   === Declaring Macros
 
-    ~hello('']]['<top>m5_Name'][['')
+   Macros are in some respects, like variables. While variables can only be assigned to strings,
+   macros are assigned to code. Unlike variables, macros take parameters. Though macros are
+   rarely defined to be scoped, they can be and they have stacks, like variables.
+
+   Macros declarations take the form:
+
+    macro(<name>, [<param-list>,] {<body>})
+
+   For example:
+
+    macro(hello, Name, {"Hello, " $Name "!"})
+
+   defines a macro named `Hello` that takes a parameter `Name`. This macro can be instantiated as:
+
+    hello("Joe")
    
-   Here are some other examples:
+   resulting in the string: `Hello, Joe!`.
 
-    m5_var(Expr, ['m5_calc(6 * (1 +']m5_Val['))'])   /']['// OK - both match
-    /']['// Similar, across two lines:
-    m5_var(Expr, ['m5_calc(6 * (1 +'])    /']['// Bad
-    m5_append_var(Expr, m5_Val['))'])     /']['// Bad
-    m5_var(Open, ['('])   /']['// OK - paren in text context
+
+   === Special Code Syntax
+
+   `|` is shorthand for <<m_nl>> and produces a newline.
+
+   `~` is used to force preceding end quote characters to be taken literally and to continue a string.
+
+   code(CallBarABC, {call(bar(a, b, c))})
+   CallBarABC()  # bar(a, b, c)
+   code_var(MyArgs, {, 1, 2, 3})   # Code may start with "," and, if it does, it may contain other top-level commas.
+   args_code(MyArgs, 1, 2, 3)  # Equivalent to the above.
+   append_code(MyArgs, {, 4})
+   with_args({args_var(NewArgs, arg(1) args(3..))}, MyArgs)   # var(NewArgs, {, 1, 3, 4})
+   args_var(MyArgs, ", 1, 2, 3")   # Must be empty or begin with ","; legal, balanced code delimited by ",".
+                                   # Only code_snippet can take incomplete code arg.
+   call(MyFn MyArgs())   # MyFn(1, 2, 3)
+   code(CallFoo, to_code("call(foo" $MyArgs ")"))
+   CallFoo()  # foo(1, 2, 3)
+   call(arg(0), shift(2))   # args(3..) == shift(2)
+
+   Somewhere... a code block that represents one or more arguments must begin with `,`. An empty code
+   block may represent zero arguments.
+
+   `@` begins a reference to zero or more numbered parameters. A reference to a negative number of
+   parameters results in an error. Some syntaxes refer specifically to one parameter. These may
+   appear anywhere in the code, thus they may contribute to part of an argument. Syntaxes which may
+   refer to multiple parameters must produce a discrete number of arguments must be placed where
+   an argument would be placed, preceded and followed by argument delimitation: `,`/`(` and `,`/`)`
+   or in a code block which will begin with `,`. Though it appears as as an argument, it may result in
+   zero arguments, where a preceding or following comma is ignored, or, if delimited by `(`/`)`, it
+   may result in zero arguments.
    
-   See also, <<m_open_quote>>, <<m_close_quote>>, and
-   `m5_pragma_[enable/disable]_paren_checks` in <<Pragmas>>.
+   `@1` refers to the first unnamed parameter (which must exist), `@15` the 15th.
 
-   ==== Pragmas
+   `@2?` refers to the second unnamed parameter or "" if it doesn't exist.
 
-   In certain cases quote and parenthesis checking gets in the way. It is possible to disable checking and control debug behavior using pragmas.
-   Pragmas processing happens after M5 comments are stripped. The following strings are recognized as pragmas:
+   `@3..` refers to all arguments from the third, or none, in which case the preceding `,` is ignored.
 
-   * `where_am_i`: Prints the current quote context to STDERR.
-   * `[enable/disable]_[paren/quote]_checks`: For disabling parenthesis/quote checking.
-   * `[enable/disable]\_sugar`: For disabling syntactic sugar (`m5_` and code/text blocks).
-   * `[enable/disable]_debug`: Improves the readability of the file resulting from sugar processing, and continues processing after normally-fatal errors.
-   * `[enable/disable]_verbose_checks`: Enables or disables verbose checking.
+   `@1..3` is equivalent to `@1, @2, @3`.
 
-   Since the pragmas would pass through to the target file, pragmas are generally expressed using the following macro calls
-   which elaborate to nothing:
+   `@1..3?` is equivalent to `@1?, @2?, @3?`.
 
-   * `m5_pragma_{empty}where_am_i()`
-   * `m5_pragma_[enable/disable]_{check}()`, where `{check}` is `paren_checks`, `quote_checks`, `sugar`, `debug`, or `verbose_checks`.
+   `@1..-1` is arguments @1 up to the one before the last.
+
+   `@(...)` evaluates the parenthetical code and interprets the results as the text after `@` in cases above.
+
+   `@foo(...)` evaluates the resulting code, which must begin with a comma argument separator or be empty.
+   This comma will be ignored or an empty result represents zero arguments.
+
+   `@#` is the number of arguments.
 
 
-   === Literal Commas
+   === Functions
 
-   A comma (`,`) character appearing in source or text context is a "literal comma". It
-   can never have special meaning as an argument separator even if used to construct a string
-   that is evaluated as a macro call. A comma appearing in argument list or code context
-   is a "non-literal comma". It is expected to be evaluated as a macro argument separator, though
-   if never evaluated, it remains a `,` character and may pass through to the output.
+   Functions are macros that evaluate in their own scope.
 
-   Generally, comma characters will behave as expected, but, caution must be taken in situations where
-   macro calls are constructed, then evaluated. For these rare cases, let's consider a few examples.
-
-   Here, the commas are argument separators:
-
-    m5_foo(A, B, C)
-   
-   while those within quotes (in text context), here, are literal:
-
-    m5_macro(MyList, ['A, B, C'])
-   
-   and `m5_foo(m5_MyList)` would receive a single parameter.
-
-   It is possible to define `MyList` to contain argument-separator commas using the
-   [[m_arg_comma]] variable, as:   /// <-- Create and document this variable.
-
-    m5_macro(MyList, A\m5_arg_comma B\m5_arg_comma C)
-   
-   in which case `m5_foo(m5_MyList)` would receive three parameters.
-
-   In this example:
-
-    m5_macro(MyExpr, ['m5_foo(A, B, C)'])
-   
-   all commas are argument separator commas. This defines `m5_MyExpr()` to invoke `m5_foo`
-   with three parameters.
-   
-   Below, however, `m5_\foo` is not recognized a macro call (though the `\` disappears), thus
-   the commas separating `A`, `B`, and `C` are in text context and are literal (see <<prefix_escapes>>):
-
-    m5_macro(MyExpr, ['m5_\foo(A, B, C)'])
-   
-   and `m5_MyExpr()` would invoke `m5_foo` with a single parameter. This has the same effect as:
-   
-    m5_macro(MyExpr, ['m5_foo(['A, B, C'])'])
-
-   (aside from the fact that the latter would be sugared and thus the existence of `m5_foo` would be confirmed).
-   
-
-   /**
-   === Sugar That Must Evaluate
-
-   ...
-
-   **/
-
-   == Coding Practices
-
-   === Coding Conventions
-
-   [[status]]
-   === Status
-
-   The variable <<v_status>> has a reserved usage. Some macros are defined to set <<v_status>>. A non-empty
-   value indicates that the macro did not perform its duties to the fullest. Several `m5_if*` macros set non-empty
-   status if they do not evaluate a body.
-
-   Macros such as <<m_else>> and <<m_if_so>> take action based on <<v_status>>.
-
-   Well-behaved macros set <<v_status>> always or never (and never is the assumption if no side effect is listed in a
-   macro's documentation). Thus <<v_status>> is more like a return value than
-   a sticky flag. Sticky behavior can be achieved using <<m_sticky_status>>. There is no support for try-catch-like
-   error handling. In bodies of <<m_macro>> it may be necessary to explicitly save and restore status to avoid unintended
-   side-effects on <<v_status>> from calls within the bodies. <<m_fn>> does this automatically. If <<v_status>> is checked, it is
-   generally checked immediately after a call.
-
+    fn()
 
    === Functions
 
@@ -1424,7 +936,6 @@ m5_var(main_doc, <">
                    e.g. `?^<name>`. There is no corresponding argument in a call of this function. It is conventional to list
                    inherited parameters last (before the body) to maintain correspondence between the parameter
                    list of the definition and the argument list of a call.
-                   Note that `$`s are problematic in inherited parameter values as undesired substitution may occur.
      * `<comment>`: A description of the parameter. In addition to commenting the code, this can be extracted in
                    documentation./** See <<m_enable_doc>>.**/
    - `...`:        Listed after last numbered parameter to allow extra numbered arguments. Without this, extra arguments
@@ -1528,6 +1039,7 @@ m5_var(main_doc, <">
     update(Value)
 
 
+   [[returning_status]]
    ==== Returning Status
 
    A function's <<v_status>> should be returned via the function's aftermath, using <<m_return_status>>, e.g.
@@ -1599,6 +1111,166 @@ m5_var(main_doc, <">
     })
 
 
+   === Block Labels
+
+   Code can be nested within several layers of code blocks. Generally, code evaluates sequentially within its
+   block, but it can be useful to pre-evaluate code. Block labels provide convenient syntax for this.
+
+   //Code can be evaluated prior to the evaluation of the block within which it is contained. Block labels are
+   //used indicate the block that to a block of code so that it can be  pre-evaluate code within a code block. Code blocks can be labeled as, e.g.:
+
+   // fn(foo, body:{
+   //    ...
+   // })
+   
+   In the simple example below, `h` is a label for the code block.
+
+    code(hello, h:{
+       "Hello, " h:$Name "." |
+    })
+   
+   The label is used within the block as `h:$Name`, providing scope to the variable `$Name`.
+   `h:$Name` takes on the value of `Name` outside of the block labeled `h`. It evaluates when the `h`
+   block is parsed. The above is equivalent to:
+
+    code(hello, {
+       "Hello, "} $Name {"."
+    })
+   
+   but the use of labels allows us to align `{`/`}` pairs more naturally (and legally, see <<xxx>>). Also,
+   consider the modification without the use of a label:
+   
+    code(hello, {
+       if($Cond, {
+          "Hello, "} $Name {"."
+       }
+    })
+   
+   This modification would no longer evaluate `$Name` at the time of the code definition, whereas the
+   labeled reference is more explicit and avoids this easy mistake. Note that the following would,
+   in concept, fix this bug:
+
+    code(hello, {
+       if($Cond, {
+          "Hello, "}} $Name {{"."
+       }
+    })
+   
+   though this is not permitted due to the apparent mismatching parentheses and for its lack of readability.
+   (See <<xxx>>.) The correct code, using a label, is:
+
+    code(hello, h:{
+       "Hello, " h:$Name "."
+    })
+
+   Labels may be associated with calls (`label:foo()`) and variables (`label:$Foo`).
+
+    label:foo(a1)          # Evaluates using the definition of `foo` at the time the labeled block is parsed.
+    label:(foo(a1)...)     # Evaluates `call(foo, a1)...` at the time the labeled block is parsed. (Continue applying the label
+                           # through the argument list.) Maybe, no. Just require `var(tmp, foo(a1)...)` outside, then `label:$tmp`??
+
+   === String Labels
+
+   String labels use a similar syntax to <<Block Labels>>, but they serve a different purpose. They
+   have no impact functionally. Instead they are used to convey to an editor or IDE the syntax used in a
+   multiline string. For example, if Tilde is being used to process Python code, the following might be
+   used:
+
+    set(MyPythonCode, python:<">~
+      def foo():
+        print("Hello, world!")
+    <">~)
+   
+   An editor that recognizes the `python:` label might provide appropriate syntax highlighting for the
+   Python code.
+
+   === Syntax Configuration
+
+
+
+   == Writing Tilde Code
+
+   === Code Formatting
+
+   === Unquoted Character Restrictions
+
+   There are restrictions on the use of unquoted characters in arguments. This
+   affords greater flexibility for syntax configuration. It also encourages quoting to
+   avoid missing quotes around special characters.
+
+   The restrictions are different for argument text and arithmetic expressions.
+
+   ==== Unquoted Argument Characters
+
+   Unquoted text is only permitted in argument text as a string of non-whitespace characters
+   without other statements. This string of characters may be referred to as a "token".
+
+   Tokens may include:
+   
+   - word characters: `a-z`, `A-Z`, `0-9`, `_`
+   - some symbols: `~^&*-+.?`
+
+   Tokens may not include:
+
+   - whitespace
+   - comma (`,`)
+   - paired characters: `()[]{}<>`
+   - quote characters: `"'\``
+   - certain symbols that have other significance by default or that may be configured to have other significance:
+   `!#@%=:;$/\\|`
+
+   ==== Unquoted Arithmetic Expressions Characters
+
+   In arithmetic expressions, unquoted characters are free to mingle with other
+   statements.
+
+   Permitted characters include:
+
+   - whitespace (which is ignored and irrelevant to <<m_calc>>)
+   - digits: `0-9`
+   - symbols: `+-*/!=<>%&|`
+
+   And these cannot be used as unquoted literal characters:
+
+   - word characters: `a-z`, `A-Z`, `_`
+   - paired characters: `()[]{}`
+   - quote characters: `"'\``
+   - symbols: `~$#@^:;\\.?`
+
+   `|` is not treated as a newline character in arithmetic expressions.
+
+
+   === Constructing Code
+   
+   Though rarely needed, code may be constructed from strings and converted to code using the `compile` macro.
+   For example this modifies the above example to call either `error`, `warning`, or `info` based on the
+   value of `ErrorLevel` which holds one of those three strings. (Note, there are other ways
+   to accomplish this.):
+   
+    var(ErrorLevel, "error")  # or "warning" or "info"
+    ...
+    var(BadCodeString, $ErrorLevel <">("Ugh!")<">)
+        # E.g. <">error("Ugh!")<">
+    var(BadCode, compile($BadCodeString))
+        # E.g. {error("Ugh!")}
+    if($Okay, {doit()}, $BadCode)
+
+   Code blocks can most directly be evaluated using the `eval` macro. For example:
+
+    eval($BadCode)   # Reports "Ugh!".
+
+
+
+   == Standard Library Reference
+
+
+
+
+
+
+
+
+
    /** WIP
    === Contexts: Namespaces, and Libraries
 
@@ -1606,9 +1278,9 @@ m5_var(main_doc, <">
 
    The context of a macro comes in three types:
 
-   - Universal: Universal macro names are the same for any M5 program. These can be called directly, prefixed
+   - Universal: Universal macro names are the same for any Tilde program. These can be called directly, prefixed
    with `m5_`. They can be:
-   - Built-in: These are defined by the M5 library.
+   - Built-in: These are defined by the Tilde library.
    - External: These are only defined if explicitly included.
    - Namespaced: Namespaces are used to avoid name conflicts between third-party libraries and between different
    versions of the same library. Namespaces are local to a library or application, and may exist in a hierarchy.
@@ -1676,7 +1348,7 @@ m5_do([
       
          == Macro Library
 
-         This section documents the macros defined by the M5 1.0 library. Some macros documented here are
+         This section documents the macros defined by the Tilde 1.0 library. Some macros documented here are
          necessary to enable inclusion of this library and are, by necessity, built-into the language. This
          distinction may not be documented.
       
@@ -2079,10 +1751,10 @@ m5_do([
          If the resulting string would contain any quotes, an error is reported suggesting the use of `dequote` and `requote`
          and the resulting string has its quotes replaced by control characters.
          
-         Extracting substrings from UTF-8 strings (supporting unicode characters) is also dangerous. M5
+         Extracting substrings from UTF-8 strings (supporting unicode characters) is also dangerous. Tilde
          treats characters as bytes and UTF-8 characters can use multiple bytes, so substrings can split
-         UTF-8 characters. Such split UTF-8 characters will result in bytes/M5-characters that have no
-         special treatment in M5. They can be rejoined to reform valid UTF-8 strings.
+         UTF-8 characters. Such split UTF-8 characters will result in bytes/Tilde-characters that have no
+         special treatment in Tilde. They can be rejoined to reform valid UTF-8 strings.
          
          When evaluating substrings, care must be taken with `,`, `(`, and `)` because of their meaning in argument parsing.  
          
@@ -2216,7 +1888,7 @@ m5_do([
 
          ==== Regular Expressions
 
-         Regular expressions in M5 use the same regular expression syntax as GNU Emacs. (See
+         Regular expressions in Tilde use the same regular expression syntax as GNU Emacs. (See
          https://www.gnu.org/software/emacs/manual/html_node/emacs/Regexps.html[GNU Emacs Regular Expressions].)
          This syntax is similar to BRE, Basic Regular Expressions in POSIX and is regrettably rather limited.
          Extended Regular Expressions are not supported.
@@ -2286,12 +1958,11 @@ m5_do([
          ...: ['else body or additional repeated Regex, VarList, Body, ... to process if pattern doesn't match'])
 
       ~DocFn(for_each_regex, <">
-         D: Evaluate body for every pattern matching regex in the first line of `String`.
-         <<v_status>> is unassigned.
+         D: Evaluate body for every pattern matching regex in the string. <<v_status>> is unassigned.
          S: side-effects of evaluating the body
          E: m5_for_each_regex(H1dd3n D1git5, ['\([0-9]\)'], (Digit), ['Found m5_Digit. '])
          P: Found 1. Found 3. Found 1. Found 5. 
-         A: (m_regex, m_for_each_line, m_regex_eval, m_if_regex, m_else_if_regex)
+         A: (m_regex, m_regex_eval, m_if_regex, m_else_if_regex)
       <">, String: the string to match (containing at least one subexpression and no `$`),
          Regex: the Gnu Emacs regular expression,
          VarList: a (non-empty) list in parentheses of variables to declare for subexpressions,
@@ -2304,7 +1975,7 @@ m5_do([
 
       ")
       ~DocFn(defn, <">
-         O: the M4 definition of a macro; note that the M4 definition is slightly different from the M5 definition
+         O: the M4 definition of a macro; note that the M4 definition is slightly different from the Tilde definition
       <">, Name: the name of the macro)
 
       ~DocFn(call, <">
@@ -2318,7 +1989,7 @@ m5_do([
       <">, Name: the name of the macro to call, ...: the arguments of the macro to call)
 
       ~DocFn(quote, <">                  
-         O: a comma-separated list of quoted arguments, i.e. `${empty}@`                   
+         O: a comma-separated list of quoted arguments, i.e. `${empty}@`, thus turning multiple arguments into a single literal string.
          E: m5_quote(A, ['B'])
          P: ['A'],['B']
          A: (m_nquote)
@@ -2573,10 +2244,10 @@ m5_do([
          D: Provide return status. (Shorthand for `m5_on_return(set, status, m5_Value)`.) This negates any prior calls
          to `return_status` from the same function.
          S: sets `m5_status`
-         A: (m_on_return, status, Aftermath)
+         A: (m_on_return, v_status, returning_status, Aftermath)
       <">, ?Value: ['the status value to return, defaulting to the current value of `m5_\status`'])
       
-      ~DocFn(on_return, <">
+      ~DocFn(on_return, MacroName, ..., <">
          D: Call a macro upon returning from a function. Arguments are those for m5_call.
          This is most often used to have a function declare or set a variable/macro as a side effect.
          It is also useful to perform a tail recursive call without growing the call stack.
@@ -2680,7 +2351,7 @@ m5_do([
       
       == Reference Card
 
-      M5 processes the following syntaxes:
+      Tilde processes the following syntaxes:
 
       [cols="3,2,4,3,2a"]
       [[syntax_table]]
@@ -2688,7 +2359,7 @@ m5_do([
       |===
       |Feature |Reference |Syntax |Contexts |Must Be Evaluated?
 
-      |M5 comments
+      |Tilde comments
       |<<Comments>>
       |`/{empty}//`, `/']['{empty}*{empty}*`, `{empty}*{empty}*']['/`
       |All
@@ -2742,17 +2413,17 @@ m5_do([
       |Code block quotes
       |<<Code Blocks>>
       |`[`, `]`, `{`, `}` (ending/beginning a line)
-      |M5, code
+      |Tilde, code
 
       |Text block quotes
       |<<Text Blocks>>
       |`['`, `']` (ending/beginning a line)
-      |M5, code
+      |Tilde, code
 
       |Evaluate Blocks
       |<<Evaluate Blocks>>
       |`{empty}*[`, `[`, `{empty}*{`, `}`, `*['`, `']`
-      |M5, code
+      |Tilde, code
 
       |Statement comment
       |<<statement_comments>>
@@ -2787,13 +2458,13 @@ m5_do([
       |Named blocks
       |<<block_labels>>
       |`<foo>` (preceding the open block quote, after optional `{empty}*`) e.g. `{empty}*<bar>{` or `<baz>[{empty}'`
-      |M5, Code
+      |Tilde, Code
       |Yes
 
       |Quote escape
       |<<block_labels>>
       |`'{empty}]<foo>m5_Bar[{empty}'`
-      |All (within any type of M5 quotes)
+      |All (within any type of Tilde quotes)
       |`<foo>m5_Bar`-Yes
 
       |Labeled number/special parameter reference
@@ -2810,7 +2481,7 @@ m5_do([
       
       === Special Characters
       
-      If only we could reserve a few characters specifically for M5 (for "m5_", quotes, and commas especially,
+      If only we could reserve a few characters specifically for Tilde (for "m5_", quotes, and commas especially,
       and parentheses would be nice too). Alas, there is no standard, global way to type non-ascii characters.
 
       === Literal vs. Source Quotes

@@ -1,3 +1,4 @@
-/doc/obj
-/doc/docbook_tmp
-/doc/M5_spec.xml
+/doc*/obj*
+/doc*/docbook_tmp
+/doc*/*_spec.adoc
+/doc*/*_spec.xml

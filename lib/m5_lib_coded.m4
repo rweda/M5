@@ -185,13 +185,13 @@ m4_define_hide(
   // If we already included this library using the exact same URI or name, don't include it again.
     m4_ifdef(m4_include_lib__uri=$1, 
       // This library (exact same URI) has already been loaded.
-      m4_errprint(Info: Skipping inclusion of "$1" since it has already been included.m4_nl)
+      m4_errprint(Info: Skipping inclusion of "$1" since it has already been included.m5_nl())
     , 
       m4_ifdef(m4_include_lib__name=$2, 
         // A library by this name has already been included, but the URI was not an exact match.
-        m4_errprint(Error: A library named "$1" was already included, though its path was different.m4_nl)
-        m4_errprint(       Currently, there is no support for loading multiple versions of a library.m4_nl)
-        m4_errprint(       Skipping inclusion of "$1".m4_nl)
+        m4_errprint(Error: A library named "$1" was already included, though its path was different.m5_nl())
+        m4_errprint(       Currently, there is no support for loading multiple versions of a library.m5_nl())
+        m4_errprint(       Skipping inclusion of "$1".m5_nl())
       , 
         // No library by this name or URI has been included. Include it.
         m4_define(m4_include_url_cnt, m4_eval(m4_include_url_cnt + 1))
@@ -248,7 +248,7 @@ m4__define_libraries(
 m4_define(m5_use,
    m4_ifelse(m4_eval($# >= 1), 1,
                m4_ifdef(m4__lib:$1,
-                          m4_include_lib(m4_defn(m4__lib:$1), m4_substr($1, 0, m4_index($1, -))),
+                          m4_null(m4_include_lib(m4_defn(m4__lib:$1), m4_substr($1, 0, m4_index($1, -)))),
                           m4_errprint(Unknown library: "$1".m5_nl()))))
 
 
